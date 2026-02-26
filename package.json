@@ -13,7 +13,10 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "msw"
-    ]
+    ],
+    "overrides": {
+      "react-is": "^19.1.0"
+    }
   },
   "devDependencies": {
     "turbo": "^2.8.11",
