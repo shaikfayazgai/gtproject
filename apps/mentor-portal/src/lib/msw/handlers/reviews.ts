@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import type { ReviewQueueItem } from '@glimmora/types'
+import { createMockReviewDetail } from '../factories/review'
 
 const mockQueueItems: ReviewQueueItem[] = [
   {
@@ -75,32 +76,15 @@ export const reviewHandlers = [
   }),
 
   http.get('/api/mentor/reviews/:id', ({ params }) => {
-    return HttpResponse.json({
-      id: params.id,
-      task: {
-        title: 'Build REST API endpoint',
-        brief: 'Create a REST API...',
-        deliverables: ['endpoint.ts', 'auth.middleware.ts'],
-        skillTags: ['Node.js', 'REST API'],
-      },
-      evidences: [
-        {
-          id: 'ev-001',
-          type: 'code',
-          content: 'const express = require("express")...',
-          submittedAt: new Date().toISOString(),
-        },
-        {
-          id: 'ev-002',
-          type: 'url',
-          content: 'https://github.com/example/api-endpoint',
-          submittedAt: new Date().toISOString(),
-        },
-      ],
-    })
+    const detail = createMockReviewDetail(params.id as string)
+    return HttpResponse.json(detail)
   }),
 
-  http.post('/api/mentor/reviews/:id/decision', async () => {
+  http.post('/api/mentor/reviews/:id/decision', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>
+    if (!body || !body.type) {
+      return HttpResponse.json({ error: 'Missing decision type' }, { status: 400 })
+    }
     return HttpResponse.json({ success: true })
   }),
 
@@ -116,14 +100,6 @@ export const reviewHandlers = [
     return HttpResponse.json({
       status: 'pending_admin_approval',
       message: 'Extension request submitted. Admin review required within 24 hours.',
-    })
-  }),
-
-  http.get('/api/mentor/profile', () => {
-    return HttpResponse.json({
-      pendingReviews: mockQueueItems.filter((i) => i.status === 'pending').length,
-      completedThisWeek: 5,
-      avgSLADaysRemaining: 1.4,
     })
   }),
 

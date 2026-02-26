@@ -4,13 +4,13 @@ import { useQuery } from '@tanstack/react-query'
 
 interface MentorProfileData {
   pendingReviews: number
-  completedThisWeek: number
-  avgSLADaysRemaining: number
+  totalReviews: number
+  averageReviewHours: number
 }
 
 export function MentorKPIRow() {
   const { data, isLoading } = useQuery({
-    queryKey: ['mentor', 'profile'],
+    queryKey: ['mentor', 'profile', 'full'],
     queryFn: async () => {
       const response = await fetch('/api/mentor/profile')
       if (!response.ok) throw new Error('Failed to fetch mentor profile')
@@ -38,9 +38,9 @@ export function MentorKPIRow() {
       </GradientCard>
 
       <GradientCard gradient="nature">
-        <p className="text-sm font-body opacity-90">Completed This Week</p>
+        <p className="text-sm font-body opacity-90">Total Reviews</p>
         <p className="text-3xl font-display font-semibold mt-1">
-          {data?.completedThisWeek ?? 0}
+          {data?.totalReviews ?? 0}
         </p>
       </GradientCard>
 
@@ -48,9 +48,9 @@ export function MentorKPIRow() {
         gradient="primary"
         style={{ background: 'linear-gradient(135deg, #4A6741 0%, #3A8FA0 100%)' }}
       >
-        <p className="text-sm font-body opacity-90">Avg SLA Remaining</p>
+        <p className="text-sm font-body opacity-90">Avg Review Time</p>
         <p className="text-3xl font-display font-semibold mt-1">
-          {data?.avgSLADaysRemaining ?? 0}d
+          {data?.averageReviewHours?.toFixed(1) ?? '0.0'}h
         </p>
       </GradientCard>
     </div>
