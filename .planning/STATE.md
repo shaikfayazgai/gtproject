@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 3 of 6 (Women's Portal + University Portal) -- IN PROGRESS
-Plan: 2 of 5 in current phase
+Plan: 4 of 5 in current phase
 Status: In progress
-Last activity: 2026-02-26 -- Completed 03-02-PLAN.md (Dashboard, Tasks, Evidence Submission)
+Last activity: 2026-02-26 -- Completed 03-04-PLAN.md (University Portal Student Experience)
 
-Progress: [██████████░░░░░░░░░░░░░░] 10/24 plans (42%)
+Progress: [████████████░░░░░░░░░░░░] 12/24 plans (50%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
-- Average duration: 5.7 min
-- Total execution time: 67 min
+- Total plans completed: 12
+- Average duration: 6.1 min
+- Total execution time: 87 min
 
 **By Phase:**
 
@@ -29,11 +29,11 @@ Progress: [██████████░░░░░░░░░░░░░
 |-------|-------|-------|----------|
 | 01-monorepo-infrastructure-ds-foundation | 4/4 | 29 min | 7.3 min |
 | 02-design-system-completion | 4/4 | 25 min | 6.3 min |
-| 03-womens-portal-university-portal | 2/5 | 13 min | 6.5 min |
+| 03-womens-portal-university-portal | 4/5 | 33 min | 8.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-02 (8 min), 02-03 (5 min), 02-04 (3 min), 03-01 (8 min), 03-02 (5 min)
-- Trend: stable
+- Last 5 plans: 02-04 (3 min), 03-01 (8 min), 03-02 (5 min), 03-03 (10 min), 03-04 (10 min)
+- Trend: slightly increasing (portal plans larger than DS plans)
 
 *Updated after each plan completion*
 
@@ -82,6 +82,10 @@ Recent decisions affecting current work:
 - [03-02]: Evidence rework pack pre-seeded in MSW handlers for task-005 so rework view has data
 - [03-02]: Common MSW factory helper (randomId, isoNow) in factories/common.ts for reuse
 - [03-02]: Pipeline visualization in submission tracker uses simple div bars (not TimelineBar component)
+- [03-04]: Task discovery uses Available/My Tasks/Completed tabs (students choose tasks, not assigned)
+- [03-04]: PDF export uses dynamic import (await import('@react-pdf/renderer')) to avoid SSR crashes
+- [03-04]: University Portal auth store uses zustand persist with localStorage for session continuity
+- [03-04]: lucide-react added as direct dependency to university-portal for sidebar icons
 
 ### Pending Todos
 
@@ -93,10 +97,10 @@ None.
 - Phase 5: SOW Blueprint Editor (4-panel synchronized scroll) has no library equivalent -- needs spike
 - Pre-existing: `pnpm turbo build` now passes cleanly across all 5 portals (was previously failing with webpack-runtime TypeError)
 - [03-01]: next-intl INSTALLED in both portals (resolved from planning blocker)
-- [03-04]: @react-pdf/renderer NOT yet installed -- must be added in 03-04 Task 1
+- [03-04]: @react-pdf/renderer INSTALLED in university-portal (resolved from blocker)
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 03-02-PLAN.md (Dashboard, Tasks, Evidence Submission)
+Stopped at: Completed 03-04-PLAN.md (University Portal Student Experience)
 Resume file: None
