@@ -25,13 +25,13 @@ GlimmoraTeam is a 5-portal frontend monorepo (Women's, University, Enterprise, M
   3. A canary page in any portal fetches mock data through TanStack Query backed by MSW (both browser and server-side), displays it using a shared UI component, and survives a hard refresh without connection errors
   4. `@glimmora/types` exports TypeScript interfaces (UserRole, Task, Project, SOW, Evidence, PoDL, SkillGenome) that are consumed by both MSW handlers and portal pages without type errors
   5. `pnpm turbo build` completes successfully across all workspaces with zero type-check and lint errors
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 01-01: Monorepo scaffold and shared configuration
-- [ ] 01-02: Type contracts and MSW infrastructure
-- [ ] 01-03: Foundational design system components + Storybook
-- [ ] 01-04: Canary validation across all portals
+- [ ] 01-01-PLAN.md -- Monorepo scaffold + @glimmora/config + 5 portal app shells (Wave 1)
+- [ ] 01-02-PLAN.md -- @glimmora/types interfaces + MSW v2 dual-runtime + TanStack Query + Zustand (Wave 2)
+- [ ] 01-03-PLAN.md -- @glimmora/ui DS-01 through DS-10 components + Storybook 10 (Wave 2)
+- [ ] 01-04-PLAN.md -- Canary validation across all 5 portals (Wave 3)
 
 ### Phase 2: Design System Completion
 **Goal**: The full `@glimmora/ui` component library is complete in Storybook -- every layout shell, governance-specific component, data table, file upload, chart, and visualization needed by any portal is documented, styled, and accessible, ready for portal pages to compose.
@@ -147,7 +147,7 @@ All 162 v1 requirements mapped. No orphans. No duplicates.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|---------------|--------|-----------|
-| 1. Monorepo Infrastructure + DS Foundation | 0/4 | Not started | - |
+| 1. Monorepo Infrastructure + DS Foundation | 0/4 | Planning complete | - |
 | 2. Design System Completion | 0/4 | Not started | - |
 | 3. Women's Portal + University Portal | 0/5 | Not started | - |
 | 4. Mentor Portal | 0/4 | Not started | - |
