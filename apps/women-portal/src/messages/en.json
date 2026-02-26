@@ -72,5 +72,59 @@
       "title": "Your Privacy is Protected",
       "body": "No public profiles. No leaderboards. No peer comparison. Your data is private by design, not just policy."
     }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "activeTasks": "Active Tasks",
+    "earningsThisMonth": "Earnings This Month",
+    "skillsGrowing": "Skills Growing",
+    "apgActivity": "APG Activity",
+    "currentTasks": "Current Tasks",
+    "viewAllTasks": "View All Tasks"
+  },
+  "tasks": {
+    "title": "My Tasks",
+    "all": "All",
+    "open": "Open",
+    "inProgress": "In Progress",
+    "underReview": "Under Review",
+    "completed": "Completed",
+    "dueDate": "Due",
+    "viewTask": "View Task",
+    "noTasks": "No tasks in this category"
+  },
+  "taskDetail": {
+    "brief": "Task Brief",
+    "apgGuidance": "APG Guidance",
+    "skillsRequired": "Skills Required",
+    "estimatedHours": "Estimated Hours",
+    "dueDate": "Due Date",
+    "submitEvidence": "Submit Evidence",
+    "status": "Status"
+  },
+  "evidence": {
+    "title": "Submit Evidence",
+    "fileUpload": "File Upload",
+    "url": "URL Link",
+    "code": "Code Snippet",
+    "videoUrl": "Video URL",
+    "text": "Text",
+    "submit": "Submit Evidence",
+    "titleLabel": "Evidence Title",
+    "descriptionLabel": "Description",
+    "urlPlaceholder": "https://...",
+    "codePlaceholder": "Paste your code here...",
+    "videoPlaceholder": "YouTube or Vimeo URL...",
+    "textPlaceholder": "Describe your work..."
+  },
+  "submissions": {
+    "title": "My Submissions",
+    "noSubmissions": "No submissions yet"
+  },
+  "rework": {
+    "title": "Rework Required",
+    "feedback": "Mentor Feedback",
+    "items": "Items to Address",
+    "resubmit": "Resubmit Evidence"
   }
 }
