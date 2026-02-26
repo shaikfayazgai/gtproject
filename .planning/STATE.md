@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 1 of 6 (Monorepo Infrastructure + Design System Foundation)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-26 -- Completed 01-01-PLAN.md (Monorepo scaffold + portal apps)
+Last activity: 2026-02-26 -- Completed 01-02-PLAN.md (Shared types + MSW mock layer)
 
-Progress: [█░░░░░░░░░░░░░░░░░░░░░░░] 1/24 plans (4%)
+Progress: [██░░░░░░░░░░░░░░░░░░░░░░] 2/24 plans (8%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 5 min
-- Total execution time: 5 min
+- Total plans completed: 2
+- Average duration: 4.5 min
+- Total execution time: 9 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-monorepo-infrastructure-ds-foundation | 1/4 | 5 min | 5 min |
+| 01-monorepo-infrastructure-ds-foundation | 2/4 | 9 min | 4.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (5 min)
-- Trend: baseline
+- Last 5 plans: 01-01 (5 min), 01-02 (4 min)
+- Trend: stable
 
 *Updated after each plan completion*
 
@@ -48,6 +48,9 @@ Recent decisions affecting current work:
 - [01-01]: tailwindcss added as @glimmora/config devDep for pnpm strict mode CSS resolution
 - [01-01]: type:module added to all packages for clean ESM support under Node 25
 - [01-01]: Port assignments: women=3001, university=3002, enterprise=3003, mentor=3004, admin=3005
+- [01-02]: MSW build scripts approved via pnpm.onlyBuiltDependencies in root package.json (pnpm v10 strict mode)
+- [01-02]: Provider nesting: MSWProvider (outer) -> QueryProvider (inner) ensures mock intercepts before queries
+- [01-02]: MSW workerDirectory configured as array of all 5 portal public dirs in root package.json
 
 ### Pending Todos
 
@@ -61,6 +64,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-26T08:18:40Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-02-26T08:26:44Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None
