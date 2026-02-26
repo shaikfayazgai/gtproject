@@ -92,3 +92,34 @@ export { Sparkline } from './components/sparkline'
 
 // DS-47: Activity Heatmap
 export { ActivityHeatmap } from './components/activity-heatmap'
+
+// DS-28: Card
+export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './components/card'
+
+// DS-29: Gradient Card
+export { GradientCard, gradientCardVariants } from './components/gradient-card'
+
+// DS-30: Sidebar
+export { Sidebar } from './components/sidebar'
+export type { SidebarNavItem } from './components/sidebar'
+
+// DS-31: Top Action Bar
+export { TopBar } from './components/top-bar'
+
+// DS-32: AppShell
+export { AppShell, useAppShell } from './components/app-shell'
+
+// DS-33: Slide-Out Panel
+export { SlideOutPanel } from './components/slide-out-panel'
+
+// DS-34: Page Header
+export { PageHeader } from './components/page-header'
+
+// DS-35: Empty State
+export { EmptyState } from './components/empty-state'
+
+// DS-36: Data Table
+export { DataTable } from './components/data-table'
+
+// DS-37: KPI Stat Card
+export { KPIStatCard } from './components/kpi-stat-card'
