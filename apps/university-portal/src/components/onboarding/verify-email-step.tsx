@@ -7,6 +7,7 @@ import { Button, TextInput, Heading, Body } from '@glimmora/ui'
 export function VerifyEmailStep() {
   const t = useTranslations('onboarding')
   const router = useRouter()
+  const [studentId, setStudentId] = useState('')
   const [code, setCode] = useState('')
   const [isVerifying, setIsVerifying] = useState(false)
   const [sent, setSent] = useState(false)
@@ -50,8 +51,20 @@ export function VerifyEmailStep() {
         </div>
 
         <div className="flex flex-col gap-5">
+          <div className="space-y-1.5">
+            <label htmlFor="studentId" className="text-sm font-medium text-text-body">
+              {t('verify.studentIdLabel', { fallback: 'Student ID' })}
+            </label>
+            <TextInput
+              id="studentId"
+              placeholder={t('verify.studentIdPlaceholder', { fallback: 'e.g. STU-2024-0042' })}
+              value={studentId}
+              onChange={(e) => setStudentId(e.target.value)}
+              required
+            />
+          </div>
           {!sent ? (
-            <Button variant="primary" className="w-full" onClick={handleSendCode}>
+            <Button variant="primary" className="w-full" onClick={handleSendCode} disabled={!studentId}>
               {t('verify.sendCode')}
             </Button>
           ) : (

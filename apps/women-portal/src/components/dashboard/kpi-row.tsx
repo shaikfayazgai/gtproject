@@ -24,7 +24,12 @@ export function KPIRow({ activeTasks, earningsThisMonth, skillsGrowing }: KPIRow
         </p>
         <p className="text-sm font-body text-white/80 mt-1">{t('earningsThisMonth')}</p>
       </GradientCard>
-      <KPIStatCard label={t('skillsGrowing')} value={skillsGrowing} />
+      <GradientCard gradient="primary" className="p-6" style={{ background: 'linear-gradient(135deg, #4A6741 0%, #3A8FA0 100%)' }}>
+        <p className="text-[36px] font-display font-semibold text-white leading-tight">
+          {skillsGrowing}
+        </p>
+        <p className="text-sm font-body text-white/80 mt-1">{t('skillsGrowing')}</p>
+      </GradientCard>
     </div>
   )
 }
