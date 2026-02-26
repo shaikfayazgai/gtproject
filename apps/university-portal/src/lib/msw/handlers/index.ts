@@ -5,6 +5,8 @@ import { credentialHandlers } from './credentials'
 import { teamHandlers } from './team'
 import { skillHandlers } from './skills'
 import { apgHandlers } from './apg'
+import { alumniHandlers } from './alumni'
+import { governorHandlers } from './governor'
 
 export const handlers = [
   ...authHandlers,
@@ -14,4 +16,6 @@ export const handlers = [
   ...teamHandlers,
   ...skillHandlers,
   ...apgHandlers,
+  ...alumniHandlers,
+  ...governorHandlers,
 ]
