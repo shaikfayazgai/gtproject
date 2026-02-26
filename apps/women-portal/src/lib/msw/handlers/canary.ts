@@ -33,7 +33,7 @@ const mockTasks: Task[] = [
   },
 ]
 
-export const handlers = [
+export const canaryHandlers = [
   http.get('/api/health', () => {
     return HttpResponse.json({ status: 'ok', timestamp: new Date().toISOString() })
   }),
