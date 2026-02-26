@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Enterprise uploads SOW -> APG decomposes into tasks -> verified contributors deliver evidence -> enterprise reviews and releases payment -- all without manual recruitment or PM overhead.
-**Current focus:** Phase 4 - Mentor Portal (next)
+**Current focus:** Phase 4 - Mentor Portal (plan 01 complete, 3 remaining)
 
 ## Current Position
 
-Phase: 4 of 6 (Mentor Portal) -- not started
-Plan: 0 of TBD in current phase
-Status: Ready to plan Phase 4
-Last activity: 2026-02-26 -- Phase 3 complete (22/22 verified)
+Phase: 4 of 6 (Mentor Portal)
+Plan: 1 of 4 in current phase
+Status: In progress
+Last activity: 2026-02-26 -- Completed 04-01-PLAN.md
 
-Progress: [██████████████████░░░░░░] 19/24 plans (79%)
+Progress: [███████████████████░░░░░] 20/24 plans (83%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
-- Average duration: 6.1 min
-- Total execution time: 98 min
+- Total plans completed: 15
+- Average duration: 6.3 min
+- Total execution time: 107 min
 
 **By Phase:**
 
@@ -30,9 +30,10 @@ Progress: [██████████████████░░░░░
 | 01-monorepo-infrastructure-ds-foundation | 4/4 | 29 min | 7.3 min |
 | 02-design-system-completion | 4/4 | 25 min | 6.3 min |
 | 03-womens-portal-university-portal | 5/5 | 52 min | 10.4 min |
+| 04-mentor-portal | 1/4 | 9 min | 9.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-03-old (10 min), 03-04 (10 min), 03-03 (6 min), 03-05 (5 min), gap-fixes (7 min)
+- Last 5 plans: 03-04 (10 min), 03-03 (6 min), 03-05 (5 min), gap-fixes (7 min), 04-01 (9 min)
 - Trend: stable around 5-10 min for portal plans
 
 *Updated after each plan completion*
@@ -97,6 +98,10 @@ Recent decisions affecting current work:
 - [03-gap]: @glimmora/ui Label is a <p> element NOT a <label> -- does NOT accept htmlFor; use native <label> HTML element for form associations
 - [03-gap]: GradientCard gap: all 3 KPI cards must use GradientCard (not KPIStatCard); 3rd card uses inline style gradient
 - [03-gap]: PoDLPDFDocument must NOT be barrel-exported; use await import('./podl-pdf-document') inside event handlers only
+- [04-01]: MentorProfile renamed to MentorOnboardingProfile in mentor.ts (avoids conflict with MentorProfile from user.ts which extends User)
+- [04-01]: react-resizable-panels v4 uses plain functions (not forwardRef) -- Group/Panel/Separator use elementRef prop
+- [04-01]: Mentor auth store has 3 roles: applicant, pending_onboarding, mentor (zustand persist)
+- [04-01]: Application status polling via TanStack Query refetchInterval: 5000 (stops on approved/rejected)
 
 ### Pending Todos
 
@@ -104,7 +109,7 @@ None.
 
 ### Blockers/Concerns
 
-- Phase 4 (next): 3-panel resizable layout approach needs research during planning
+- Phase 4: 3-panel resizable layout ready (react-resizable-panels v4 wrapper installed and exported)
 - Phase 5: SOW Blueprint Editor (4-panel synchronized scroll) has no library equivalent -- needs spike
 - Pre-existing: `pnpm turbo build` now passes cleanly across all 5 portals (was previously failing with webpack-runtime TypeError)
 - [03-01]: next-intl INSTALLED in both portals (resolved from planning blocker)
@@ -112,6 +117,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-26
-Stopped at: Phase 3 fully verified (22/22), all docs updated -- ready for Phase 4
+Last session: 2026-02-26T15:13:45Z
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None
