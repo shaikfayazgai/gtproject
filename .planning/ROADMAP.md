@@ -9,7 +9,7 @@ GlimmoraTeam is a 5-portal frontend monorepo (Women's, University, Enterprise, M
 - [x] **Phase 1: Monorepo Infrastructure + Design System Foundation** - Working monorepo with 5 app shells, shared packages, and core UI primitives verified end-to-end
 - [x] **Phase 2: Design System Completion** - Full component library covering layout, governance, and data visualization components
 - [x] **Phase 3: Women's Portal + University Portal** - Two contributor portals with onboarding, task delivery, evidence submission, and credential flows
-- [ ] **Phase 4: Mentor Portal** - 3-panel review layout, evidence viewer, review queue, and skill tag verification
+- [x] **Phase 4: Mentor Portal** - 3-panel review layout, evidence viewer, review queue, and skill tag verification
 - [ ] **Phase 5: Enterprise Portal** - SOW upload, 4-panel Blueprint Editor, Gantt timeline, evidence review, and payment flows
 - [ ] **Phase 6: Admin Panel** - Platform oversight, user management, dispute resolution, reports, and APG configuration
 
@@ -83,10 +83,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 04-01-PLAN.md -- Mentor types + react-resizable-panels + pre-auth application + 4-step onboarding (Wave 1)
-- [ ] 04-02-PLAN.md -- AppShell layout + review queue with 3 tabs, SLA timers, skip/extend (Wave 2)
-- [ ] 04-03-PLAN.md -- 3-panel review detail layout with evidence viewer and decision forms (Wave 3)
-- [ ] 04-04-PLAN.md -- Mentor profile, skill tag verification, messaging, and settings (Wave 3)
+- [x] 04-01-PLAN.md -- Mentor types + react-resizable-panels + pre-auth application + 4-step onboarding (Wave 1)
+- [x] 04-02-PLAN.md -- AppShell layout + review queue with 3 tabs, SLA timers, skip/extend (Wave 2)
+- [x] 04-03-PLAN.md -- 3-panel review detail layout with evidence viewer and decision forms (Wave 3)
+- [x] 04-04-PLAN.md -- Mentor profile, skill tag verification, messaging, and settings (Wave 3)
 
 ### Phase 5: Enterprise Portal
 **Goal**: Enterprise requesters can upload SOWs and see APG decomposition, edit project blueprints in the 4-panel editor, monitor projects via Gantt timeline and KPI dashboards, review evidence packs, manage payment release flows, and export PoDL/ESG compliance reports.

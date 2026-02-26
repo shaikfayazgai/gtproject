@@ -188,38 +188,38 @@
 ### MP — Mentor Portal
 
 **Onboarding**
-- [ ] **MP-01**: Mentor applicant can submit application (expertise areas, credentials, availability)
-- [ ] **MP-02**: Mentor applicant can see APG review status (application under review → approved / rejected with reason)
-- [ ] **MP-03**: Approved mentor can complete 4-step onboarding: (1) Mentor Profile, (2) Expertise + Skill Tags, (3) Capacity (weekly review hours), (4) Orientation + Code of Conduct acceptance
+- [x] **MP-01**: Mentor applicant can submit application (expertise areas, credentials, availability)
+- [x] **MP-02**: Mentor applicant can see APG review status (application under review → approved / rejected with reason)
+- [x] **MP-03**: Approved mentor can complete 4-step onboarding: (1) Mentor Profile, (2) Expertise + Skill Tags, (3) Capacity (weekly review hours), (4) Orientation + Code of Conduct acceptance
 
 **Review Queue**
-- [ ] **MP-04**: Mentor can view review queue with 3 tabs: Pending (SLA timer per item), In Progress (auto-saved drafts), Completed (final decisions + appeal status)
-- [ ] **MP-05**: Mentor can skip a task in their queue (reassigned to next mentor, reason required)
-- [ ] **MP-06**: Mentor can request SLA extension (reason required, Admin approval needed)
+- [x] **MP-04**: Mentor can view review queue with 3 tabs: Pending (SLA timer per item), In Progress (auto-saved drafts), Completed (final decisions + appeal status)
+- [x] **MP-05**: Mentor can skip a task in their queue (reassigned to next mentor, reason required)
+- [x] **MP-06**: Mentor can request SLA extension (reason required, Admin approval needed)
 
 **Review Detail (3-Panel Layout)**
-- [ ] **MP-07**: Mentor can view review detail in 3-panel layout: (Left Panel ~320px) Task context — brief, deliverables, skill tags required; (Center Panel ~flexible) Evidence Viewer — tabbed by evidence type, contributor identity hidden; (Right Panel ~320px) Review Form — structured feedback, decision
-- [ ] **MP-08**: Mentor can switch evidence type tabs in the Evidence Viewer (Code, Document, Link, Video, Text)
-- [ ] **MP-09**: Mentor can submit Approve decision with optional feedback comment
-- [ ] **MP-10**: Mentor can submit Rework Required decision with: required field for specific items to address, optional guidance notes
-- [ ] **MP-11**: Mentor can submit Reject decision with: required field for rejection reason, evidence of deliberate non-compliance required for rejection
+- [x] **MP-07**: Mentor can view review detail in 3-panel layout: (Left Panel ~320px) Task context — brief, deliverables, skill tags required; (Center Panel ~flexible) Evidence Viewer — tabbed by evidence type, contributor identity hidden; (Right Panel ~320px) Review Form — structured feedback, decision
+- [x] **MP-08**: Mentor can switch evidence type tabs in the Evidence Viewer (Code, Document, Link, Video, Text)
+- [x] **MP-09**: Mentor can submit Approve decision with optional feedback comment
+- [x] **MP-10**: Mentor can submit Rework Required decision with: required field for specific items to address, optional guidance notes
+- [x] **MP-11**: Mentor can submit Reject decision with: required field for rejection reason, evidence of deliberate non-compliance required for rejection
 
 **Mentor Profile & Growth**
-- [ ] **MP-12**: Mentor can view their profile with tier status (Bronze / Silver / Gold / Elite) and tier progression requirements
-- [ ] **MP-13**: Mentor can view impact metrics (total reviews, average review time, rework rate, appeals overturned rate)
-- [ ] **MP-14**: Mentor can view their expertise skill tags and verification status
+- [x] **MP-12**: Mentor can view their profile with tier status (Bronze / Silver / Gold / Elite) and tier progression requirements
+- [x] **MP-13**: Mentor can view impact metrics (total reviews, average review time, rework rate, appeals overturned rate)
+- [x] **MP-14**: Mentor can view their expertise skill tags and verification status
 
 **Skill Tag Verification**
-- [ ] **MP-15**: Mentor can view skill tag verification queue (contributor skill claims pending mentor verification)
-- [ ] **MP-16**: Mentor can verify or dispute a skill tag claim with evidence assessment
+- [x] **MP-15**: Mentor can view skill tag verification queue (contributor skill claims pending mentor verification)
+- [x] **MP-16**: Mentor can verify or dispute a skill tag claim with evidence assessment
 
 **Communication**
-- [ ] **MP-17**: Mentor can respond to platform messages (no initiation — mentors cannot contact contributors directly)
+- [x] **MP-17**: Mentor can respond to platform messages (no initiation — mentors cannot contact contributors directly)
 
 **Settings**
-- [ ] **MP-18**: Mentor can update capacity settings (weekly review hours, temporary pause)
-- [ ] **MP-19**: Mentor can manage expertise areas and skill tags
-- [ ] **MP-20**: Mentor can manage notification preferences
+- [x] **MP-18**: Mentor can update capacity settings (weekly review hours, temporary pause)
+- [x] **MP-19**: Mentor can manage expertise areas and skill tags
+- [x] **MP-20**: Mentor can manage notification preferences
 
 ### AP — Admin Panel
 
@@ -420,26 +420,26 @@
 | EP-24 | Phase 5 | Pending |
 | EP-25 | Phase 5 | Pending |
 | EP-26 | Phase 5 | Pending |
-| MP-01 | Phase 4 | Pending |
-| MP-02 | Phase 4 | Pending |
-| MP-03 | Phase 4 | Pending |
-| MP-04 | Phase 4 | Pending |
-| MP-05 | Phase 4 | Pending |
-| MP-06 | Phase 4 | Pending |
-| MP-07 | Phase 4 | Pending |
-| MP-08 | Phase 4 | Pending |
-| MP-09 | Phase 4 | Pending |
-| MP-10 | Phase 4 | Pending |
-| MP-11 | Phase 4 | Pending |
-| MP-12 | Phase 4 | Pending |
-| MP-13 | Phase 4 | Pending |
-| MP-14 | Phase 4 | Pending |
-| MP-15 | Phase 4 | Pending |
-| MP-16 | Phase 4 | Pending |
-| MP-17 | Phase 4 | Pending |
-| MP-18 | Phase 4 | Pending |
-| MP-19 | Phase 4 | Pending |
-| MP-20 | Phase 4 | Pending |
+| MP-01 | Phase 4 | Complete |
+| MP-02 | Phase 4 | Complete |
+| MP-03 | Phase 4 | Complete |
+| MP-04 | Phase 4 | Complete |
+| MP-05 | Phase 4 | Complete |
+| MP-06 | Phase 4 | Complete |
+| MP-07 | Phase 4 | Complete |
+| MP-08 | Phase 4 | Complete |
+| MP-09 | Phase 4 | Complete |
+| MP-10 | Phase 4 | Complete |
+| MP-11 | Phase 4 | Complete |
+| MP-12 | Phase 4 | Complete |
+| MP-13 | Phase 4 | Complete |
+| MP-14 | Phase 4 | Complete |
+| MP-15 | Phase 4 | Complete |
+| MP-16 | Phase 4 | Complete |
+| MP-17 | Phase 4 | Complete |
+| MP-18 | Phase 4 | Complete |
+| MP-19 | Phase 4 | Complete |
+| MP-20 | Phase 4 | Complete |
 | AP-01 | Phase 6 | Pending |
 | AP-02 | Phase 6 | Pending |
 | AP-03 | Phase 6 | Pending |
