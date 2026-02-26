@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Enterprise uploads SOW -> APG decomposes into tasks -> verified contributors deliver evidence -> enterprise reviews and releases payment -- all without manual recruitment or PM overhead.
-**Current focus:** Phase 3 - Women's Portal + University Portal (PLANNED, ready for execution)
+**Current focus:** Phase 3 - Women's Portal + University Portal (IN PROGRESS)
 
 ## Current Position
 
-Phase: 3 of 6 (Women's Portal + University Portal) -- PLANNED, READY FOR EXECUTION
-Plan: 0 of 5 in current phase
-Status: Plans verified, ready to execute
-Last activity: 2026-02-26 -- Completed Phase 3 planning (5 plans, 3 waves)
+Phase: 3 of 6 (Women's Portal + University Portal) -- IN PROGRESS
+Plan: 1 of 5 in current phase
+Status: In progress
+Last activity: 2026-02-26 -- Completed 03-01-PLAN.md (Foundation: Types + i18n + Pre-Auth/Onboarding)
 
-Progress: [████████░░░░░░░░░░░░░░░░] 8/24 plans (33%)
+Progress: [█████████░░░░░░░░░░░░░░░] 9/24 plans (37%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
-- Average duration: 5.8 min
-- Total execution time: 54 min
+- Total plans completed: 9
+- Average duration: 6.0 min
+- Total execution time: 62 min
 
 **By Phase:**
 
@@ -29,9 +29,10 @@ Progress: [████████░░░░░░░░░░░░░░░
 |-------|-------|-------|----------|
 | 01-monorepo-infrastructure-ds-foundation | 4/4 | 29 min | 7.3 min |
 | 02-design-system-completion | 4/4 | 25 min | 6.3 min |
+| 03-womens-portal-university-portal | 1/5 | 8 min | 8.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-04 (3 min), 02-01 (9 min), 02-02 (8 min), 02-03 (5 min)
+- Last 5 plans: 02-01 (9 min), 02-02 (8 min), 02-03 (5 min), 02-04 (3 min), 03-01 (8 min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -73,6 +74,10 @@ Recent decisions affecting current work:
 - [02-03]: Skill Genome Panel sorted by tier then evidence count -- private progress only, no comparison/ranking
 - [02-03]: Anonymized Team Card max 4 visible skills with +N overflow
 - [02-03]: APG Feed uses inline expandable details rather than nested Accordion
+- [03-01]: Cookie-based locale (NEXT_LOCALE) for next-intl instead of URL-prefix routing
+- [03-01]: MSW handlers migrated from flat file to handlers/ directory (auth, onboarding, canary)
+- [03-01]: lucide-react added as direct dependency to women-portal for Shield/CheckCircle icons
+- [03-01]: Pre-auth route group pattern: app/(pre-auth)/ for all unauthenticated pages
 
 ### Pending Todos
 
@@ -83,11 +88,11 @@ None.
 - Phase 4: 3-panel resizable layout approach needs research during planning
 - Phase 5: SOW Blueprint Editor (4-panel synchronized scroll) has no library equivalent -- needs spike
 - Pre-existing: `pnpm turbo build` now passes cleanly across all 5 portals (was previously failing with webpack-runtime TypeError)
-- [03-01]: next-intl NOT yet installed -- must be added in 03-01 Task 1 (pnpm add next-intl in both portals)
+- [03-01]: next-intl INSTALLED in both portals (resolved from planning blocker)
 - [03-04]: @react-pdf/renderer NOT yet installed -- must be added in 03-04 Task 1
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed Phase 3 planning -- 5 plans verified, ready for /gsd:execute-phase 3
+Stopped at: Completed 03-01-PLAN.md (Foundation: Types + i18n + Pre-Auth/Onboarding)
 Resume file: None
