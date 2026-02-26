@@ -88,60 +88,60 @@
 ### WP — Women's Portal
 
 **Pre-Auth & Onboarding**
-- [ ] **WP-01**: User can select language as the FIRST interactive element (Urdu, English, Arabic — with RTL layout support for Urdu/Arabic)
-- [ ] **WP-02**: User can see a WhatsApp-style welcome screen explaining the platform in culturally appropriate tone before any registration
-- [ ] **WP-03**: User can register with email + password (no phone number required, no social login)
-- [ ] **WP-04**: User can complete 4-step onboarding: (1) Basic Profile (name optional, display name required), (2) Devices & Connectivity (device type, internet stability), (3) Skill Assessment (self-reported skills, APG-guided), (4) Activation confirmation screen with next steps
-- [ ] **WP-05**: User can see privacy guarantee messaging throughout onboarding — no public profile, no leaderboards, no peer comparison ever stated explicitly
+- [x] **WP-01**: User can select language as the FIRST interactive element (Urdu, English, Arabic — with RTL layout support for Urdu/Arabic)
+- [x] **WP-02**: User can see a WhatsApp-style welcome screen explaining the platform in culturally appropriate tone before any registration
+- [x] **WP-03**: User can register with email + password (no phone number required, no social login)
+- [x] **WP-04**: User can complete 4-step onboarding: (1) Basic Profile (name optional, display name required), (2) Devices & Connectivity (device type, internet stability), (3) Skill Assessment (self-reported skills, APG-guided), (4) Activation confirmation screen with next steps
+- [x] **WP-05**: User can see privacy guarantee messaging throughout onboarding — no public profile, no leaderboards, no peer comparison ever stated explicitly
 
 **Dashboard**
-- [ ] **WP-06**: User can view dashboard with gradient KPI cards (active tasks count, pending earnings, completed tasks, Skill Genome level)
-- [ ] **WP-07**: User can view APG Activity Feed showing AI governor actions relevant to their work
-- [ ] **WP-08**: User can view current active tasks summary with status and due dates
+- [x] **WP-06**: User can view dashboard with gradient KPI cards (active tasks count, pending earnings, completed tasks, Skill Genome level)
+- [x] **WP-07**: User can view APG Activity Feed showing AI governor actions relevant to their work
+- [x] **WP-08**: User can view current active tasks summary with status and due dates
 
 **Task Flow**
-- [ ] **WP-09**: User can view task list with status-filtered tabs (Available, In Progress, Submitted, Completed)
-- [ ] **WP-10**: User can view task detail page with: task brief, deliverables list, APG guidance, deadline, skill tags required
-- [ ] **WP-11**: User can submit evidence for a task via multi-type submission form (File upload, URL link, Code snippet paste, Video URL, Text description) — multiple evidence items per submission
-- [ ] **WP-12**: User can view submission status (Submitted → Under Review → Approved / Rework Required)
-- [ ] **WP-13**: User can view rework request with mentor feedback and resubmit evidence
+- [x] **WP-09**: User can view task list with status-filtered tabs (Available, In Progress, Submitted, Completed)
+- [x] **WP-10**: User can view task detail page with: task brief, deliverables list, APG guidance, deadline, skill tags required
+- [x] **WP-11**: User can submit evidence for a task via multi-type submission form (File upload, URL link, Code snippet paste, Video URL, Text description) — multiple evidence items per submission
+- [x] **WP-12**: User can view submission status (Submitted → Under Review → Approved / Rework Required)
+- [x] **WP-13**: User can view rework request with mentor feedback and resubmit evidence
 
 **Skill & Growth**
-- [ ] **WP-14**: User can view their private Skill Genome (evidence-backed tags, tier, growth over time) — no peer comparison, no public ranking
-- [ ] **WP-15**: User can see how each completed task contributed to their Skill Genome
+- [x] **WP-14**: User can view their private Skill Genome (evidence-backed tags, tier, growth over time) — no peer comparison, no public ranking
+- [x] **WP-15**: User can see how each completed task contributed to their Skill Genome
 
 **Earnings & PoDL**
-- [ ] **WP-16**: User can view earnings dashboard (pending, released, total earned, withdrawal history)
-- [ ] **WP-17**: User can view their PoDL credentials (immutable record per accepted delivery, downloadable)
+- [x] **WP-16**: User can view earnings dashboard (pending, released, total earned, withdrawal history)
+- [x] **WP-17**: User can view their PoDL credentials (immutable record per accepted delivery, downloadable)
 
 **Communication**
-- [ ] **WP-18**: User can send and receive messages with their assigned Community Support Lead (async, not live chat, no peer-to-peer messaging)
+- [x] **WP-18**: User can send and receive messages with their assigned Community Support Lead (async, not live chat, no peer-to-peer messaging)
 
 **Settings**
-- [ ] **WP-19**: User can update profile settings (display name, bio, preferred language)
-- [ ] **WP-20**: User can manage privacy settings (who can see what — defaults to most private)
-- [ ] **WP-21**: User can manage notification preferences (in-app only, email)
-- [ ] **WP-22**: User can update device/connectivity info (affects task assignment)
+- [x] **WP-19**: User can update profile settings (display name, bio, preferred language)
+- [x] **WP-20**: User can manage privacy settings (who can see what — defaults to most private)
+- [x] **WP-21**: User can manage notification preferences (in-app only, email)
+- [x] **WP-22**: User can update device/connectivity info (affects task assignment)
 
 ### UP — University Portal
 
 **Students**
-- [ ] **UP-01**: Student can complete onboarding with university email verification + student ID
-- [ ] **UP-02**: Student can view dashboard with active tasks, PoDL count, earnings, academic year context
-- [ ] **UP-03**: Student can discover and accept available tasks (filtered to skill level)
-- [ ] **UP-04**: Student can submit evidence using the same multi-type evidence submission as Women's Portal
-- [ ] **UP-05**: Student can view their PoDL Credentials page — display, share via link, export as PDF
-- [ ] **UP-06**: Student can view team collaboration context (anonymous peer awareness — know others are on the same project, no names)
-- [ ] **UP-07**: Student can view their private Skill Genome (same component as Women's Portal)
+- [x] **UP-01**: Student can complete onboarding with university email verification + student ID
+- [x] **UP-02**: Student can view dashboard with active tasks, PoDL count, earnings, academic year context
+- [x] **UP-03**: Student can discover and accept available tasks (filtered to skill level)
+- [x] **UP-04**: Student can submit evidence using the same multi-type evidence submission as Women's Portal
+- [x] **UP-05**: Student can view their PoDL Credentials page — display, share via link, export as PDF
+- [x] **UP-06**: Student can view team collaboration context (anonymous peer awareness — know others are on the same project, no names)
+- [x] **UP-07**: Student can view their private Skill Genome (same component as Women's Portal)
 
 **Alumni Reactivation**
-- [ ] **UP-08**: Alumni user can reactivate account with updated employment/career context
-- [ ] **UP-09**: Alumni user's PoDL history is preserved and visible upon reactivation
+- [x] **UP-08**: Alumni user can reactivate account with updated employment/career context
+- [x] **UP-09**: Alumni user's PoDL history is preserved and visible upon reactivation
 
 **University Strategic Governor (Faculty)**
-- [ ] **UP-10**: Governor can view aggregated platform metrics for their institution (students active, tasks completed, total PoDLs issued, earnings distributed) — NO individual student identifiers
-- [ ] **UP-11**: Governor can view anonymized cohort performance trends (percentages, not names)
-- [ ] **UP-12**: Governor can configure which task categories students from their institution can participate in
+- [x] **UP-10**: Governor can view aggregated platform metrics for their institution (students active, tasks completed, total PoDLs issued, earnings distributed) — NO individual student identifiers
+- [x] **UP-11**: Governor can view anonymized cohort performance trends (percentages, not names)
+- [x] **UP-12**: Governor can configure which task categories students from their institution can participate in
 
 ### EP — Enterprise Portal
 
@@ -360,40 +360,40 @@
 | DS-45 | Phase 2 | Complete |
 | DS-46 | Phase 2 | Complete |
 | DS-47 | Phase 2 | Complete |
-| WP-01 | Phase 3 | Pending |
-| WP-02 | Phase 3 | Pending |
-| WP-03 | Phase 3 | Pending |
-| WP-04 | Phase 3 | Pending |
-| WP-05 | Phase 3 | Pending |
-| WP-06 | Phase 3 | Pending |
-| WP-07 | Phase 3 | Pending |
-| WP-08 | Phase 3 | Pending |
-| WP-09 | Phase 3 | Pending |
-| WP-10 | Phase 3 | Pending |
-| WP-11 | Phase 3 | Pending |
-| WP-12 | Phase 3 | Pending |
-| WP-13 | Phase 3 | Pending |
-| WP-14 | Phase 3 | Pending |
-| WP-15 | Phase 3 | Pending |
-| WP-16 | Phase 3 | Pending |
-| WP-17 | Phase 3 | Pending |
-| WP-18 | Phase 3 | Pending |
-| WP-19 | Phase 3 | Pending |
-| WP-20 | Phase 3 | Pending |
-| WP-21 | Phase 3 | Pending |
-| WP-22 | Phase 3 | Pending |
-| UP-01 | Phase 3 | Pending |
-| UP-02 | Phase 3 | Pending |
-| UP-03 | Phase 3 | Pending |
-| UP-04 | Phase 3 | Pending |
-| UP-05 | Phase 3 | Pending |
-| UP-06 | Phase 3 | Pending |
-| UP-07 | Phase 3 | Pending |
-| UP-08 | Phase 3 | Pending |
-| UP-09 | Phase 3 | Pending |
-| UP-10 | Phase 3 | Pending |
-| UP-11 | Phase 3 | Pending |
-| UP-12 | Phase 3 | Pending |
+| WP-01 | Phase 3 | Complete |
+| WP-02 | Phase 3 | Complete |
+| WP-03 | Phase 3 | Complete |
+| WP-04 | Phase 3 | Complete |
+| WP-05 | Phase 3 | Complete |
+| WP-06 | Phase 3 | Complete |
+| WP-07 | Phase 3 | Complete |
+| WP-08 | Phase 3 | Complete |
+| WP-09 | Phase 3 | Complete |
+| WP-10 | Phase 3 | Complete |
+| WP-11 | Phase 3 | Complete |
+| WP-12 | Phase 3 | Complete |
+| WP-13 | Phase 3 | Complete |
+| WP-14 | Phase 3 | Complete |
+| WP-15 | Phase 3 | Complete |
+| WP-16 | Phase 3 | Complete |
+| WP-17 | Phase 3 | Complete |
+| WP-18 | Phase 3 | Complete |
+| WP-19 | Phase 3 | Complete |
+| WP-20 | Phase 3 | Complete |
+| WP-21 | Phase 3 | Complete |
+| WP-22 | Phase 3 | Complete |
+| UP-01 | Phase 3 | Complete |
+| UP-02 | Phase 3 | Complete |
+| UP-03 | Phase 3 | Complete |
+| UP-04 | Phase 3 | Complete |
+| UP-05 | Phase 3 | Complete |
+| UP-06 | Phase 3 | Complete |
+| UP-07 | Phase 3 | Complete |
+| UP-08 | Phase 3 | Complete |
+| UP-09 | Phase 3 | Complete |
+| UP-10 | Phase 3 | Complete |
+| UP-11 | Phase 3 | Complete |
+| UP-12 | Phase 3 | Complete |
 | EP-01 | Phase 5 | Pending |
 | EP-02 | Phase 5 | Pending |
 | EP-03 | Phase 5 | Pending |
@@ -466,4 +466,4 @@
 
 ---
 
-*Last updated: 2026-02-26 -- roadmap traceability added*
+*Last updated: 2026-02-26 -- Phase 3 complete (WP-01..WP-22, UP-01..UP-12 marked Complete)*

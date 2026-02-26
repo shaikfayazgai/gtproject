@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Enterprise uploads SOW -> APG decomposes into tasks -> verified contributors deliver evidence -> enterprise reviews and releases payment -- all without manual recruitment or PM overhead.
-**Current focus:** Phase 3 - Women's Portal + University Portal (COMPLETE)
+**Current focus:** Phase 4 - Mentor Portal (next)
 
 ## Current Position
 
-Phase: 3 of 6 (Women's Portal + University Portal) -- COMPLETE
-Plan: 5 of 5 in current phase (all complete)
-Status: Phase complete
-Last activity: 2026-02-26 -- Completed 03-05-PLAN.md (Alumni Reactivation + Governor Dashboard)
+Phase: 4 of 6 (Mentor Portal) -- not started
+Plan: 0 of TBD in current phase
+Status: Ready to plan Phase 4
+Last activity: 2026-02-26 -- Phase 3 complete (22/22 verified)
 
-Progress: [██████████████░░░░░░░░░░] 14/24 plans (58%)
+Progress: [██████████████████░░░░░░] 19/24 plans (79%)
 
 ## Performance Metrics
 
@@ -29,10 +29,10 @@ Progress: [██████████████░░░░░░░░░
 |-------|-------|-------|----------|
 | 01-monorepo-infrastructure-ds-foundation | 4/4 | 29 min | 7.3 min |
 | 02-design-system-completion | 4/4 | 25 min | 6.3 min |
-| 03-womens-portal-university-portal | 5/5 | 44 min | 8.8 min |
+| 03-womens-portal-university-portal | 5/5 | 52 min | 10.4 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (5 min), 03-03-old (10 min), 03-04 (10 min), 03-03 (6 min), 03-05 (5 min)
+- Last 5 plans: 03-03-old (10 min), 03-04 (10 min), 03-03 (6 min), 03-05 (5 min), gap-fixes (7 min)
 - Trend: stable around 5-10 min for portal plans
 
 *Updated after each plan completion*
@@ -94,6 +94,9 @@ Recent decisions affecting current work:
 - [03-05]: Governor views use type-level privacy enforcement -- GovernorMetrics/CohortTrend structurally cannot contain individual identifiers
 - [03-05]: Governor sub-navigation uses Link + usePathname active state pattern (same-layout tabs)
 - [03-05]: TaskCategory uses isEnabled (actual type field) not isActive; factory data adapted to match actual types throughout
+- [03-gap]: @glimmora/ui Label is a <p> element NOT a <label> -- does NOT accept htmlFor; use native <label> HTML element for form associations
+- [03-gap]: GradientCard gap: all 3 KPI cards must use GradientCard (not KPIStatCard); 3rd card uses inline style gradient
+- [03-gap]: PoDLPDFDocument must NOT be barrel-exported; use await import('./podl-pdf-document') inside event handlers only
 
 ### Pending Todos
 
@@ -101,7 +104,7 @@ None.
 
 ### Blockers/Concerns
 
-- Phase 4: 3-panel resizable layout approach needs research during planning
+- Phase 4 (next): 3-panel resizable layout approach needs research during planning
 - Phase 5: SOW Blueprint Editor (4-panel synchronized scroll) has no library equivalent -- needs spike
 - Pre-existing: `pnpm turbo build` now passes cleanly across all 5 portals (was previously failing with webpack-runtime TypeError)
 - [03-01]: next-intl INSTALLED in both portals (resolved from planning blocker)
@@ -110,5 +113,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 03-05-PLAN.md (Alumni Reactivation + Governor Dashboard) -- Phase 3 COMPLETE
+Stopped at: Phase 3 fully verified (22/22), all docs updated -- ready for Phase 4
 Resume file: None
