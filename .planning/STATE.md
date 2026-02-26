@@ -10,29 +10,29 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 2 of 6 (Design System Completion)
-Plan: 1 of 4 in current phase (02-04 complete, 02-01/02-02/02-03 pending)
+Plan: 2 of 4 in current phase (02-01 and 02-04 complete, 02-02/02-03 pending)
 Status: In progress
-Last activity: 2026-02-26 -- Completed 02-04-PLAN.md (data viz components)
+Last activity: 2026-02-26 -- Completed 02-01-PLAN.md (16 interactive UI primitives)
 
-Progress: [█████░░░░░░░░░░░░░░░░░░░] 5/24 plans (21%)
+Progress: [██████░░░░░░░░░░░░░░░░░░] 6/24 plans (25%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 5.0 min
-- Total execution time: 32 min
+- Total plans completed: 6
+- Average duration: 5.5 min
+- Total execution time: 41 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-monorepo-infrastructure-ds-foundation | 4/4 ✓ | 29 min | 7.3 min |
-| 02-design-system-completion | 1/4 | 3 min | 3.0 min |
+| 02-design-system-completion | 2/4 | 12 min | 6.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (4 min), 01-03 (6 min), 01-04 (7 min), 02-04 (3 min)
-- Trend: improving
+- Last 5 plans: 01-03 (6 min), 01-04 (7 min), 02-04 (3 min), 02-01 (9 min)
+- Trend: stable
 
 *Updated after each plan completion*
 
@@ -61,6 +61,10 @@ Recent decisions affecting current work:
 - [02-04]: react-is override ^19.1.0 in root pnpm.overrides for recharts React 19 compatibility
 - [02-04]: Custom SVG for simple shapes (ProgressRing/Sparkline/ActivityHeatmap), Recharts only for complex charts (BarChart)
 - [02-04]: Data viz CSS variable pattern: all chart colors via var(--color-*), never hardcoded hex
+- [02-01]: react-day-picker v9 classNames API for full Tailwind control (no separate CSS theming needed)
+- [02-01]: cmdk v1.1.1 for Combobox -- no duplicate @radix-ui/react-dialog created
+- [02-01]: Avatar anonymous mode uses deterministic SVG shapes from seed hash (6 shapes x 6 colors)
+- [02-01]: Skeleton shimmer uses bg-hover (#F0E4DA warm earth) not grey
 
 ### Pending Todos
 
@@ -75,5 +79,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 02-04-PLAN.md (data viz components)
+Stopped at: Completed 02-01-PLAN.md (16 interactive UI primitives)
 Resume file: None
