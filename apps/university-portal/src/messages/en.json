@@ -146,5 +146,31 @@
     "team": "Team",
     "skills": "Skills",
     "settings": "Settings"
+  },
+  "alumni": {
+    "title": "Reactivate Your Account",
+    "subtitle": "Welcome back! Your PoDL history will be preserved.",
+    "email": "University Email",
+    "graduationYear": "Graduation Year",
+    "currentEmployment": "Current Employment",
+    "reactivate": "Reactivate Account",
+    "success": "Welcome Back!",
+    "preservedCount": "PoDL credentials carried forward"
+  },
+  "governor": {
+    "title": "Strategic Governor",
+    "subtitle": "Aggregated institutional overview. Individual data never shown.",
+    "metrics": "Institution Metrics",
+    "cohorts": "Cohort Trends",
+    "categories": "Task Categories",
+    "activeContributors": "Active Contributors",
+    "tasksCompleted": "Tasks Completed",
+    "podlsIssued": "PoDLs Issued",
+    "totalDistributed": "Total Distributed",
+    "completionRate": "Completion Rate",
+    "avgTasksPerContributor": "Avg Tasks per Contributor",
+    "podlIssuanceRate": "PoDL Issuance Rate",
+    "batchData": "Showing anonymized batch-level data",
+    "toggleCategories": "Toggle categories your institution participates in"
   }
 }
