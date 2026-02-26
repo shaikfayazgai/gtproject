@@ -43,13 +43,13 @@ Plans:
   3. Data visualization components (Bar Chart, Progress Ring, Sparkline, Activity Heatmap) render in Storybook with terracotta/brand color fills and warm grid lines
   4. Gradient KPI Cards render the primary gradient (#A0614A to #C4A23A) and nature gradient (#4A6741 to #3A8FA0) correctly, with Miller Display numbers at 36-48px
   5. All Storybook stories pass the accessibility addon audit (axe-core) with zero critical violations
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 02-01: Interactive components (Dropdown, Context Menu, Popover, Tabs, Accordion, Slider, Avatar, Badge, Tag, Toast, Progress, Spinner, Skeleton, DatePicker, Stepper, Combobox)
-- [ ] 02-02: Layout and structure components (Card, Gradient Card, Sidebar, TopBar, AppShell, SlideOutPanel, PageHeader, EmptyState, Table, KPI Stat Card)
-- [ ] 02-03: Governance-specific components (Evidence Viewer, PoDL Card, APG Feed, Skill Genome Panel, Anonymized Team Card, Timeline Bar)
-- [ ] 02-04: Data visualization components (Bar Chart, Progress Ring, Sparkline, Activity Heatmap)
+- [ ] 02-01-PLAN.md -- Interactive components: DS-11..DS-27 (Dropdown, ContextMenu, Popover, Tabs, Accordion, Slider, Avatar, Badge, Tag, Toast, Progress, Spinner, Skeleton, DatePicker, FileUpload, Stepper, Combobox) (Wave 1)
+- [ ] 02-02-PLAN.md -- Layout and structure: DS-28..DS-37 (Card, GradientCard, Sidebar, TopBar, AppShell, SlideOutPanel, PageHeader, EmptyState, DataTable, KPIStatCard) (Wave 2)
+- [ ] 02-03-PLAN.md -- Governance components: DS-38..DS-43 (EvidenceViewer, PoDLCard, APGFeed, SkillGenomePanel, AnonymizedTeamCard, TimelineBar) (Wave 3)
+- [ ] 02-04-PLAN.md -- Data visualization: DS-44..DS-47 (BarChart, ProgressRing, Sparkline, ActivityHeatmap) (Wave 1)
 
 ### Phase 3: Women's Portal + University Portal
 **Goal**: Women contributors can complete the full journey from language selection through onboarding, task delivery, evidence submission, earnings tracking, and community support -- and university students can do the same plus PoDL credential management and faculty governor oversight -- all with mock data driving realistic flows.
