@@ -8,7 +8,6 @@ export interface PoDL {
   description: string
   skillsDemonstrated: string[]
   evidenceHash: string
-  verifiedByMentorId: string
   organizationName: string
   isRevoked: boolean
 }
