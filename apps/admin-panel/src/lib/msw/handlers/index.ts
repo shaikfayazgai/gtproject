@@ -7,6 +7,7 @@ import { reportHandlers } from './reports'
 import { contentHandlers } from './content'
 import { apgConfigHandlers } from './apg-config'
 import { auditLogHandlers } from './audit-log'
+import { settingsHandlers } from './settings'
 
 export const handlers = [
   ...authHandlers,
@@ -18,4 +19,5 @@ export const handlers = [
   ...contentHandlers,
   ...apgConfigHandlers,
   ...auditLogHandlers,
+  ...settingsHandlers,
 ]
