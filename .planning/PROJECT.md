@@ -173,9 +173,14 @@ All portal flows fully documented in `/ux-research/portal-flows/`:
 - ✓ Admin Panel — oversight → user mgmt → disputes → reports → APG config — v1.0
 - ✓ All 162 INFRA/DS/WP/UP/EP/MP/AP requirements — v1.0 (archived in milestones/v1.0-REQUIREMENTS.md)
 
-### Active (v1.1 — to be defined)
+### Active (v1.1 — Frontend Polish)
 
-*(Fresh requirements defined via /gsd:new-milestone)*
+- TEST-01..08: Full @glimmora/ui component test coverage (Vitest + Testing Library, all 47 DS components)
+- A11Y-01..07: Accessibility audit + fixes — axe-core, keyboard nav, WCAG 2.1 AA, all 5 portals
+- MOB-01..08: Mobile responsive polish — 375px viewport, all 5 portals equally
+- POL-01..06: Tech debt cleanup — PoDL Ledger report, evidence factory, fonts, imports, types, MSW handlers
+
+See `.planning/REQUIREMENTS.md` for full 29-requirement spec.
 
 ### Out of Scope
 
@@ -209,5 +214,15 @@ All portal flows fully documented in `/ux-research/portal-flows/`:
 | SuperAdminGate visible-but-locked | Shows blocked screen rather than hiding pages (better UX + security messaging) | ✓ Validated |
 | 3rd GradientCard inline style | GradientCard component has only 2 gradient variants; 3rd uses inline override | ✓ Validated — consistent across all 5 portal dashboards |
 
+## Current Milestone: v1.1 Frontend Polish
+
+**Goal:** Harden the frontend with full test coverage, accessibility compliance, mobile responsive polish, and tech debt cleanup — making the codebase production-ready before backend integration.
+
+**Target features:**
+- Full Vitest + Testing Library test suite for all 47 @glimmora/ui components (TEST-01..08)
+- Accessibility: axe-core audit passing, keyboard nav, WCAG 2.1 AA color contrast (A11Y-01..07)
+- Mobile responsive: all 5 portals at 375px, AppShell collapse, DataTable, Gantt touch (MOB-01..08)
+- Polish: PoDL Ledger report type, clean API contracts, font activation, import standardization (POL-01..06)
+
 ---
-*Last updated: 2026-02-27 after v1.0 milestone completion*
+*Last updated: 2026-02-27 after v1.1 milestone start*
