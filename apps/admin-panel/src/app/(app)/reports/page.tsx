@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { PageHeader, Button } from '@glimmora/ui'
-import { Activity, TrendingUp, CheckCircle, DollarSign, Scale, Plus } from 'lucide-react'
+import { Activity, TrendingUp, CheckCircle, DollarSign, Scale, Award, Plus } from 'lucide-react'
 import { ReportTypeCard } from '@/components/reports'
 
 const REPORT_TYPES = [
@@ -35,6 +35,12 @@ const REPORT_TYPES = [
     title: 'Dispute Analytics',
     description: 'Dispute types, resolution times, outcomes',
     icon: Scale,
+  },
+  {
+    type: 'podl_ledger',
+    title: 'PoDL Ledger',
+    description: 'Credential audit trail, verification status, skill attestation',
+    icon: Award,
   },
 ]
 

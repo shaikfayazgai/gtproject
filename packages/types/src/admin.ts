@@ -181,7 +181,7 @@ export interface AdminIntervention {
 }
 
 // ---- Reports ----
-export type ReportType = 'platform_overview' | 'user_activity' | 'project_delivery' | 'financial' | 'skill_growth'
+export type ReportType = 'platform_overview' | 'user_activity' | 'project_delivery' | 'financial' | 'skill_growth' | 'podl_ledger'
 
 export interface ReportConfig {
   type: ReportType

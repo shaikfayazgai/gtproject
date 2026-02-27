@@ -115,6 +115,7 @@ const REPORT_TYPE_TITLES: Record<string, string> = {
   project_delivery: 'Delivery Performance Report',
   financial: 'Payment Flow Report',
   skill_growth: 'Dispute Analytics Report',
+  podl_ledger: 'PoDL Credential Ledger Report',
 }
 
 interface ReportPDFProps {

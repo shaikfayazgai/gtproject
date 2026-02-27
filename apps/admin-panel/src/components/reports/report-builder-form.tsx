@@ -31,6 +31,7 @@ const REPORT_TYPE_OPTIONS: { value: ReportType; label: string }[] = [
   { value: 'project_delivery', label: 'Delivery Performance' },
   { value: 'financial', label: 'Payment Flow' },
   { value: 'skill_growth', label: 'Dispute Analytics' },
+  { value: 'podl_ledger', label: 'PoDL Ledger' },
 ]
 
 const USER_TYPE_FILTERS = [
@@ -62,6 +63,13 @@ const DISPUTE_TYPE_FILTERS = [
   { value: 'conduct', label: 'Conduct' },
   { value: 'technical', label: 'Technical' },
   { value: 'safety', label: 'Safety' },
+]
+
+const PODL_USER_TYPE_FILTERS = [
+  { value: 'all', label: 'All Contributors' },
+  { value: 'women', label: 'Women Contributors' },
+  { value: 'student', label: 'Students' },
+  { value: 'alumni', label: 'Alumni' },
 ]
 
 interface ReportBuilderFormProps {
@@ -110,6 +118,8 @@ export function ReportBuilderForm({ initialType }: ReportBuilderFormProps) {
         return PAYMENT_STATUS_FILTERS
       case 'skill_growth':
         return DISPUTE_TYPE_FILTERS
+      case 'podl_ledger':
+        return PODL_USER_TYPE_FILTERS
       default:
         return null
     }

@@ -111,6 +111,104 @@ function disputeAnalyticsData(): PlatformReportData {
   }
 }
 
+function podlLedgerData(): PlatformReportData {
+  return {
+    reportType: 'podl_ledger',
+    generatedAt: new Date().toISOString(),
+    dateRange: { from: '', to: '' },
+    metrics: {
+      total_credentials: 342,
+      verified: 298,
+      pending: 31,
+      revoked: 13,
+      women_contributors: 128,
+      student_contributors: 214,
+    },
+    chartData: [
+      {
+        credential_id: 'PODL-001',
+        contributor: 'W-7A3F',
+        user_type: 'Women',
+        project: 'E-Commerce Platform',
+        task: 'API Integration',
+        skills: 'React, TypeScript, API Design',
+        issued: '2026-02-15',
+        status: 'Verified',
+      },
+      {
+        credential_id: 'PODL-002',
+        contributor: 'S-4B2E',
+        user_type: 'Student',
+        project: 'Healthcare Dashboard',
+        task: 'Data Visualization',
+        skills: 'D3.js, Python, SQL',
+        issued: '2026-02-14',
+        status: 'Verified',
+      },
+      {
+        credential_id: 'PODL-003',
+        contributor: 'W-9C1D',
+        user_type: 'Women',
+        project: 'Supply Chain Tracker',
+        task: 'Database Schema Design',
+        skills: 'PostgreSQL, Redis, Data Modeling',
+        issued: '2026-02-12',
+        status: 'Pending',
+      },
+      {
+        credential_id: 'PODL-004',
+        contributor: 'A-6E8F',
+        user_type: 'Alumni',
+        project: 'FinTech Mobile App',
+        task: 'Payment Gateway Integration',
+        skills: 'Node.js, Stripe API, Security',
+        issued: '2026-02-10',
+        status: 'Verified',
+      },
+      {
+        credential_id: 'PODL-005',
+        contributor: 'S-2D7A',
+        user_type: 'Student',
+        project: 'EdTech Platform',
+        task: 'Frontend Components',
+        skills: 'React, Tailwind CSS, Accessibility',
+        issued: '2026-02-08',
+        status: 'Verified',
+      },
+      {
+        credential_id: 'PODL-006',
+        contributor: 'W-5F3B',
+        user_type: 'Women',
+        project: 'Logistics Dashboard',
+        task: 'Real-time Tracking Module',
+        skills: 'WebSocket, MapboxGL, TypeScript',
+        issued: '2026-02-06',
+        status: 'Revoked',
+      },
+      {
+        credential_id: 'PODL-007',
+        contributor: 'S-8A4C',
+        user_type: 'Student',
+        project: 'CRM Integration',
+        task: 'REST API Development',
+        skills: 'NestJS, TypeORM, Testing',
+        issued: '2026-02-04',
+        status: 'Verified',
+      },
+      {
+        credential_id: 'PODL-008',
+        contributor: 'A-1G9H',
+        user_type: 'Alumni',
+        project: 'Insurance Claims System',
+        task: 'Workflow Automation',
+        skills: 'BullMQ, Redis, Event-driven Design',
+        issued: '2026-02-02',
+        status: 'Pending',
+      },
+    ],
+  }
+}
+
 export function createMockReportData(type: string): PlatformReportData {
   switch (type as ReportType) {
     case 'platform_overview':
@@ -123,6 +221,8 @@ export function createMockReportData(type: string): PlatformReportData {
       return financialData()
     case 'skill_growth':
       return disputeAnalyticsData()
+    case 'podl_ledger':
+      return podlLedgerData()
     default:
       return platformOverviewData()
   }
