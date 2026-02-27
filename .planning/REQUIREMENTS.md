@@ -146,44 +146,44 @@
 ### EP — Enterprise Portal
 
 **SOW Management**
-- [ ] **EP-01**: User can upload SOW document (PDF, DOCX) and see APG intelligence display — decomposition preview showing extracted tasks, skill requirements, timeline estimates
-- [ ] **EP-02**: User can use the 4-panel Blueprint Editor: (Panel 1) SOW context + highlighted clauses, (Panel 2) Task tree (APG-generated, editable), (Panel 3) Team pool preview (anonymized, skill-matched), (Panel 4) Project settings — all 4 panels synchronized
-- [ ] **EP-03**: User can approve the blueprint and receive OTP confirmation before project goes live
-- [ ] **EP-04**: User can view SOW version history (each iteration tracked)
-- [ ] **EP-05**: User can archive completed SOWs
+- [x] **EP-01**: User can upload SOW document (PDF, DOCX) and see APG intelligence display — decomposition preview showing extracted tasks, skill requirements, timeline estimates
+- [x] **EP-02**: User can use the 4-panel Blueprint Editor: (Panel 1) SOW context + highlighted clauses, (Panel 2) Task tree (APG-generated, editable), (Panel 3) Team pool preview (anonymized, skill-matched), (Panel 4) Project settings — all 4 panels synchronized
+- [x] **EP-03**: User can approve the blueprint and receive OTP confirmation before project goes live
+- [x] **EP-04**: User can view SOW version history (each iteration tracked)
+- [x] **EP-05**: User can archive completed SOWs
 
 **Project Dashboard & Oversight**
-- [ ] **EP-06**: User can view project dashboard with gradient KPI cards (tasks complete %, evidence packs pending review, payments released vs pending, timeline health)
-- [ ] **EP-07**: User can view APG Activity Feed for their project (AI governor actions, auto-approvals, flags)
-- [ ] **EP-08**: User can view Project Detail with 7 tabs: Overview, Timeline (Gantt + List toggle), Evidence Packs, Rework Requests, Escalation Centre, Payment Release, Team Summary (anonymized)
+- [x] **EP-06**: User can view project dashboard with gradient KPI cards (tasks complete %, evidence packs pending review, payments released vs pending, timeline health)
+- [x] **EP-07**: User can view APG Activity Feed for their project (AI governor actions, auto-approvals, flags)
+- [x] **EP-08**: User can view Project Detail with 7 tabs: Overview, Timeline (Gantt + List toggle), Evidence Packs, Rework Requests, Escalation Centre, Payment Release, Team Summary (anonymized)
 
 **Timeline / Gantt**
-- [ ] **EP-09**: User can view project timeline as horizontal Gantt chart with gradient milestone bars, date ruler, today indicator
-- [ ] **EP-10**: User can toggle between Gantt view and List view
-- [ ] **EP-11**: User can see milestone health status (on-track, at-risk, delayed) via color indicators
+- [x] **EP-09**: User can view project timeline as horizontal Gantt chart with gradient milestone bars, date ruler, today indicator
+- [x] **EP-10**: User can toggle between Gantt view and List view
+- [x] **EP-11**: User can see milestone health status (on-track, at-risk, delayed) via color indicators
 
 **Evidence Review**
-- [ ] **EP-12**: User can view Evidence Packs submitted by the team (contributor identity hidden in review mode)
-- [ ] **EP-13**: User can approve an evidence pack (triggers payment calculation)
-- [ ] **EP-14**: User can request rework with structured feedback form (required: rework reason, specific items to address)
-- [ ] **EP-15**: User can escalate to Mentor review if unsure of quality
+- [x] **EP-12**: User can view Evidence Packs submitted by the team (contributor identity hidden in review mode)
+- [x] **EP-13**: User can approve an evidence pack (triggers payment calculation)
+- [x] **EP-14**: User can request rework with structured feedback form (required: rework reason, specific items to address)
+- [x] **EP-15**: User can escalate to Mentor review if unsure of quality
 
 **Payment Release**
-- [ ] **EP-16**: User can release payment manually per evidence pack (with confirmation)
-- [ ] **EP-17**: User can view auto-payment settings (configure APG-triggered payment on approval)
-- [ ] **EP-18**: User can view APG-silent approvals log (payments auto-released without manual intervention)
-- [ ] **EP-19**: User can view bulk payment release for multiple packs simultaneously
+- [x] **EP-16**: User can release payment manually per evidence pack (with confirmation)
+- [x] **EP-17**: User can view auto-payment settings (configure APG-triggered payment on approval)
+- [x] **EP-18**: User can view APG-silent approvals log (payments auto-released without manual intervention)
+- [x] **EP-19**: User can view bulk payment release for multiple packs simultaneously
 
 **Compliance & Exports**
-- [ ] **EP-20**: User can export PoDL report (immutable delivery record for audit)
-- [ ] **EP-21**: User can export ESG compliance report
-- [ ] **EP-22**: User can view completed projects archive with full PoDL trail
+- [x] **EP-20**: User can export PoDL report (immutable delivery record for audit)
+- [x] **EP-21**: User can export ESG compliance report
+- [x] **EP-22**: User can view completed projects archive with full PoDL trail
 
 **Settings**
-- [ ] **EP-23**: User can manage organization profile (company name, logo, billing)
-- [ ] **EP-24**: User can manage team members who have access to the enterprise portal
-- [ ] **EP-25**: User can configure payment release preferences (manual vs auto vs APG-silent threshold)
-- [ ] **EP-26**: User can manage notification preferences
+- [x] **EP-23**: User can manage organization profile (company name, logo, billing)
+- [x] **EP-24**: User can manage team members who have access to the enterprise portal
+- [x] **EP-25**: User can configure payment release preferences (manual vs auto vs APG-silent threshold)
+- [x] **EP-26**: User can manage notification preferences
 
 ### MP — Mentor Portal
 
@@ -394,32 +394,32 @@
 | UP-10 | Phase 3 | Complete |
 | UP-11 | Phase 3 | Complete |
 | UP-12 | Phase 3 | Complete |
-| EP-01 | Phase 5 | Pending |
-| EP-02 | Phase 5 | Pending |
-| EP-03 | Phase 5 | Pending |
-| EP-04 | Phase 5 | Pending |
-| EP-05 | Phase 5 | Pending |
-| EP-06 | Phase 5 | Pending |
-| EP-07 | Phase 5 | Pending |
-| EP-08 | Phase 5 | Pending |
-| EP-09 | Phase 5 | Pending |
-| EP-10 | Phase 5 | Pending |
-| EP-11 | Phase 5 | Pending |
-| EP-12 | Phase 5 | Pending |
-| EP-13 | Phase 5 | Pending |
-| EP-14 | Phase 5 | Pending |
-| EP-15 | Phase 5 | Pending |
-| EP-16 | Phase 5 | Pending |
-| EP-17 | Phase 5 | Pending |
-| EP-18 | Phase 5 | Pending |
-| EP-19 | Phase 5 | Pending |
-| EP-20 | Phase 5 | Pending |
-| EP-21 | Phase 5 | Pending |
-| EP-22 | Phase 5 | Pending |
-| EP-23 | Phase 5 | Pending |
-| EP-24 | Phase 5 | Pending |
-| EP-25 | Phase 5 | Pending |
-| EP-26 | Phase 5 | Pending |
+| EP-01 | Phase 5 | Complete |
+| EP-02 | Phase 5 | Complete |
+| EP-03 | Phase 5 | Complete |
+| EP-04 | Phase 5 | Complete |
+| EP-05 | Phase 5 | Complete |
+| EP-06 | Phase 5 | Complete |
+| EP-07 | Phase 5 | Complete |
+| EP-08 | Phase 5 | Complete |
+| EP-09 | Phase 5 | Complete |
+| EP-10 | Phase 5 | Complete |
+| EP-11 | Phase 5 | Complete |
+| EP-12 | Phase 5 | Complete |
+| EP-13 | Phase 5 | Complete |
+| EP-14 | Phase 5 | Complete |
+| EP-15 | Phase 5 | Complete |
+| EP-16 | Phase 5 | Complete |
+| EP-17 | Phase 5 | Complete |
+| EP-18 | Phase 5 | Complete |
+| EP-19 | Phase 5 | Complete |
+| EP-20 | Phase 5 | Complete |
+| EP-21 | Phase 5 | Complete |
+| EP-22 | Phase 5 | Complete |
+| EP-23 | Phase 5 | Complete |
+| EP-24 | Phase 5 | Complete |
+| EP-25 | Phase 5 | Complete |
+| EP-26 | Phase 5 | Complete |
 | MP-01 | Phase 4 | Complete |
 | MP-02 | Phase 4 | Complete |
 | MP-03 | Phase 4 | Complete |
@@ -466,4 +466,4 @@
 
 ---
 
-*Last updated: 2026-02-26 -- Phase 3 complete (WP-01..WP-22, UP-01..UP-12 marked Complete)*
+*Last updated: 2026-02-27 -- Phase 5 complete (EP-01..EP-26 marked Complete)*

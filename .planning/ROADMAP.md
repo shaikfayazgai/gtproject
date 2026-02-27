@@ -10,7 +10,7 @@ GlimmoraTeam is a 5-portal frontend monorepo (Women's, University, Enterprise, M
 - [x] **Phase 2: Design System Completion** - Full component library covering layout, governance, and data visualization components
 - [x] **Phase 3: Women's Portal + University Portal** - Two contributor portals with onboarding, task delivery, evidence submission, and credential flows
 - [x] **Phase 4: Mentor Portal** - 3-panel review layout, evidence viewer, review queue, and skill tag verification
-- [ ] **Phase 5: Enterprise Portal** - SOW upload, 4-panel Blueprint Editor, Gantt timeline, evidence review, and payment flows
+- [x] **Phase 5: Enterprise Portal** - SOW upload, 4-panel Blueprint Editor, Gantt timeline, evidence review, and payment flows
 - [ ] **Phase 6: Admin Panel** - Platform oversight, user management, dispute resolution, reports, and APG configuration
 
 ## Phase Details
@@ -98,15 +98,15 @@ Plans:
   3. A person can view the project timeline as a horizontal Gantt chart with gradient milestone bars, toggle to list view, and see milestone health status (on-track/at-risk/delayed) via color indicators
   4. A person can review evidence packs (contributor identity hidden), approve packs (triggering payment calculation), request rework with structured feedback, or escalate to mentor review -- and can release payments manually, configure auto-payment, view APG-silent approvals log, and process bulk payment release
   5. A person can export PoDL audit reports and ESG compliance reports, view completed project archives, manage organization profile and team access, and configure payment release preferences
-**Plans**: TBD
+**Plans**: 6 plans
 
 Plans:
-- [ ] 05-01: SOW upload and APG intelligence display
-- [ ] 05-02: 4-panel Blueprint Editor
-- [ ] 05-03: Project dashboard and 7-tab project detail
-- [ ] 05-04: Timeline/Gantt view
-- [ ] 05-05: Evidence review and payment release flows
-- [ ] 05-06: Compliance exports and enterprise settings
+- [x] 05-01-PLAN.md -- SOW upload and APG intelligence display (Wave 1)
+- [x] 05-02-PLAN.md -- 4-panel Blueprint Editor (Wave 2)
+- [x] 05-03-PLAN.md -- Project dashboard and 7-tab project detail (Wave 2)
+- [x] 05-04-PLAN.md -- Timeline/Gantt view (Wave 3)
+- [x] 05-05-PLAN.md -- Evidence review and payment release flows (Wave 4)
+- [x] 05-06-PLAN.md -- Compliance exports and enterprise settings (Wave 5)
 
 ### Phase 6: Admin Panel
 **Goal**: Platform administrators can oversee the entire platform -- monitoring live stats, managing all user types, intervening in projects, resolving disputes (including Safety Case protocol), generating reports, managing the skill taxonomy and content, and configuring APG behavior (Super Admin only).
@@ -150,6 +150,6 @@ All 162 v1 requirements mapped. No orphans. No duplicates.
 | 1. Monorepo Infrastructure + DS Foundation | 4/4 | Complete ✓ | 2026-02-26 |
 | 2. Design System Completion | 4/4 | Complete ✓ | 2026-02-26 |
 | 3. Women's Portal + University Portal | 5/5 | Complete ✓ | 2026-02-26 |
-| 4. Mentor Portal | 0/4 | Not started | - |
-| 5. Enterprise Portal | 0/6 | Not started | - |
+| 4. Mentor Portal | 4/4 | Complete ✓ | 2026-02-27 |
+| 5. Enterprise Portal | 6/6 | Complete ✓ | 2026-02-27 |
 | 6. Admin Panel | 0/5 | Not started | - |
