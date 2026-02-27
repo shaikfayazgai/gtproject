@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 6 of 6 (Admin Panel)
-Plan: 3 of 5 in current phase
+Plan: 4 of 5 in current phase
 Status: In progress
-Last activity: 2026-02-27 -- Completed 06-03-PLAN.md
+Last activity: 2026-02-27 -- Completed 06-04-PLAN.md
 
-Progress: [██████████████████████████████████████████████████████░░░░░] 3/5 phase 6 plans (60%), 27/29 overall (93%)
+Progress: [██████████████████████████████████████████████████████████░░] 4/5 phase 6 plans (80%), 28/29 overall (97%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 27
-- Average duration: 6.7 min
-- Total execution time: 204 min
+- Total plans completed: 28
+- Average duration: 6.8 min
+- Total execution time: 212 min
 
 **By Phase:**
 
@@ -32,11 +32,11 @@ Progress: [███████████████████████
 | 03-womens-portal-university-portal | 5/5 | 52 min | 10.4 min |
 | 04-mentor-portal | 4/4 | 47 min | 11.8 min |
 | 05-enterprise-portal | 6/6 | 30 min | 5.0 min |
-| 06-admin-panel | 3/5 | 29 min | 9.7 min |
+| 06-admin-panel | 4/5 | 37 min | 9.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-06 (7 min), 06-01 (6 min), 06-02 (12 min), 06-03 (11 min)
-- Trend: 06-03 built 19 files (10-tab project admin with full MSW coverage). Complexity proportional to scope
+- Last 5 plans: 06-01 (6 min), 06-02 (12 min), 06-03 (11 min), 06-04 (8 min)
+- Trend: 3-panel layout reuse from mentor-portal accelerated dispute resolution build. Safety case protocol adds gravity-appropriate visual treatment
 
 *Updated after each plan completion*
 
@@ -155,6 +155,11 @@ Recent decisions affecting current work:
 - [06-03]: Intervention DataTable is read-only with no actions column (immutable audit records)
 - [06-03]: FreezeDialog requires mandatory reason; freeze/unfreeze also creates intervention record
 - [06-03]: Admin sees contributor seeds only in Team tab (AnonymizedTeamCard, never real names)
+- [06-04]: orientation='horizontal' on ResizablePanelGroup (not direction) matching mentor-portal pattern
+- [06-04]: Safety case decision form removes 'dismissed' via isSafetyCase prop filtering ALL_DECISION_OPTIONS
+- [06-04]: Safety case audit trail always visible below 3-panel layout (not behind tab)
+- [06-04]: CaseContextPanel handles both regular disputes and safety cases via optional privacy/access restriction props
+- [06-04]: MSW safety routes defined BEFORE parameterized :id routes to prevent path shadowing
 
 ### Pending Todos
 
@@ -171,6 +176,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-27T08:03:00Z
-Stopped at: Completed 06-03-PLAN.md (Project Management Admin Section: 10-tab detail, freeze, interventions)
+Last session: 2026-02-27T08:03:31Z
+Stopped at: Completed 06-04-PLAN.md (Dispute Resolution: queue, 3-panel detail, Safety Case protocol, audit trail)
 Resume file: None
