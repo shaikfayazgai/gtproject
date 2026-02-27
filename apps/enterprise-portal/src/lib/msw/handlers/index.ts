@@ -4,6 +4,7 @@ import { sowHandlers } from './sow'
 import { blueprintHandlers } from './blueprint'
 import { dashboardHandlers } from './dashboard'
 import { projectHandlers } from './projects'
+import { evidenceHandlers } from './evidence'
 
 export const handlers = [
   ...authHandlers,
@@ -12,4 +13,5 @@ export const handlers = [
   ...blueprintHandlers,
   ...dashboardHandlers,
   ...projectHandlers,
+  ...evidenceHandlers,
 ]

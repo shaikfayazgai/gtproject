@@ -5,6 +5,9 @@ import type { Project } from '@glimmora/types'
 import { ProjectOverview } from './project-overview'
 import { TeamSummaryGrid } from './team-summary-grid'
 import { TimelineView } from './timeline-view'
+import { EvidencePackReview } from './evidence-pack-review'
+import { ReworkRequestsList } from './rework-requests-list'
+import { EscalationsList } from './escalations-list'
 
 const TAB_CONFIG = [
   { value: 'overview', label: 'Overview' },
@@ -74,27 +77,15 @@ export function ProjectDetailTabs({ project, projectId }: ProjectDetailTabsProps
       </TabsContent>
 
       <TabsContent value="evidence">
-        <div className="py-8 text-center">
-          <p className="text-sm font-body text-text-caption">
-            Evidence packs view will be added in a subsequent update.
-          </p>
-        </div>
+        <EvidencePackReview projectId={projectId} />
       </TabsContent>
 
       <TabsContent value="rework">
-        <div className="py-8 text-center">
-          <p className="text-sm font-body text-text-caption">
-            Rework requests view will be added in a subsequent update.
-          </p>
-        </div>
+        <ReworkRequestsList projectId={projectId} />
       </TabsContent>
 
       <TabsContent value="escalation">
-        <div className="py-8 text-center">
-          <p className="text-sm font-body text-text-caption">
-            Escalation centre will be added in a subsequent update.
-          </p>
-        </div>
+        <EscalationsList projectId={projectId} />
       </TabsContent>
 
       <TabsContent value="payments">
