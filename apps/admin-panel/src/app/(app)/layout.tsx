@@ -13,6 +13,7 @@ import {
   Bot,
   ScrollText,
   Shield,
+  Settings,
 } from 'lucide-react'
 import { RoleSwitcherOverlay } from '@/components/dev/role-switcher'
 import { useAuthStore } from '@/store/auth-store'
@@ -30,6 +31,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { label: 'Content', href: '/content/skills', icon: <BookOpen className="h-5 w-5" />, active: pathname.startsWith('/content') },
     { label: 'APG Config', href: '/apg-config', icon: <Bot className="h-5 w-5" />, active: pathname.startsWith('/apg-config') },
     { label: 'Audit Log', href: '/audit-log', icon: <ScrollText className="h-5 w-5" />, active: pathname.startsWith('/audit-log') },
+    { label: 'Settings', href: '/settings', icon: <Settings className="h-5 w-5" />, active: pathname.startsWith('/settings') },
   ]
 
   return (
