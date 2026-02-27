@@ -119,6 +119,10 @@ Recent decisions affecting current work:
 - [05-01]: SOW upload form checks existingSOWId from URL search params -- if present shows version banner and passes in FormData
 - [05-01]: MSW handlers migrated from flat canary file to handlers/ directory (auth, onboarding, sow)
 - [05-01]: Pre-auth login at (pre-auth)/login/page.tsx, root page.tsx redirects to /login
+- [05-02]: Blueprint factory uses deterministic clause IDs (clause-001..006) matching task clauseIds for cross-panel synchronization
+- [05-02]: All 4 editor panels use Zustand selectors (useEditorStore((s) => s.field)) -- never full store subscription
+- [05-02]: OTPConfirmationDialog in components/shared/ is reusable for blueprint approval and payment release
+- [05-02]: MilestoneSettingsCard is private sub-component within ProjectSettingsPanel for per-milestone editing
 - [05-03]: 3rd GradientCard uses inline style={{ background: 'linear-gradient(135deg, #4A6741 0%, #3A8FA0 100%)' }} per prior decision
 - [05-03]: URL hash-based tab state for bookmarkable 7-tab project detail (window.location.hash + hashchange listener)
 - [05-03]: AnonymizedTeamCard with tier Badge overlay -- no real contributor names shown
@@ -130,7 +134,7 @@ None.
 
 ### Blockers/Concerns
 
-- Phase 5: SOW Blueprint Editor (4-panel synchronized scroll) has no library equivalent -- needs spike
+- Phase 5: SOW Blueprint Editor 4-panel synchronized selection COMPLETE using Zustand selectors + ResizablePanelGroup (resolved)
 - Pre-existing: `pnpm turbo build` now passes cleanly across all portals
 - [03-01]: next-intl INSTALLED in both portals (resolved from planning blocker)
 - [03-04]: @react-pdf/renderer INSTALLED in university-portal (resolved from blocker)
