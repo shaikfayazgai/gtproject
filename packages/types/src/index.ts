@@ -14,3 +14,10 @@ export type { GovernorMetrics, CohortTrend, TaskCategory } from './governor'
 export type { NotificationChannel, NotificationCategory, NotificationPreference } from './notification'
 export type { DeviceType, InternetStability, DeviceInfo } from './device'
 export type { MentorApplicationStatus, ReviewDecisionType, SLAStatus, ReviewEvidenceType, ReviewEvidence, ReviewDetail, MentorApplication, MentorOnboardingProfile, MentorImpactMetrics, ReviewQueueItem, ReviewDecision, SkillTagVerificationRequest, MentorConversation } from './mentor'
+export type {
+  EnterpriseOnboardingStepId, EnterpriseOnboardingProgress,
+  TeamMemberRole, TeamMember, OrganizationProfile,
+  PaymentReleaseMode, PaymentPreferences, PaymentRecord,
+  BlueprintTask, BlueprintMilestone, BlueprintPhase, Blueprint,
+  SOWClause, SOWIntelligence, ESGReportData,
+} from './enterprise'

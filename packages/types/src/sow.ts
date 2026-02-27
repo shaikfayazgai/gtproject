@@ -20,6 +20,8 @@ export interface SOW {
   extractedSkills: string[]
   estimatedTimeline?: string
   estimatedBudget?: number
+  versionNumber?: number
+  parentSowId?: string
 }
 
 export interface SOWDecomposition {

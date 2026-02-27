@@ -145,3 +145,6 @@ export { TimelineBar } from './components/timeline-bar'
 
 // Resizable Panels (react-resizable-panels v4 wrapper)
 export { ResizablePanelGroup, ResizablePanel, ResizableHandle } from './components/resizable-panels'
+
+// DS-48: OTP Input
+export { OTPInput } from './components/otp-input'
