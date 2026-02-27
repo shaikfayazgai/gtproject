@@ -25,7 +25,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Harden the frontend with full test coverage, accessibility compliance, mobile responsive polish, and tech debt cleanup — making the codebase production-ready before backend integration.
 
-- [ ] **Phase 7: Tech Debt Cleanup** — 3 plans
+- [x] **Phase 7: Tech Debt Cleanup** — 3 plans
 - [ ] **Phase 8: Design System Test Foundation** — Vitest setup, render/variant/ARIA tests for all 47 DS components, Avatar determinism
 - [ ] **Phase 9: Interactive + Governance Component Tests** — Privacy behavioral tests, interaction tests, form validation tests, DataTable tests
 - [ ] **Phase 10: Portal Smoke Tests + Factory Validation** — Route smoke tests for all 5 portals, MSW factory type-correctness tests
@@ -47,9 +47,9 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
   5. Admin Panel MSW handler files are organized with settings routes in their own `settings.ts` file, and all enterprise-portal OTPConfirmationDialog imports use the barrel pattern
 **Plans:** 3 plans
 Plans:
-- [ ] 07-01-PLAN.md — Fix PoDL and Evidence types + downstream factories (POL-05, POL-02)
-- [ ] 07-02-PLAN.md — Integrate production fonts + fix OTP imports (POL-03, POL-04)
-- [ ] 07-03-PLAN.md — Extract settings handlers + add PoDL Ledger report (POL-06, POL-01)
+- [x] 07-01-PLAN.md — Fix PoDL and Evidence types + downstream factories (POL-05, POL-02)
+- [x] 07-02-PLAN.md — Integrate production fonts + fix OTP imports (POL-03, POL-04)
+- [x] 07-03-PLAN.md — Extract settings handlers + add PoDL Ledger report (POL-06, POL-01)
 
 ### Phase 8: Design System Test Foundation
 **Goal**: Every @glimmora/ui component has a passing test file that proves it renders, respects its variant props, and exposes correct ARIA attributes — establishing the test infrastructure and baseline coverage for the entire design system
@@ -121,7 +121,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1-6 | v1.0 | 29/29 | Complete | 2026-02-27 |
-| 7. Tech Debt Cleanup | v1.1 | 0/3 | Planned | - |
+| 7. Tech Debt Cleanup | v1.1 | 3/3 | Complete | 2026-02-27 |
 | 8. DS Test Foundation | v1.1 | 0/? | Not started | - |
 | 9. Interactive + Governance Tests | v1.1 | 0/? | Not started | - |
 | 10. Portal Smoke + Factory Tests | v1.1 | 0/? | Not started | - |
@@ -131,4 +131,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-27*
-*Last updated: 2026-02-27*
+*Last updated: 2026-02-27 — Phase 7 complete*

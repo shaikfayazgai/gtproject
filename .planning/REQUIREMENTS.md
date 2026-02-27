@@ -44,12 +44,12 @@ Requirements for v1.1 milestone. Each maps to roadmap phases (7-13).
 
 ### POL — Polish + Missing Features
 
-- [ ] **POL-01**: Admin Panel adds "PoDL Ledger" as a 6th report type — generates a platform-wide credential audit table filterable by date range, project, and user type (Women/Student/Alumni)
-- [ ] **POL-02**: Enterprise portal MSW evidence factory (`apps/enterprise-portal/src/lib/msw/factories/evidence.ts`) no longer populates `contributorId` — factory models the correct API contract that the backend will deliver to enterprise clients
-- [ ] **POL-03**: Miller Display and Avenir LT Std font files are sourced and integrated via `next/font/local` in all 5 portal `layout.tsx` files — fonts render correctly in portal runtimes (not just Storybook)
-- [ ] **POL-04**: All 4 `OTPConfirmationDialog` import sites in enterprise-portal are standardized to the barrel import (`@/components/shared`) instead of direct file paths
-- [ ] **POL-05**: `PoDL.verifiedByMentorId` is removed from the contributor-facing `@glimmora/types` PoDL interface; Women's Portal and University Portal MSW credential factories no longer populate this field
-- [ ] **POL-06**: Admin Panel MSW settings routes (GET/PATCH/POST `/api/admin/settings/admins`) are extracted from `audit-log.ts` into a dedicated `settings.ts` handler file, registered as `settingsHandlers` in `handlers/index.ts`
+- [x] **POL-01**: Admin Panel adds "PoDL Ledger" as a 6th report type — generates a platform-wide credential audit table filterable by date range, project, and user type (Women/Student/Alumni)
+- [x] **POL-02**: Enterprise portal MSW evidence factory (`apps/enterprise-portal/src/lib/msw/factories/evidence.ts`) no longer populates `contributorId` — factory models the correct API contract that the backend will deliver to enterprise clients
+- [x] **POL-03**: Miller Display and Avenir LT Std font files are sourced and integrated via `next/font/local` in all 5 portal `layout.tsx` files — fonts render correctly in portal runtimes (not just Storybook)
+- [x] **POL-04**: All 4 `OTPConfirmationDialog` import sites in enterprise-portal are standardized to the barrel import (`@/components/shared`) instead of direct file paths
+- [x] **POL-05**: `PoDL.verifiedByMentorId` is removed from the contributor-facing `@glimmora/types` PoDL interface; Women's Portal and University Portal MSW credential factories no longer populate this field
+- [x] **POL-06**: Admin Panel MSW settings routes (GET/PATCH/POST `/api/admin/settings/admins`) are extracted from `audit-log.ts` into a dedicated `settings.ts` handler file, registered as `settingsHandlers` in `handlers/index.ts`
 
 ---
 
@@ -125,12 +125,12 @@ Requirements for v1.1 milestone. Each maps to roadmap phases (7-13).
 | MOB-06 | Phase 13 | Pending |
 | MOB-07 | Phase 13 | Pending |
 | MOB-08 | Phase 13 | Pending |
-| POL-01 | Phase 7 | Pending |
-| POL-02 | Phase 7 | Pending |
-| POL-03 | Phase 7 | Pending |
-| POL-04 | Phase 7 | Pending |
-| POL-05 | Phase 7 | Pending |
-| POL-06 | Phase 7 | Pending |
+| POL-01 | Phase 7 | Complete |
+| POL-02 | Phase 7 | Complete |
+| POL-03 | Phase 7 | Complete |
+| POL-04 | Phase 7 | Complete |
+| POL-05 | Phase 7 | Complete |
+| POL-06 | Phase 7 | Complete |
 
 **Coverage:**
 - v1 requirements: 29 total
@@ -139,4 +139,4 @@ Requirements for v1.1 milestone. Each maps to roadmap phases (7-13).
 
 ---
 *Requirements defined: 2026-02-27*
-*Last updated: 2026-02-27 — traceability populated by roadmapper (phases 7-13)*
+*Last updated: 2026-02-27 — Phase 7 complete, POL-01..06 marked Complete*
