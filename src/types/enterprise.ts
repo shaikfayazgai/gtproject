@@ -3,9 +3,14 @@
    All mock entities cross-reference by ID for seamless drill-down
    ══════════════════════════════════════════════════════════════ */
 
-export type SowStatus = "draft" | "approved";
+export type SowStatus = "draft" | "parsing" | "review" | "approval" | "approved" | "rejected" | "changes_requested" | "archived";
+export type SowIntakeMode = "ai_generated" | "manual_upload";
+export type DataSensitivity = "public" | "internal" | "confidential" | "restricted";
 export type ConfidentialityLevel = "public" | "internal" | "confidential" | "restricted";
 export type PlanStatus = "draft" | "pending_review" | "approved" | "in_progress" | "completed";
+export type DependencyType = "blocks" | "related";
+export type SkillSource = "ai" | "manual";
+export type DecompositionItemStatus = "proposed" | "accepted" | "modified" | "deleted";
 export type TeamStatus = "forming" | "ready" | "approved" | "active" | "disbanded";
 export type ProjectHealth = "on_track" | "at_risk" | "behind" | "completed";
 export type TaskStatus = "backlog" | "in_progress" | "in_review" | "rework" | "accepted" | "rejected";
@@ -17,28 +22,68 @@ export type AuditAction = "created" | "updated" | "approved" | "rejected" | "esc
 export type UserRole = "owner" | "admin" | "manager" | "viewer";
 export type NotificationChannel = "email" | "in_app" | "slack" | "webhook";
 
+/* ── SOW Approval Pipeline (4-Stage per SOW V2.1 Section 6.3 + UX Flow B7) ── */
+export type ApprovalStage = "business" | "legal" | "security" | "final";
+export type ApprovalStageStatus = "pending" | "in_review" | "approved" | "rejected";
+
+export interface SOWApprovalStage {
+  stage: ApprovalStage;
+  status: ApprovalStageStatus;
+  reviewer?: string;
+  reviewedAt?: string;
+  comments?: string;
+}
+
+/* ── Risk & Hallucination (SOW V2.1 Section 6.2.7 + UX Flow B4) ── */
+export interface RiskScoreBreakdown {
+  completeness: number;
+  confidence: number;
+  compliance: number;
+  patternMatch: number;
+  overall: number;
+}
+
+export interface HallucinationFlag {
+  id: string;
+  clause: string;
+  severity: "low" | "medium" | "high";
+  reason: string;
+  suggestion: string;
+  resolved: boolean;
+}
+
+/* ── SOW ── */
 export interface SOW {
   id: string;
   title: string;
   client: string;
   status: SowStatus;
+  intakeMode: SowIntakeMode;
   confidentiality: ConfidentialityLevel;
+  dataSensitivity: DataSensitivity;
   version: number;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
   approvedBy?: string;
+  approvedAt?: string;
   fileSize: string;
   pages: number;
   parsedSections: number;
   totalSections: number;
   aiConfidence: number;
+  riskScore: RiskScoreBreakdown;
   tags: string[];
   estimatedBudget: number;
   estimatedDuration: string;
   planId?: string;
   stakeholders: string[];
   slaCompliance?: number;
+  hallucinationFlags?: HallucinationFlag[];
+  templateId?: string;
+  industry?: string;
+  gapAnalysisScore?: number;
+  approvalStages: SOWApprovalStage[];
 }
 
 export interface SOWSection {
@@ -59,26 +104,99 @@ export interface DecompositionPlan {
   createdAt: string;
   updatedAt: string;
   totalTasks: number;
+  totalSubtasks: number;
+  totalMilestones: number;
   estimatedHours: number;
   estimatedCost: number;
   complexity: "low" | "medium" | "high" | "critical";
+  version: number;
   teamId?: string;
   projectId?: string;
+  aiConfidence: number;
+  criticalPathDuration: number;
+  uniqueSkills: number;
+  dependencyCount: number;
+}
+
+export interface PlanMilestone {
+  id: string;
+  planId: string;
+  title: string;
+  description: string;
+  order: number;
+  estimatedHours: number;
+  taskCount: number;
+  subtaskCount: number;
+  itemStatus: DecompositionItemStatus;
+  aiConfidence: number;
 }
 
 export interface DecompositionTask {
   id: string;
   planId: string;
+  milestoneId: string;
   title: string;
   description: string;
   status: TaskStatus;
   priority: "low" | "medium" | "high" | "critical";
   estimatedHours: number;
-  skillsRequired: string[];
-  dependencies: string[];
+  skillsRequired: SkillTag[];
+  dependencies: TaskDependency[];
   phase: number;
   order: number;
   assigneeId?: string;
+  acceptanceCriteria: string[];
+  aiConfidence: number;
+  itemStatus: DecompositionItemStatus;
+  subtasks: Subtask[];
+}
+
+export interface Subtask {
+  id: string;
+  taskId: string;
+  title: string;
+  estimatedHours: number;
+  skillsRequired: SkillTag[];
+  itemStatus: DecompositionItemStatus;
+  aiConfidence: number;
+}
+
+export interface SkillTag {
+  name: string;
+  source: SkillSource;
+  confidence?: number;
+  proficiency?: "beginner" | "intermediate" | "advanced" | "expert";
+}
+
+export interface TaskDependency {
+  targetId: string;
+  type: DependencyType;
+}
+
+export interface AIRecommendation {
+  id: string;
+  planId: string;
+  type: "split" | "dependency" | "skill_gap" | "effort" | "risk";
+  severity: "info" | "warning" | "critical";
+  title: string;
+  description: string;
+  affectedTaskId?: string;
+  suggestion: string;
+  dismissed: boolean;
+}
+
+export interface PlanValidationResult {
+  field: string;
+  status: "passed" | "warning" | "error";
+  message: string;
+}
+
+export interface PlanVersion {
+  version: number;
+  createdAt: string;
+  createdBy: string;
+  changes: string;
+  status: PlanStatus;
 }
 
 export interface TeamPool {
@@ -270,6 +388,61 @@ export interface AnalyticsDataset {
   title: string;
   metrics: AnalyticsMetric[];
   timeSeries: TimeSeriesPoint[];
+}
+
+/* ── SOW Clauses (B6 Step 3: tagged clauses with types) ── */
+export type ClauseType = "dependency" | "assumption" | "constraint" | "acceptance_criteria" | "ethical" | "security" | "ip" | "liability" | "confidentiality" | "sla" | "warranty" | "termination";
+
+export interface SOWClause {
+  id: string;
+  sowId: string;
+  text: string;
+  type: ClauseType;
+  sectionRef: string;
+  confidence: number;
+  isProhibited: boolean;
+  prohibitedReason?: string;
+}
+
+/* ── Ethics Screening (B6 Step 6) ── */
+export interface EthicsScreeningItem {
+  id: string;
+  criterion: string;
+  description: string;
+  status: "pass" | "fail" | "warning" | "not_applicable";
+  details: string;
+}
+
+/* ── Regulatory Alignment (B6 Step 6) ── */
+export interface RegulatoryItem {
+  id: string;
+  regulation: string;
+  description: string;
+  status: "compliant" | "non_compliant" | "partial" | "not_assessed";
+  notes: string;
+}
+
+/* ── AI Generation Parameters (B6 Step 5 — for AI-Generated SOWs) ── */
+export interface SOWGenerationParams {
+  templateUsed: string;
+  templateId: string;
+  industry: string;
+  projectType: string;
+  wizardStepsCompleted: number;
+  totalWizardSteps: number;
+  generatedAt: string;
+  generationDuration: string;
+  guardrailsPassed: number;
+  totalGuardrails: number;
+}
+
+/* ── 8-Layer Hallucination Prevention Status (B6 Step 5) ── */
+export interface HallucinationLayerStatus {
+  layer: number;
+  name: string;
+  description: string;
+  status: "passed" | "warning" | "failed" | "skipped";
+  details: string;
 }
 
 export interface ActivityEvent {

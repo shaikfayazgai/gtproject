@@ -1,10 +1,10 @@
 # Flow Document: Enterprise Admin Console
 
-**Version:** 1.0
-**Date:** 2026-03-06
+**Version:** 2.1
+**Date:** 2026-03-09
 **SOW Module:** Enterprise Admin Console (Section 19.1 + 3.1.6)
 **Target Users:** Enterprise business owners, project sponsors, HR/Talent/L&D teams, procurement/finance controllers, PMO (Section 2.3)
-**Basis:** Every flow in this document is derived from SOW V1.1. Section numbers are cited inline. Nothing is invented.
+**Basis:** Every flow in this document is derived from SOW V2.0. Section numbers are cited inline. Nothing is invented. V2.0 updates: Section B (SOW Management) rewritten for dual-mode SOW intake (AI-Generated + Manual Upload), multi-stage approval, and enhanced risk/compliance controls. Sections C-J unchanged (post-intake workflow is identical). V2.1 updates: UX audit corrections -- navigation restructured per UX principles (actions removed from sidebar, cognitive load reduced), SOW detail header actions refined (validation gating, confirmation modal for submission), SOW Repository columns/filters aligned to B1 spec.
 
 ---
 
@@ -96,7 +96,7 @@
 
 | Area | Data Visible | SOW Reference |
 |------|-------------|---------------|
-| SOW Management | SOW upload, repository, detail, versions, export | 3.1.MVP.1 |
+| SOW Management | SOW intake (AI-Generated wizard + Manual Upload), repository, detail, risk/compliance analysis, multi-stage approval, versions, export | 3.1.MVP.1, V2.0 |
 | Task Decomposition | Planner UI: milestones, tasks, dependencies, skills tags, approval gates | 3.1.MVP.2 |
 | Team Formation | Matching results, "why matched", team confirmation, admin override | 3.1.MVP.4 |
 | Project Monitoring | Project/task/team status, SLA tracking, exceptions, throughput/quality views | 3.1.6 |
@@ -125,46 +125,55 @@
 | HR / Talent / L&D | Workforce intelligence dashboards, contributor management, skills analytics | 3.1.6, 3.1.MVP.3 |
 | PMO / Operations | Project monitoring, exception management, throughput/quality views, analytics | 3.1.6 |
 
-**Navigation Structure:**
+**Navigation Structure (V2.1 -- UX Audit Corrections):**
+
+> **UX Principles Applied:**
+> - Navigation = destinations (nouns), not actions (verbs). "New SOW" removed from sidebar -- it is a CTA button on the SOW Repository page header instead.
+> - Progressive disclosure: sub-routes (SOW Detail, Approval Workflow) are drill-downs from list pages, not sidebar items.
+> - Cognitive load (Miller's Law): no section exceeds 5 items. "Admin & Configuration" split into two sections. "Commercial & Billing" consolidated from 4 to 2 items.
+> - Removed redundant entries: "Plan Approval" (filtered view of Decomposition, accessible via tab), "Team Confirmation" (drill-down from Matching Results).
+> - Shortened labels for scannability.
 
 ```
 Enterprise Admin Console
 |-- Dashboard (default landing)
 |-- SOW Management
-|   |-- Upload SOW
-|   |-- SOW Repository
-|   |-- SOW Detail
+|   |-- SOW Repository (contains "New SOW" CTA button -> Intake Mode Selector)
+|   |   |-- [drill-down] SOW Detail
+|   |   |-- [drill-down] Approval Workflow (progress tracker)
+|   |   |-- [action] New SOW -> Intake Mode Selector (Flow B2)
+|   |       |-- AI-Generated SOW (Parameter Wizard)
+|   |       |-- Manual SOW Upload (DOC/PDF)
 |-- Task Planning
-|   |-- Decomposition View
-|   |-- Plan Approval
-|   |-- Plan Export
+|   |-- Decomposition (includes plan approval as tab/filter)
 |-- Team Formation
-|   |-- Matching Results
-|   |-- Team Confirmation
-|   |-- Assignment Monitoring
+|   |-- Matching Results (team confirmation is drill-down from here)
+|   |-- Assignment Monitor
 |-- Project Monitoring
 |   |-- Project Portfolio
-|   |-- Project Detail
-|   |-- Exception Management
+|   |-- Exceptions
 |-- Review & Acceptance
-|   |-- Evidence Pack Review
+|   |-- Evidence Review
 |   |-- Acceptance Logs
-|-- Commercial & Billing
-|   |-- Rate Cards
-|   |-- Task Pricing
-|   |-- Billing & Exports
-|   |-- Invoices
-|-- Admin & Configuration
+|-- Billing
+|   |-- Pricing (rate cards + task pricing consolidated)
+|   |-- Billing & Invoices
+|-- Administration
 |   |-- Tenant Setup
 |   |-- Roles & Access
-|   |-- Policies (SLAs, Governance)
+|   |-- Policies
 |   |-- Integrations
-|   |-- Contributor Management
+|   |-- Contributors
+|-- Configuration
+|   |-- SOW Intake Forms
+|   |-- Clause Library
+|   |-- SOW Templates
+|   |-- Review Rubrics
 |-- Analytics & Intelligence
-|   |-- Workforce Dashboards
-|   |-- Economic Dashboards
+|   |-- Workforce
+|   |-- Economic
 |   |-- Governance & Risk
-|   |-- Self-service Analytics
+|   |-- Self-service
 |-- Audit Log
 ```
 
@@ -174,162 +183,13 @@ Enterprise Admin Console
 
 ## B. SOW MANAGEMENT
 
----
-
-### B1: SOW Upload -- Document Upload Flow (DOC/PDF)
-
-**SOW References:** Section 3.1.MVP.1 (SOW ingestion via UI -- DOC/PDF upload), Section 3.1.MVP.7 (SOW Intake Assistant)
-
-**Entry Point:** Enterprise Admin Console > SOW Management > Upload SOW > "Upload Document" tab.
-
-**Pre-conditions:**
-- User authenticated with enterprise role (Flow A1).
-- User has SOW document in DOC or PDF format ready for upload.
-
-**Step-by-step Flow:**
-
-| Step | Screen/State | Data Displayed | Actions Available |
-|------|-------------|----------------|-------------------|
-| 1 | **Upload SOW Page** | Two options: "Upload Document (DOC/PDF)" and "Fill Structured Form". Instructions explaining supported formats. | Select "Upload Document" tab. |
-| 2 | **File Upload Area** | Drag-and-drop zone with file browser button. Accepted formats: DOC, DOCX, PDF. Max file size indicator. | Drag file or click to browse; select file from local system. |
-| 3 | **File Validation** | System validates file format and size. Progress bar during upload. | None -- automatic validation. |
-| 3a | **Validation Failure** | If file is wrong format or exceeds size: error message specifying the issue ("Unsupported format. Please upload DOC, DOCX, or PDF."). | Select different file; retry. |
-| 4 | **Upload Confirmation** | File name, size, and format displayed. "Processing..." status indicator. | Cancel upload; wait for processing. |
-| 5 | **AI Extraction** | SOW Intake Assistant (Section 3.1.MVP.7) processes the document: extracts metadata (title, dates, stakeholders, confidentiality level, deliverables list), tags clauses (dependencies, assumptions, constraints). Processing progress indicator. | None -- automatic AI processing. |
-| 6 | **Extraction Results** | AI-extracted data displayed for human validation (see Flow B3). SOW status set to "Draft" (Section 3.1.MVP.1 -- SOW versioning: draft/approved). | Proceed to review extracted data (Flow B3). |
-
-**Decision Points:**
-- Step 3: Is file valid format and within size limit? YES -> Step 4. NO -> Step 3a.
-
-**Error/Edge Cases:**
-- Corrupt file: system displays "Unable to process document. Please check file integrity and retry."
-- Very large document: extended processing time with progress indicator; timeout after configurable limit with notification.
-- Scanned PDF (image-based): SOW Intake Assistant attempts OCR; if low confidence, warns user "Low extraction confidence. Please review all fields carefully."
-- Upload interrupted (network): system detects incomplete upload, prompts retry.
-
-**Exit Points:**
-- Successful upload -> Flow B3 (AI Extraction Review).
-- Failed upload -> retry or cancel.
-
-**Audit:** SOW upload event logged (Section 3.1.MVP.1 -- audit events for SOW lifecycle): user ID, timestamp, file name, file hash, status = "uploaded".
+**V2.0 Change Summary:** This section is significantly expanded from V1.1. SOW intake now supports two parallel pathways -- AI-Generated SOW (parameter wizard) and Manual Upload (enhanced with OCR, NLP, and gap analysis). A multi-stage approval workflow replaces the simple draft/approved toggle. Risk scoring, hallucination prevention controls, ethics screening, and data sensitivity classification are new cross-cutting concerns. 9 flows total (B1-B9), up from 7 in V1.1.
 
 ---
 
-### B2: SOW Upload -- Structured Form Flow
+### B1: SOW Repository -- Browse, Search, Filter
 
-**SOW References:** Section 3.1.MVP.1 (SOW ingestion via UI -- structured form, configurable SOW intake forms per client template)
-
-**Entry Point:** Enterprise Admin Console > SOW Management > Upload SOW > "Fill Structured Form" tab.
-
-**Pre-conditions:**
-- User authenticated with enterprise role.
-- SOW intake form template configured by admin (Flow H6) or default template available.
-
-**Step-by-step Flow:**
-
-| Step | Screen/State | Data Displayed | Actions Available |
-|------|-------------|----------------|-------------------|
-| 1 | **Upload SOW Page** | Two options displayed. | Select "Fill Structured Form" tab. |
-| 2 | **Template Selection** | If multiple intake form templates configured (per client template -- Section 3.1.MVP.1): list of available templates. If only one: auto-selected. | Select template; proceed. |
-| 3 | **Structured Form** | Form fields based on template: Title, Client name, Start date, End date, Stakeholders, Confidentiality level, Deliverables list (multi-entry), Dependencies, Assumptions, Constraints, Budget/commercial terms, Additional notes. Required fields marked with asterisks. | Fill in fields; add multiple deliverables; save draft; submit. |
-| 4 | **Form Validation** | System validates required fields. Highlights missing/invalid fields with inline error messages. | Fix validation errors; resubmit. |
-| 5 | **SOW Created** | SOW record created with status "Draft". Confirmation message with SOW ID. All entered data saved. | View SOW detail (Flow B6); edit further; proceed to decomposition. |
-
-**Decision Points:**
-- Step 2: Multiple templates available? YES -> user selects. NO -> auto-selected default.
-- Step 4: All required fields valid? YES -> Step 5. NO -> highlight errors, stay on form.
-
-**Error/Edge Cases:**
-- Partially filled form: user can "Save Draft" at any point and return later.
-- Duplicate SOW title: system warns "A SOW with this title already exists" but allows proceeding (different SOWs may have same title).
-- Session timeout during form fill: draft auto-saved periodically; user can resume.
-
-**Exit Points:**
-- SOW created -> Flow B6 (SOW Detail View) or Flow C1 (Decomposition).
-- Draft saved -> SOW Repository with status "Draft".
-
-**Audit:** SOW creation event logged: user ID, timestamp, SOW ID, method = "structured_form", status = "draft".
-
----
-
-### B3: SOW AI Extraction Review (metadata, clauses, human validation)
-
-**SOW References:** Section 3.1.MVP.1 (metadata extraction, clause tagging with human validation), Section 3.1.MVP.7 (SOW Intake Assistant -- extract/summarize/tag + recommendations)
-
-**Entry Point:** Automatic redirect after document upload (Flow B1, Step 6) OR SOW Repository > select draft SOW > "Review Extraction".
-
-**Pre-conditions:**
-- SOW document uploaded and AI extraction completed (Flow B1).
-- SOW status is "Draft".
-
-**Step-by-step Flow:**
-
-| Step | Screen/State | Data Displayed | Actions Available |
-|------|-------------|----------------|-------------------|
-| 1 | **Extraction Review Page** | Two-panel layout: LEFT = original document preview (scrollable); RIGHT = AI-extracted fields. | Scroll document; review extracted data. |
-| 2 | **Metadata Section** | Extracted metadata displayed as editable fields: Title, Dates (start/end), Stakeholders (list), Confidentiality level, Deliverables list. Each field shows AI confidence indicator (high/medium/low). | Edit any field; accept AI suggestion; flag for manual review. |
-| 3 | **Clause Tags Section** | Tagged clauses displayed: Dependencies, Assumptions, Constraints. Each clause linked to its location in the original document (click to highlight). AI-generated tags shown as removable chips. | Accept/reject individual tags; add new tags manually; edit clause text. |
-| 4 | **AI Recommendations** | SOW Intake Assistant recommendations panel: suggested clarifications, identified ambiguities, risk flags (e.g., "Deadline appears tight given scope"), summary of SOW scope. | Accept recommendation; dismiss; add note. |
-| 5 | **Validation Actions** | Validation status per section: "Validated" / "Needs Review" / "Edited". Overall validation progress bar. | Mark sections as validated; request re-extraction for specific sections; add comments. |
-| 6 | **Save & Proceed** | All changes saved. SOW remains in "Draft" status until explicitly approved (Flow B4). | Save validated data; proceed to approval (Flow B4); return to repository. |
-
-**Decision Points:**
-- Step 2-3: For each field/clause: Is AI extraction correct? YES -> accept. NO -> edit manually.
-- Step 4: Are AI recommendations actionable? YES -> accept and adjust SOW. NO -> dismiss.
-
-**Error/Edge Cases:**
-- AI extraction completely wrong (e.g., wrong document type): user can clear all extracted fields and fill manually, effectively converting to structured form flow.
-- Low confidence extraction (scanned PDF): multiple fields marked "low confidence" with warning banner "Several fields have low extraction confidence. Please review carefully."
-- User disagrees with AI clause tagging: can remove all AI tags and tag manually.
-- Very long SOW: pagination or section-by-section review mode.
-
-**Exit Points:**
-- Validated -> Flow B4 (SOW Versioning/Approval).
-- Save as draft -> return later from SOW Repository.
-
-**Audit:** Extraction review events logged: user ID, timestamp, SOW ID, fields edited (before/after), AI recommendations accepted/dismissed.
-
----
-
-### B4: SOW Versioning (draft -> approved)
-
-**SOW References:** Section 3.1.MVP.1 (SOW versioning -- draft/approved, audit history)
-
-**Entry Point:** SOW Detail View > "Approve SOW" button (available when SOW status is "Draft" and extraction review completed).
-
-**Pre-conditions:**
-- SOW exists in "Draft" status.
-- Extraction review completed (all sections validated or manually filled).
-- User has approval authority (RBAC-based).
-
-**Step-by-step Flow:**
-
-| Step | Screen/State | Data Displayed | Actions Available |
-|------|-------------|----------------|-------------------|
-| 1 | **SOW Detail** | SOW metadata, clauses, deliverables, validation status. Current status: "Draft". Version number displayed (e.g., v1.0-draft). | Click "Approve SOW" button. |
-| 2 | **Approval Confirmation** | Modal/dialog: "Approve this SOW? Once approved, changes will create a new version." Summary of SOW scope. Optional approval notes field. | Confirm approval; cancel; request changes (return to draft). |
-| 3 | **Version Created** | SOW status changes from "Draft" to "Approved". Version number updated (e.g., v1.0). Timestamp and approver recorded. | View approved SOW; proceed to decomposition (Flow C1); share with stakeholders. |
-
-**Decision Points:**
-- Step 2: User confirms approval? YES -> Step 3. NO -> return to SOW Detail in Draft status.
-
-**Error/Edge Cases:**
-- SOW has unvalidated sections: system prevents approval with message "All sections must be validated before approval."
-- User lacks approval authority: "Approve" button disabled with tooltip "You do not have permission to approve SOWs. Contact your administrator."
-- Editing an approved SOW: creates new version (e.g., v2.0-draft) while preserving the approved version. Previous approved version remains accessible in version history.
-- Concurrent editing: if another user is editing the same SOW, system warns "This SOW is being edited by [user]. Your changes may conflict."
-
-**Exit Points:**
-- Approved -> Flow C1 (Decomposition) or SOW Repository.
-- Cancelled -> SOW remains Draft.
-
-**Audit:** Approval event logged immutably: user ID, timestamp, SOW ID, version number, previous status, new status = "approved", approval notes.
-
----
-
-### B5: SOW Repository -- Browse, Search, Filter
-
-**SOW References:** Section 3.1.MVP.1 (SOW repository + search + export)
+**SOW References:** Section 3.1.MVP.1 (SOW repository + search + export), SOW V2.0 (dual intake modes)
 
 **Entry Point:** Enterprise Admin Console > SOW Management > SOW Repository.
 
@@ -341,33 +201,221 @@ Enterprise Admin Console
 
 | Step | Screen/State | Data Displayed | Actions Available |
 |------|-------------|----------------|-------------------|
-| 1 | **SOW Repository** | Table/list of all SOWs accessible to the user's tenant. Columns: SOW ID, Title, Client, Status (Draft/Approved), Created Date, Last Modified, Version, Confidentiality Level. Pagination controls. Default sort: most recently modified. | Browse list; search; filter; sort; click row to view detail. |
+| 1 | **SOW Repository** | Page header: title "SOW Repository" + "New SOW" CTA button (primary action, links to Intake Mode Selector B2). Summary cards row: Total SOWs, Pending Action (review/approval count), Approved, Avg Risk Score, Total Budget. Table/list of all SOWs accessible to the user's tenant. Columns: Title (with SOW ID as secondary text), Client, **Intake Mode** (badge: "AI-Generated" / "Manual Upload"), Status (Draft / In Review / Approved / Rejected), **Data Sensitivity Classification** (badge: Public/Internal/Confidential/Restricted), Risk Score (0-100, color-coded), Version, Last Modified. Sortable column headers with ascending/descending indicators. Pagination controls shown only when items exceed page size. Default sort: most recently modified (descending). | Browse list; search; filter; sort by clicking column headers; click row to view detail (Flow B6); click "New SOW" button to start intake (Flow B2). |
 | 2 | **Search** | Search bar at top. Searches across: SOW title, client name, SOW ID, deliverables text, stakeholder names. | Type search query; results filter in real-time or on submit. |
-| 3 | **Filters** | Filter panel (sidebar or dropdown): Status (Draft / Approved / All), Date range (created / modified), Confidentiality level, Client/stakeholder. | Apply/clear filters; combine multiple filters. |
-| 4 | **Sort** | Clickable column headers for sorting. Sort indicators (ascending/descending). | Sort by any column. |
+| 3 | **Filters** | Filter panel (sidebar or dropdown): Status (Draft / In Review / Approved / Rejected / All), **Intake Mode (AI-Generated / Manual Upload / All)**, Date range (created / modified), Data Sensitivity Classification, Risk Score range (Low 0-25 / Medium 26-50 / High 51-75 / Critical 76-100), Client/stakeholder. | Apply/clear filters; combine multiple filters. |
+| 4 | **Sort** | Clickable column headers for sorting. Sort indicators (ascending/descending). | Sort by any column including Intake Mode and Risk Score. |
 | 5 | **SOW Row Click** | Navigates to SOW Detail View (Flow B6). | View full SOW detail. |
 
 **Decision Points:**
-- Step 1: Any SOWs exist? YES -> display list. NO -> empty state with "Upload your first SOW" call-to-action.
+- Step 1: Any SOWs exist? YES -> display list. NO -> empty state with "Create your first SOW" call-to-action linking to Intake Mode Selector (Flow B2).
 
 **Error/Edge Cases:**
 - No search results: "No SOWs match your search. Try different keywords or clear filters."
 - Large number of SOWs: pagination (configurable page size), performance optimization.
-- Confidential SOWs: only visible to users with appropriate access level (RBAC + confidentiality-based access).
+- Confidential/Restricted SOWs: only visible to users with appropriate access level (RBAC + data sensitivity-based access).
 
 **Exit Points:**
 - Click SOW -> Flow B6 (SOW Detail View).
-- Click "Upload SOW" -> Flow B1 or B2.
+- Click "New SOW" -> Flow B2 (Intake Mode Selector).
 
 **Audit:** Repository access logged: user ID, timestamp, search queries, filters applied.
 
 ---
 
-### B6: SOW Detail View (metadata, clauses, versions, audit history)
+### B2: SOW Intake Mode Selector
 
-**SOW References:** Section 3.1.MVP.1 (SOW repository, SOW versioning, audit history)
+**SOW References:** SOW V2.0 (dual intake pathways -- AI-Generated vs Manual Upload)
 
-**Entry Point:** SOW Repository > click SOW row, OR direct link from notification/dashboard.
+**Entry Point:** Enterprise Admin Console > SOW Management > "New SOW" button, OR SOW Repository > "New SOW".
+
+**Pre-conditions:**
+- User authenticated with enterprise role (Flow A1).
+- User has SOW creation authority (RBAC).
+
+**Step-by-step Flow:**
+
+| Step | Screen/State | Data Displayed | Actions Available |
+|------|-------------|----------------|-------------------|
+| 1 | **Intake Mode Selection Page** | Page title: "Create New SOW -- Choose Your Intake Method". Two large visual cards side by side, each with icon, title, description, and CTA button. | Select one of the two intake modes. |
+| 2a | **Card: AI-Generated SOW** | Icon: sparkle/magic wand. Title: "AI-Generated SOW". Description: "Answer a guided parameter wizard and let our AI generate a complete, standards-compliant SOW document. Includes built-in guardrails, hallucination prevention, and risk scoring. Best for: new SOWs, standard project types, teams without pre-existing SOW documents." Badge: "Recommended". CTA: "Start Wizard". | Click "Start Wizard" -> Flow B3 (AI Parameter Wizard). |
+| 2b | **Card: Manual Upload** | Icon: upload/document. Title: "Manual SOW Upload". Description: "Upload an existing SOW document (DOCX, PDF, DOC). Our AI will parse, extract clauses, identify gaps, and score completeness. Best for: existing SOW documents, highly customized projects, enterprise templates." CTA: "Upload Document". | Click "Upload Document" -> Flow B5 (Manual SOW Upload). |
+| 3 | **Contextual Help** | Collapsible FAQ section below cards: "Which method should I choose?", "Can I switch methods later?", "What file formats are supported for manual upload?". | Expand/collapse FAQ items. |
+
+**Decision Points:**
+- Step 1: Which intake mode? AI-Generated -> Flow B3. Manual Upload -> Flow B5.
+
+**Error/Edge Cases:**
+- User unsure which method to use: contextual help section provides guidance.
+- One method temporarily unavailable (e.g., AI service down): card shows "Temporarily unavailable" with alternative method highlighted.
+
+**Exit Points:**
+- AI-Generated selected -> Flow B3 (AI Parameter Wizard).
+- Manual Upload selected -> Flow B5 (Manual SOW Upload).
+- Cancel -> return to SOW Repository (Flow B1).
+
+**Audit:** Intake mode selection logged: user ID, timestamp, mode selected.
+
+---
+
+### B3: AI Parameter Wizard
+
+**SOW References:** SOW V2.0 (AI-generated SOW via parameter wizard, template selection, clause library, guardrail status, 10-step progressive wizard)
+
+**Entry Point:** Intake Mode Selector (Flow B2) > "Start Wizard".
+
+**Pre-conditions:**
+- User authenticated with enterprise role.
+- AI SOW generation service available.
+- Template library and clause library loaded.
+
+**Step-by-step Flow:**
+
+| Step | Screen/State | Data Displayed | Actions Available |
+|------|-------------|----------------|-------------------|
+| 1 | **Wizard Layout** | Three-column layout: LEFT = template selection sidebar (browse/search templates by industry, project type, complexity); CENTER = active wizard step form; RIGHT = guardrail status panel (indicators for each constraint category, updating as wizard progresses). Top: progress indicator showing current step out of 10, step names, completion percentage. | Navigate between steps; select template; monitor guardrails. |
+| 2 | **Step 1: Business Context & Project Objectives** | Form fields: Project title, Business context (rich text), Primary objectives (multi-entry list), Success criteria, Industry/domain (dropdown), Project type (dropdown with template suggestions). Template sidebar highlights relevant templates based on selections. | Fill fields; select template to pre-fill; save draft; next step. |
+| 3 | **Step 2: Commercial Terms** | Form fields: Total budget (amount + currency), Pricing model (fixed price / time & materials / outcome-based / hybrid), Payment terms (milestone-based / monthly / on acceptance), Payment schedule details, Cost center / GL code mapping. Guardrail: budget reasonability check against template benchmarks. | Fill fields; next/previous step. |
+| 4 | **Step 3: Scope Boundaries** | Form fields: In-scope items (multi-entry with descriptions), Out-of-scope exclusions (multi-entry), Assumptions (multi-entry), Constraints (multi-entry). Guardrail: scope completeness indicator (warns if exclusions are empty or assumptions are missing). | Fill fields; use clause library to add standard scope items; next/previous step. |
+| 5 | **Step 4: Delivery Model** | Form fields: Delivery phases (multi-entry with phase name, description, duration), Milestones (linked to phases), Acceptance criteria per milestone (multi-entry), Definition of done. Guardrail: timeline reasonability check (flags unrealistic durations relative to scope). | Fill fields; next/previous step. |
+| 6 | **Step 5: Ethical Constraints** | Form fields: Non-discrimination requirements (checkboxes + free text), Labor standards compliance (dropdown: ILO/local regulations/custom), Accessibility requirements (WCAG level selection), Environmental considerations, Diversity targets (optional). Guardrail: minimum ethical constraints must be specified (cannot skip entirely). | Fill fields; accept defaults from template; next/previous step. |
+| 7 | **Step 6: Security Classification** | Form fields: Data sensitivity level (radio: Public / Internal / Confidential / Restricted), Handling requirements per classification level (auto-populated from platform policy, editable), Data residency requirements (region selection), Encryption requirements. Guardrail: classification must be explicitly selected (no default). | Select classification; review handling requirements; next/previous step. |
+| 8 | **Step 7: Privacy Posture** | Form fields: Personal data involved (yes/no + categories), GDPR/CCPA/local privacy law applicability, Data subject rights requirements, Data processing agreement needed (yes/no), Privacy impact assessment status. Guardrail: if personal data = yes, privacy controls are mandatory. | Fill fields; next/previous step. |
+| 9 | **Step 8: Regulatory Expectations** | Form fields: Applicable regulations (multi-select from industry-specific list + free text), Compliance certifications required (ISO, SOC2, etc.), Audit requirements, Regulatory reporting obligations. Guardrail: regulatory expectations cross-checked against industry/domain from Step 1. | Fill fields; next/previous step. |
+| 10 | **Step 9: Risk Appetite** | Form fields: Overall risk tolerance (slider: Conservative / Moderate / Aggressive), Acceptable delivery delay threshold (percentage), Quality threshold (minimum acceptance rate), Budget overrun tolerance (percentage), Escalation triggers (configurable thresholds). Guardrail: risk appetite informs risk scoring thresholds for the generated SOW. | Set parameters; next/previous step. |
+| 11 | **Step 10: Approval Authorities** | Form fields: Business owner approver (user selector), Legal/compliance reviewer (user selector), Security reviewer (user selector), Final approver (user selector), Approval delegation rules (if approver unavailable). Guardrail: at least business owner and final approver must be specified. | Select approvers; configure delegation; next/previous step. |
+| 12 | **Clause Library Browser** | Accessible from any step via sidebar toggle. Searchable library of standard clauses organized by category (liability, IP, confidentiality, SLA, warranty, termination). Each clause: title, text, usage count, last updated. | Search clauses; preview; insert into relevant wizard step; customize inserted clause. |
+| 13 | **Wizard Summary & Generate** | Full summary of all wizard inputs across 10 steps. Guardrail status panel: all indicators shown (green = met, yellow = warning, red = missing/invalid). Editable -- click any section to jump back to that step. "Generate SOW" button (enabled only when all required guardrails are green). | Review summary; edit any section; generate SOW draft. |
+| 14 | **AI Generation Processing** | Processing screen: "Generating your SOW..." with progress stages: "Applying template...", "Generating clauses...", "Running guardrail checks...", "Scoring risk...", "Finalizing document...". Estimated time indicator. | Wait; cancel (returns to summary with inputs preserved). |
+
+**Decision Points:**
+- Steps 2-11: At each step, user can proceed forward, go back, or save draft and return later.
+- Step 12: Clause library is optional but available at any point.
+- Step 13: All required guardrails must be green to generate. Yellow guardrails generate with warnings. Red guardrails block generation until resolved.
+- Step 14: Generation complete -> Flow B4 (AI Draft Review).
+
+**Error/Edge Cases:**
+- Partial wizard completion: "Save Draft" available at any step. Draft accessible from SOW Repository with status "Draft (Wizard Incomplete)".
+- Template not found for industry/type: wizard proceeds without template pre-fill; user fills all fields manually.
+- Clause library empty or unavailable: wizard continues without clause suggestions; warning displayed.
+- AI generation fails: error message with retry option; fallback to manual upload suggested.
+- Session timeout during wizard: auto-save triggered; user can resume from last saved step.
+- Very complex SOW (many phases/milestones): wizard supports unlimited entries but warns above 20 milestones "Consider breaking into multiple SOWs."
+
+**Exit Points:**
+- Generation complete -> Flow B4 (AI Draft Review).
+- Save draft -> SOW Repository with incomplete wizard status.
+- Cancel -> return to SOW Repository.
+
+**Audit:** Wizard events logged: user ID, timestamp, SOW ID, each step completion, template selected, clauses inserted, guardrail status at generation time, generation trigger.
+
+---
+
+### B4: AI Draft Review
+
+**SOW References:** SOW V2.0 (AI-generated draft review, 8-layer hallucination prevention, red-flag detection, risk scoring, risk-based routing, side-by-side template comparison)
+
+**Entry Point:** Automatic redirect after AI generation completes (Flow B3, Step 14).
+
+**Pre-conditions:**
+- AI-generated SOW draft exists.
+- Hallucination prevention checks completed.
+- Risk scoring completed.
+
+**Step-by-step Flow:**
+
+| Step | Screen/State | Data Displayed | Actions Available |
+|------|-------------|----------------|-------------------|
+| 1 | **Draft Review Header** | SOW title (generated), status: "AI Draft -- Pending Review", confidence score (percentage, e.g., "92% confidence"), intake mode badge: "AI-Generated". Risk score (0-100) with color-coded severity (Green 0-25, Yellow 26-50, Orange 51-75, Red 76-100). Risk-based routing indicator: Low -> self-review sufficient, Medium -> peer review recommended, High -> legal review required, Critical -> executive review mandatory. | View details; begin review; export draft. |
+| 2 | **Hallucination Prevention Status** | 8-layer hallucination prevention panel, each layer with status indicator (green checkmark / yellow warning / red alert): Layer 1: Source grounding (all generated text traceable to wizard inputs), Layer 2: Template conformity (structure matches selected template), Layer 3: Clause validity (all clauses from approved library or flagged as custom), Layer 4: Numerical consistency (budgets, dates, quantities internally consistent), Layer 5: Regulatory alignment (generated terms match regulatory expectations), Layer 6: Cross-reference integrity (internal references within document are valid), Layer 7: Semantic coherence (no contradictory statements detected), Layer 8: Completeness check (all required SOW sections present). Overall status: "All Clear" / "Warnings Detected" / "Issues Found". | Click any layer for detailed findings; dismiss warnings with justification; fix issues. |
+| 3 | **Risk Score Breakdown** | Risk score (0-100) with weighted breakdown: Completeness (30% weight): are all required sections present and populated? Confidence (25% weight): AI confidence in generated content accuracy. Compliance (25% weight): alignment with regulatory/ethical/security requirements. Pattern Match (20% weight): similarity to historically successful SOWs. Each factor scored individually with drill-down detail. | View breakdown; understand which factors drive risk score; take action on low-scoring areas. |
+| 4 | **Red-Flag Detections** | Highlighted sections in the generated document where potential issues were detected: ambiguous language flagged in yellow, missing required clauses flagged in red, unusual terms flagged in orange, prohibited clause patterns detected and flagged with explanation. Each flag: location in document, severity, description, suggested remediation. | Review each flag; accept/dismiss with reason; edit flagged section; add manual annotation. |
+| 5 | **Side-by-Side Template Comparison** | Two-panel view: LEFT = generated SOW document (scrollable, editable); RIGHT = template document used as basis. Differences highlighted: additions (green), deviations from template (yellow), missing template sections (red). Synchronized scrolling between panels. | Scroll; click difference to review; accept template language; keep generated language; edit either panel. |
+| 6 | **Ethics Screening Status** | Panel showing ethics screening results: non-discrimination language present (pass/fail), labor standards referenced (pass/fail), accessibility requirements addressed (pass/fail), prohibited terms scan (pass/fail with findings). | Review each screening result; fix failed items; dismiss false positives with justification. |
+| 7 | **Data Sensitivity Classification Badge** | Prominent badge showing selected data sensitivity level (from wizard Step 6). Handling requirements summary. Warning if classification appears inconsistent with SOW content (e.g., personal data mentioned but classification is "Public"). | Verify classification; change if needed (returns to classification review). |
+| 8 | **Document Editor** | Full document view with inline editing capabilities. Track changes mode available. Section navigation sidebar. Comment/annotation tools. | Edit any section; add comments; track changes; accept/reject AI suggestions. |
+| 9 | **Review Actions** | Action bar: "Approve Draft & Submit for Approval" (proceeds to multi-stage approval -- Flow B7), "Save as Draft" (preserves edits, returns to repository), "Regenerate" (returns to wizard with inputs preserved for modification), "Reject & Discard" (permanently discards generated draft). | Select action. |
+
+**Decision Points:**
+- Step 2: Any red hallucination prevention layers? YES -> must resolve before approval submission. Yellow -> can proceed with acknowledgment. Green -> proceed.
+- Step 4: Red flags present? Must review all before submission. Can dismiss with justification.
+- Step 9: Ready for approval? YES -> Flow B7. Need more work? Save as draft. Fundamentally wrong? Regenerate or discard.
+
+**Error/Edge Cases:**
+- All 8 hallucination layers red: "Generated draft has significant issues. Consider regenerating with revised parameters or switching to manual upload."
+- Risk score > 75 (Critical): mandatory legal/compliance review before any approval can proceed.
+- Editor loses connection during review: auto-save every 30 seconds; recovery on reconnect.
+- Template comparison not available (no template selected in wizard): right panel shows "No template selected" with option to select one now for comparison.
+- Regeneration requested: wizard opens with all previous inputs preserved; user can modify and regenerate.
+
+**Exit Points:**
+- Submit for approval -> Flow B7 (Multi-Stage Approval Workflow).
+- Save as draft -> SOW Repository.
+- Regenerate -> Flow B3 (AI Parameter Wizard, inputs preserved).
+- Discard -> SOW Repository (draft deleted).
+
+**Audit:** Draft review events logged: user ID, timestamp, SOW ID, hallucination layer statuses, red flags reviewed/dismissed, risk score at review time, edits made (before/after), final action taken.
+
+---
+
+### B5: Manual SOW Upload (Enhanced)
+
+**SOW References:** Section 3.1.MVP.1 (SOW ingestion via UI -- DOC/PDF upload), Section 3.1.MVP.7 (SOW Intake Assistant), SOW V2.0 (OCR processing, NLP parsing, gap analysis, template comparison, risk annotations, completeness scoring, remediation recommendations)
+
+**Entry Point:** Intake Mode Selector (Flow B2) > "Upload Document".
+
+**Pre-conditions:**
+- User authenticated with enterprise role (Flow A1).
+- User has SOW document in DOCX, PDF, or DOC format ready for upload.
+
+**Step-by-step Flow:**
+
+| Step | Screen/State | Data Displayed | Actions Available |
+|------|-------------|----------------|-------------------|
+| 1 | **Upload Page** | Page title: "Manual SOW Upload". Instructions: "Upload your existing SOW document for AI-powered analysis." Supported formats list: DOCX, PDF, DOC. Max file size indicator. | Proceed to upload area. |
+| 2 | **Drag-and-Drop Upload** | Large drag-and-drop zone with dotted border. "Drag your SOW document here or click to browse" with file browser button. Accepted formats displayed inline. Animated upload indicator. | Drag file into zone; click to browse file system; select file. |
+| 3 | **File Validation** | System validates file format, size, and integrity. Progress bar during upload. | None -- automatic validation. |
+| 3a | **Validation Failure** | If file is wrong format or exceeds size: error message specifying the issue ("Unsupported format. Please upload DOCX, PDF, or DOC."). | Select different file; retry. |
+| 4 | **OCR Processing Status** | If PDF (especially scanned): OCR processing indicator with stages: "Detecting document type...", "Running OCR...", "Extracting text layers...". OCR confidence score displayed upon completion. Warning if low confidence: "Scanned document detected. OCR confidence: X%. Some sections may require manual review." | Wait; cancel. |
+| 5 | **NLP Parsing Progress** | Multi-stage NLP parsing progress: Stage 1: "Identifying document structure..." (sections, headings, paragraphs). Stage 2: "Extracting clauses..." (scope, deliverables, terms, conditions). Stage 3: "Tagging clause types..." (dependencies, assumptions, constraints, acceptance criteria). Stage 4: "Running semantic analysis...". Each stage shows progress bar and extracted item count. | Wait; view partial results as they appear. |
+| 6 | **Extracted Clauses Review** | Two-panel layout: LEFT = original document preview (scrollable, with highlighted extracted sections); RIGHT = extracted clauses organized by category: metadata (title, dates, stakeholders), deliverables, dependencies, assumptions, constraints, commercial terms, acceptance criteria. Each clause shows: extracted text, confidence level (high/medium/low), source location in document (click to highlight in left panel). | Review each clause; edit extracted text; accept/reject AI extraction; add missing clauses manually; re-run extraction for specific sections. |
+| 7 | **Gap Analysis Results Panel** | Gap analysis comparing uploaded SOW against platform SOW standard template. Missing sections highlighted in red with severity: Critical (must have), Important (should have), Optional (nice to have). Each gap: section name, description of what's missing, impact statement. Gap count summary: "X critical gaps, Y important gaps, Z optional gaps." | View each gap; add missing content inline; dismiss optional gaps; generate remediation suggestions. |
+| 8 | **Template Comparison Side-by-Side** | Two-panel view: LEFT = uploaded SOW (parsed); RIGHT = closest matching template from library. Alignment analysis: matched sections (green), extra sections in SOW (blue), missing sections from template (red). Synchronized scrolling. | Compare section by section; adopt template language for missing sections; keep original language; merge content. |
+| 9 | **Risk Annotations Overlay** | Risk annotations overlaid on the document preview: ambiguous clauses (yellow highlight), potentially problematic terms (orange highlight), liability concerns (red highlight), missing standard protections (red underline). Each annotation: risk type, severity, explanation, suggested remediation. Aggregate risk score (0-100) with breakdown matching AI-generated SOW scoring: Completeness 30%, Confidence 25%, Compliance 25%, Pattern Match 20%. | Review each annotation; accept suggestion; dismiss with reason; edit clause. |
+| 10 | **Completeness Scoring** | Overall completeness score (percentage) with section-by-section breakdown: metadata (X%), scope (X%), commercial (X%), delivery (X%), legal (X%), compliance (X%). Progress bar for each section. Threshold indicator: "Minimum recommended completeness: 80%." | View breakdown; address low-scoring sections; accept current score. |
+| 11 | **Remediation Recommendations** | AI-generated recommendations panel: ordered by priority (critical first). Each recommendation: what's missing, why it matters, suggested text (insertable), source template/clause library reference. "Apply All Recommendations" bulk action. | Review each recommendation; apply individually; apply all; dismiss; customize suggested text before applying. |
+| 12 | **Save & Proceed** | Summary: completeness score, risk score, gap count, applied remediations. SOW status: "Draft". Actions: submit for approval or save as draft. | Submit for approval (Flow B7); save as draft; return to repository. |
+
+**Decision Points:**
+- Step 3: File valid? YES -> Step 4. NO -> Step 3a.
+- Step 4: OCR needed (scanned PDF)? YES -> OCR processing. NO -> skip to NLP parsing.
+- Step 7: Critical gaps found? User must address before proceeding to approval.
+- Step 10: Completeness below 80%? Warning displayed; user can still proceed but with acknowledgment.
+- Step 12: Ready for approval? YES -> Flow B7. Need more work? Save as draft.
+
+**Error/Edge Cases:**
+- Corrupt file: "Unable to process document. Please check file integrity and retry."
+- Very large document (100+ pages): extended processing with progress indicator; timeout after configurable limit with notification.
+- Scanned PDF with very low OCR confidence (<50%): "Document quality too low for automated extraction. Consider resubmitting a higher-quality scan or using the AI-Generated SOW wizard instead."
+- Upload interrupted (network): system detects incomplete upload, prompts retry. Partial uploads cleaned up automatically.
+- NLP parsing fails on section: that section flagged for manual review; other sections processed normally.
+- No matching template found: template comparison panel shows "No matching template found. Gap analysis performed against platform standard."
+- Non-English document: language detection with warning "Non-English document detected. Extraction accuracy may be reduced."
+
+**Exit Points:**
+- Submit for approval -> Flow B7 (Multi-Stage Approval Workflow).
+- Save as draft -> SOW Repository.
+- Cancel -> return to SOW Repository.
+
+**Audit:** Upload and processing events logged: user ID, timestamp, file name, file hash, OCR confidence, NLP extraction results count, gap analysis results, completeness score, risk score, remediations applied, final action taken.
+
+---
+
+### B6: SOW Detail View (Enhanced)
+
+**SOW References:** Section 3.1.MVP.1 (SOW repository, SOW versioning, audit history), SOW V2.0 (intake mode, confidence score, hallucination controls, risk scoring, ethics screening, data sensitivity, prohibited clause detection)
+
+**Entry Point:** SOW Repository (Flow B1) > click SOW row, OR direct link from notification/dashboard.
 
 **Pre-conditions:**
 - SOW exists and user has access (RBAC + tenant isolation).
@@ -376,37 +424,125 @@ Enterprise Admin Console
 
 | Step | Screen/State | Data Displayed | Actions Available |
 |------|-------------|----------------|-------------------|
-| 1 | **SOW Detail Header** | SOW title, ID, status badge (Draft/Approved), version number, confidentiality level, created/modified dates, creator/approver names. | Edit (if Draft); approve (if Draft + validated); export; view versions; view audit history. |
-| 2 | **Metadata Tab** | All extracted/entered metadata: title, dates, stakeholders, confidentiality, deliverables list, budget/commercial terms. | Edit fields (creates new draft version if currently Approved). |
-| 3 | **Clauses Tab** | Tagged clauses: dependencies, assumptions, constraints. Each clause with its tag type and source location in document. | View clause detail; add/edit/remove tags. |
-| 4 | **Document Tab** | Original uploaded document preview (if uploaded via DOC/PDF). Scrollable, searchable. | Scroll; search within document; download original. |
-| 5 | **Versions Tab** | List of all versions: version number, status, date, author, change summary. | Click to view any historical version; compare versions side-by-side. |
-| 6 | **Audit History Tab** | Chronological audit trail: all events related to this SOW (upload, edits, approval, decomposition trigger). Each entry: timestamp, user, action, details. | Filter audit events by type; export audit log. |
-| 7 | **Linked Projects Tab** | Projects created from this SOW (if any). Project name, status, progress. | Click to navigate to Project Detail (Flow E2). |
+| 1 | **SOW Detail Header** | SOW title, ID, status badge (Draft / In Review / Approved / Rejected), version number, **Intake Mode badge** ("AI-Generated" with sparkle icon / "Manual Upload" with document icon), **Data Sensitivity Classification badge** (color-coded: Public/Internal/Confidential/Restricted), **Risk Score** (0-100, color-coded), created/modified dates, creator/approver names. **Status-aware header actions:** (a) Draft + NOT validated (parsedSections = 0): "Continue Setup" button linking to intake flow (AI wizard or upload page depending on intakeMode). (b) Draft/Review + validated (parsedSections > 0): "Submit for Approval" button -- opens confirmation modal on this page (Flow B7 Step 1), does NOT navigate to approve page. (c) In Approval: "View Approval Progress" button linking to approval progress tracker page. (d) Approved + has planId: "View Plan" button linking to decomposition plan. (e) Approved + no planId: "Start Decomposition" button linking to decomposition flow. | Status-aware actions as described; edit (if Draft); export; view versions; view audit history. |
+| 2 | **Metadata Tab** | All extracted/entered metadata: title, dates, stakeholders, data sensitivity classification, deliverables list, budget/commercial terms, ethics constraints, regulatory expectations. | Edit fields (creates new draft version if currently Approved). |
+| 3 | **Clauses Tab** | Tagged clauses: dependencies, assumptions, constraints, acceptance criteria, ethical requirements, security requirements. Each clause with its tag type and source location in document. **Prohibited Clause Detection results**: list of any detected prohibited patterns with explanations. | View clause detail; add/edit/remove tags; review prohibited clause findings. |
+| 4 | **Document Tab** | Original uploaded document preview (if Manual Upload) OR generated document preview (if AI-Generated). Scrollable, searchable. | Scroll; search within document; download original/generated document. |
+| 5 | **AI Analysis Tab** (conditional) | Visible only for AI-Generated SOWs: **Confidence score** (percentage with breakdown), **Hallucination prevention controls panel** (8-layer status from Flow B4), **Generation parameters** (wizard inputs summary -- what the user specified), **Template used** (link to template). Visible for Manual Upload SOWs: **Completeness score**, **Gap analysis results**, **Remediation history**. | View analysis details; re-run analysis; export analysis report. |
+| 6 | **Risk & Compliance Tab** | **Risk score display** with breakdown (Completeness 30%, Confidence 25%, Compliance 25%, Pattern Match 20%). **Ethics screening status** (pass/fail per criterion with detail). **Data sensitivity classification** with handling requirements. **Regulatory alignment** status. | View risk breakdown; drill into each factor; export compliance summary. |
+| 7 | **Approval Status Tab** | Multi-stage approval workflow status (Flow B7): current stage, completed stages with approver and timestamp, pending stages, rejection history (if any). Comments/notes per stage. | View approval progress; add comments (if authorized); recall submission. |
+| 8 | **Versions Tab** | List of all versions: version number, status, date, author, change summary, **intake mode indicator per version** (which versions were AI-generated vs manually uploaded). | Click to view any historical version; compare versions side-by-side (Flow B8). |
+| 9 | **Audit History Tab** | Chronological audit trail: all events related to this SOW (creation, intake mode, wizard steps, upload, extraction, edits, approval stages, decomposition trigger). Each entry: timestamp, user, action, details. | Filter audit events by type; export audit log. |
+| 10 | **Linked Projects Tab** | Projects created from this SOW (if any). Project name, status, progress. | Click to navigate to Project Detail (Flow E2). |
 
 **Decision Points:**
-- Is SOW in Draft status? YES -> edit/approve actions available. NO (Approved) -> editing creates new draft version.
-- Has decomposition been started? YES -> "View Task Plan" link shown. NO -> "Start Decomposition" button shown.
+- Is SOW in Draft status? YES -> edit/submit-for-approval actions available. NO (Approved) -> editing creates new draft version.
+- Has decomposition been started? YES -> "View Task Plan" link shown. NO -> "Start Decomposition" button shown (only if Approved).
+- Which AI Analysis to show? Determined by Intake Mode (AI-Generated vs Manual Upload).
 
 **Error/Edge Cases:**
 - SOW deleted/archived by another user: "This SOW is no longer available" message.
-- Version comparison with significant changes: side-by-side diff highlighting added/removed/changed content.
+- Version comparison with different intake modes (one AI-generated, one manual): comparison still possible; intake mode difference highlighted.
+- Hallucination prevention data unavailable for older SOWs (pre-V2.0): tab shows "Analysis not available for SOWs created before V2.0."
 
 **Exit Points:**
-- Navigate to decomposition (Flow C1).
+- Navigate to decomposition (Flow C1, if Approved).
 - Navigate to linked project (Flow E2).
-- Return to SOW Repository.
-- Export SOW (Flow B7).
+- Return to SOW Repository (Flow B1).
+- Submit for approval (Flow B7).
+- Export SOW (Flow B9).
 
 **Audit:** SOW detail view logged: user ID, timestamp, SOW ID, tabs accessed.
 
 ---
 
-### B7: SOW Export
+### B7: Multi-Stage Approval Workflow
+
+**SOW References:** Section 3.1.MVP.1 (SOW versioning -- draft/approved, audit history), SOW V2.0 (multi-stage approval: business owner, legal/compliance, security, final; rejection routing with remediation; stage progress tracker)
+
+**Entry Point:** SOW Detail View (Flow B6) > "Submit for Approval" button, OR AI Draft Review (Flow B4) > "Approve Draft & Submit for Approval", OR Manual Upload (Flow B5) > "Submit for Approval".
+
+**Pre-conditions:**
+- SOW exists in "Draft" status.
+- All critical guardrails/gaps addressed (no red blockers).
+- Approval authorities configured (either from wizard Step 10 or from enterprise admin settings).
+- User has submission authority (RBAC).
+
+**Step-by-step Flow:**
+
+| Step | Screen/State | Data Displayed | Actions Available |
+|------|-------------|----------------|-------------------|
+| 1 | **Submission Confirmation** | Modal: "Submit SOW for Multi-Stage Approval?" Summary: SOW title, risk score, completeness score, data sensitivity classification. Approval stages listed: Stage 1 (Business Owner), Stage 2 (Legal & Compliance), Stage 3 (Security), Stage 4 (Final Approval). Estimated timeline based on historical average approval times. | Confirm submission; cancel; edit SOW before submitting. |
+| 2 | **Stage Progress Tracker** | Horizontal progress bar showing all 4 stages: Stage 1: Business Owner Review (current/pending/complete), Stage 2: Legal & Compliance Review, Stage 3: Security Review, Stage 4: Final Approval. Current stage highlighted and expanded. Estimated time remaining per stage. Status changes to "In Review". | View progress; monitor; add comments. |
+| 3 | **Stage 1: Business Owner Review** | Reviewer: designated business owner. Review panel: full SOW content, risk score, deliverables summary, commercial terms, timeline. Reviewer can add comments/annotations to any section. Decision options: "Approve & Advance to Stage 2" (green), "Request Changes" (yellow, with mandatory feedback), "Reject" (red, with mandatory reason). | Review SOW; annotate; approve/request changes/reject. |
+| 4 | **Stage 2: Legal & Compliance Review** | Reviewer: designated legal/compliance reviewer. Review panel: full SOW with **annotation capabilities** (inline comments, clause-level notes, tracked suggestions). Focus areas highlighted: liability clauses, IP terms, confidentiality, regulatory compliance, ethical constraints, prohibited clause detections. Legal-specific checklist: "Terms acceptable (Y/N)", "Liability limited (Y/N)", "IP ownership clear (Y/N)", "Regulatory alignment confirmed (Y/N)". Decision: Approve / Request Changes / Reject (with mandatory notes per checklist item). | Annotate document; complete checklist; approve/request changes/reject. |
+| 5 | **Stage 3: Security Review** | Reviewer: designated security reviewer. Review panel: focus on **data classification verification** (confirm or change classification assigned during intake). Security-specific checklist: "Data sensitivity classification appropriate (Y/N)", "Data handling requirements adequate (Y/N)", "Access control requirements defined (Y/N)", "Encryption requirements specified (Y/N)", "Data residency compliance (Y/N)". Decision: Approve / Request Changes / Reject. | Verify classification; complete checklist; approve/request changes/reject. |
+| 6 | **Stage 4: Final Approval** | Reviewer: designated final approver (typically executive or delegate). Summary view: all previous stage decisions and comments. SOW content. Risk summary. **Digital signature capture** (typed name + timestamp, or certificate-based signature if configured). Decision: "Final Approve" (with digital signature) / "Send Back" (to specific stage with reason). | Review all stages; sign; approve/send back. |
+| 6a | **Final Approval Confirmed** | SOW status changes to "Approved". Version number finalized (e.g., v1.0). Digital signature recorded with timestamp. All stakeholders notified. SOW now eligible for decomposition (Flow C1). | View approved SOW; proceed to decomposition; share with stakeholders. |
+| 7 | **Rejection Routing** | If any stage rejects or requests changes: SOW status changes to "Changes Requested" (for rework) or "Rejected" (for terminal rejection). Feedback and remediation requirements displayed to SOW creator. Specific sections needing attention highlighted. Rejection reason, stage, reviewer all recorded. | View feedback; edit SOW to address feedback; resubmit (returns to Stage 1 or the rejecting stage, per configuration); abandon SOW. |
+| 8 | **Stage Comments & Notes** | Each stage has a comments/notes panel: reviewer comments, creator responses, threaded discussion. Visible to all parties in the approval chain. Timestamped and attributed. | Add comment; reply to comment; tag reviewer; attach supporting document. |
+
+**Decision Points:**
+- Step 1: Confirm submission? YES -> Step 2. NO -> return to SOW detail.
+- Steps 3-6: Each stage: Approve -> next stage. Request Changes -> Step 7 (rejection routing). Reject -> Step 7 (terminal).
+- Step 6: Final approve? YES -> Step 6a. Send back? -> specific earlier stage.
+- Step 7: After addressing feedback: resubmit -> restart at appropriate stage. Abandon -> SOW archived.
+
+**Error/Edge Cases:**
+- Reviewer unavailable: delegation rules apply (configured in wizard Step 10 or admin settings). Backup reviewer notified after configurable timeout. Escalation to next-level reviewer if no response.
+- All stages approved except one: SOW waits at blocking stage. Progress tracker shows exactly where blocked.
+- Concurrent approval and editing: if SOW edited after submission, reviewers notified "SOW content changed since your review began. Please re-review."
+- Stage skipping: configurable per enterprise. Some enterprises may skip security review for "Public" classification SOWs. Skip requires admin configuration, not ad-hoc.
+- Resubmission after changes: system tracks resubmission count. After 3 rejections from same stage, system flags for escalation.
+- Digital signature infrastructure unavailable: fallback to typed name + timestamp + checkbox "I confirm this is my electronic approval."
+
+**Exit Points:**
+- All stages approved -> SOW status "Approved", eligible for Flow C1 (Decomposition).
+- Rejected -> SOW status "Rejected" or "Changes Requested".
+- Resubmitted -> restart approval process.
+
+**Audit:** Each approval stage logged immutably: SOW ID, stage number, reviewer user ID, decision, comments, annotations, digital signature data, timestamp. Rejection routing logged: reason, feedback, resubmission count.
+
+---
+
+### B8: Version Comparison
+
+**SOW References:** Section 3.1.MVP.1 (SOW versioning, audit history), SOW V2.0 (intake mode indicator per version)
+
+**Entry Point:** SOW Detail View (Flow B6) > Versions Tab > "Compare Versions" button.
+
+**Pre-conditions:**
+- SOW has at least two versions.
+
+**Step-by-step Flow:**
+
+| Step | Screen/State | Data Displayed | Actions Available |
+|------|-------------|----------------|-------------------|
+| 1 | **Version Selector** | Dropdown selectors for "Compare Version A" and "Compare Version B". Each version shows: version number, status, date, author, **intake mode** (AI-Generated / Manual Upload). Default: latest two versions selected. | Select any two versions. |
+| 2 | **Side-by-Side Comparison** | Two-panel view: LEFT = Version A; RIGHT = Version B. Diff highlighting: added text (green), removed text (red), modified text (yellow). Section-by-section navigation. **Intake mode badge** on each panel showing how that version was created. | Scroll; navigate by section; toggle diff highlights; switch between unified and side-by-side view. |
+| 3 | **Change Summary** | Summary panel: total sections changed, total clauses added/removed/modified, metadata changes, risk score changes between versions, intake mode change (if applicable, e.g., v1 was AI-Generated, v2 was manually edited). | View summary; export comparison; close. |
+
+**Decision Points:**
+- Step 1: Which versions to compare? User selects.
+
+**Error/Edge Cases:**
+- Only one version exists: "Compare" button disabled with tooltip "At least two versions required for comparison."
+- Very large version diff: section-by-section loading; summary-first view.
+- Comparing AI-Generated vs Manual Upload versions: differences may be structural; system notes "Versions use different intake methods -- structural differences expected."
+
+**Exit Points:**
+- Comparison reviewed -> return to SOW Detail (Flow B6).
+- Export comparison -> download as PDF.
+
+**Audit:** Version comparison logged: user ID, timestamp, SOW ID, versions compared.
+
+---
+
+### B9: SOW Export
 
 **SOW References:** Section 3.1.MVP.1 (SOW repository + export)
 
-**Entry Point:** SOW Detail View > "Export" button, OR SOW Repository > bulk export.
+**Entry Point:** SOW Detail View (Flow B6) > "Export" button, OR SOW Repository (Flow B1) > bulk export.
 
 **Pre-conditions:**
 - SOW exists and user has access.
@@ -415,21 +551,22 @@ Enterprise Admin Console
 
 | Step | Screen/State | Data Displayed | Actions Available |
 |------|-------------|----------------|-------------------|
-| 1 | **Export Options** | Modal/dropdown: Export format selection (PDF, CSV). Content selection: "Full SOW (metadata + clauses + audit)", "Metadata only", "Audit history only". Version selection: current or specific version. | Select format; select content scope; select version. |
+| 1 | **Export Options** | Modal/dropdown: Export format selection (PDF, CSV). Content selection: "Full SOW (metadata + clauses + risk analysis + audit)", "Metadata only", "Risk & Compliance report only", "Audit history only". Version selection: current or specific version. Include AI analysis data (hallucination status, confidence score) for AI-Generated SOWs (yes/no). | Select format; select content scope; select version; toggle AI analysis inclusion. |
 | 2 | **Export Generation** | Processing indicator. | Wait; cancel. |
-| 3 | **Download** | Download link/automatic browser download. File named: `SOW-{ID}-{title}-v{version}.{format}`. | Download file; export another. |
+| 3 | **Download** | Download link/automatic browser download. File named: `SOW-{ID}-{title}-v{version}-{intake_mode}.{format}`. | Download file; export another. |
 
 **Decision Points:**
-- Step 1: Which format and content scope? User selects.
+- Step 1: Which format, content scope, and version? User selects.
 
 **Error/Edge Cases:**
 - Export of very large SOW: may take longer; async generation with notification when ready.
 - PDF generation failure: fallback message with retry option.
+- Exporting Restricted-classification SOW: watermark "RESTRICTED" on all pages; download logged with enhanced audit detail.
 
 **Exit Points:**
 - File downloaded -> return to SOW Detail or Repository.
 
-**Audit:** Export event logged: user ID, timestamp, SOW ID, format, content scope.
+**Audit:** Export event logged: user ID, timestamp, SOW ID, format, content scope, data sensitivity classification of exported SOW.
 
 ---
 
@@ -444,7 +581,7 @@ Enterprise Admin Console
 **Entry Point:** SOW Detail View > "Start Decomposition" button, OR Task Planning > "New Plan from SOW".
 
 **Pre-conditions:**
-- SOW in "Approved" status (Flow B4 completed).
+- SOW in "Approved" status (Flow B7 completed).
 - Decomposition Assistant available (Section 3.1.MVP.7).
 
 **Step-by-step Flow:**
@@ -866,7 +1003,7 @@ Enterprise Admin Console
 
 **Exit Points:**
 - Click project -> Flow E2 (Project Detail).
-- Click "New Project" -> Flow B1 (SOW Upload).
+- Click "New Project" -> Flow B2 (SOW Intake Mode Selector).
 
 **Audit:** Portfolio view access logged: user ID, timestamp.
 
@@ -1547,7 +1684,7 @@ Enterprise Admin Console
 |------|-------------|----------------|-------------------|
 | 1 | **Template List** | List of SOW intake form templates: name, description, field count, usage count (how many SOWs used this template), status (Active/Draft). Default template always present. | View; edit; create new; clone; activate/deactivate. |
 | 2 | **Template Editor** | Form builder: add/remove/reorder fields. Each field: label, type (text/date/dropdown/multi-select/file upload/number), required (yes/no), help text, validation rules. Sections for organizing fields. Preview mode. | Add field; edit field; reorder; set required; preview; save. |
-| 3 | **Preview** | Preview how the form looks to enterprise users during SOW creation (Flow B2). | Test fill; return to editor. |
+| 3 | **Preview** | Preview how the form looks to enterprise users during SOW intake (Flow B3 wizard / Flow B5 manual upload). | Test fill; return to editor. |
 | 4 | **Activate** | Template becomes available for SOW creation. | Activate; keep as draft. |
 
 **Decision Points:**
@@ -1887,10 +2024,14 @@ Enterprise Admin Console
 |   |-- Quick actions
 |
 |-- [SOW Management]
-|   |-- Upload SOW (B1: Doc Upload, B2: Structured Form)
-|   |-- SOW Repository (B5)
-|   |-- SOW Detail (B6) -> AI Extraction Review (B3) -> Approval (B4)
-|   |-- SOW Export (B7)
+|   |-- SOW Repository (B1) -- with Intake Mode column
+|   |-- New SOW -> Intake Mode Selector (B2)
+|   |   |-- AI-Generated SOW -> Parameter Wizard (B3) -> AI Draft Review (B4)
+|   |   |-- Manual Upload (B5) -- enhanced with OCR, NLP, gap analysis
+|   |-- SOW Detail (B6) -- with risk score, ethics, classification
+|   |-- Multi-Stage Approval Workflow (B7)
+|   |-- Version Comparison (B8) -- with intake mode indicator
+|   |-- SOW Export (B9)
 |
 |-- [Task Planning]
 |   |-- Decomposition (C1) -> Skills Tagging (C2) -> Dependencies (C3)
@@ -1953,13 +2094,13 @@ Enterprise Admin Console
 
 | SOW Section | Flows Referencing It |
 |-------------|---------------------|
-| 3.1.MVP.1 | B1, B2, B3, B4, B5, B6, B7, H6 |
+| 3.1.MVP.1 | B1, B5, B6, B7, B8, B9, H6 |
 | 3.1.MVP.2 | C1, C2, C3, C4, C5, C6 |
 | 3.1.MVP.3 | A2, H5 |
 | 3.1.MVP.4 | D1, D2, D3, D4, D5 |
 | 3.1.MVP.5 | E3, F1, F2, F3, F4, H7 |
 | 3.1.MVP.6 | G1, G2, G3, G4, I2 |
-| 3.1.MVP.7 | B1, B3, C1 |
+| 3.1.MVP.7 | B5, C1 |
 | 3.1.MVP.8 | A1, A2, E3, F2, J1, J2, J3 |
 | 3.1.MVP.9 | H4 |
 | 3.1.6 | A2, E1, E2, E4, E5, E6, H1, H2, H3, H4, I1, I2, I3, I4, I5 |
@@ -1971,33 +2112,74 @@ Enterprise Admin Console
 | 19.1 | E1 |
 | 19.4 | I1, I2, I3 |
 | 27.3 | I1, I2 |
+| SOW V2.0 | B1, B2, B3, B4, B5, B6, B7, B8, B9 |
 
 ---
 
 ## APPENDIX C: Screen Inventory for Wireframing
 
 ### Tier 1: MVP Critical Path (Enterprise)
-1. SOW Upload Page (B1/B2)
-2. AI Extraction Review (B3)
-3. Task Decomposition / Planner UI (C1)
-4. Matching Results + "Why Matched" (D1)
-5. Team Confirmation (D2)
-6. Project Detail (E2)
-7. Evidence Pack Review (F1)
-8. Acceptance Decision (F2)
+1. SOW Intake Mode Selector (B2)
+2. AI Parameter Wizard -- 10-step progressive form (B3)
+3. AI Draft Review -- hallucination controls, risk scoring (B4)
+4. Manual SOW Upload -- drag-and-drop, OCR, NLP, gap analysis (B5)
+5. Multi-Stage Approval Workflow -- 4-stage tracker (B7)
+6. Task Decomposition / Planner UI (C1)
+7. Matching Results + "Why Matched" (D1)
+8. Team Confirmation (D2)
+9. Project Detail (E2)
+10. Evidence Pack Review (F1)
+11. Acceptance Decision (F2)
 
 ### Tier 2: Important Supporting
-9. SOW Repository (B5)
-10. SOW Detail (B6)
-11. Assignment Monitoring (D4)
-12. Exception Management (E4)
-13. Rate Card Configuration (G1)
-14. Billing Export (G4)
+12. SOW Repository -- with Intake Mode + Risk Score columns (B1)
+13. SOW Detail -- enhanced with risk, ethics, classification tabs (B6)
+14. Version Comparison -- with intake mode indicator (B8)
+15. SOW Export (B9)
+16. Assignment Monitoring (D4)
+17. Exception Management (E4)
+18. Rate Card Configuration (G1)
+19. Billing Export (G4)
 
 ### Tier 3: Configuration & Analytics
-15. Role Management (H2)
-16. Policy Configuration (H3)
-17. Integration Configuration (H4)
-18. Workforce Dashboard (I1)
-19. Economic Dashboard (I2)
-20. Audit Log (J1)
+20. Role Management (H2)
+21. Policy Configuration (H3)
+22. Integration Configuration (H4)
+23. Workforce Dashboard (I1)
+24. Economic Dashboard (I2)
+25. Audit Log (J1)
+
+## APPENDIX D: V2.0 Admin Configuration Flows (Brief Notes)
+
+The following admin configuration flows support the new V2.0 SOW intake features. They are managed within the Admin & Configuration section (H) of the console.
+
+### Template & Clause Library Management
+- **Entry Point:** Admin & Configuration > SOW Templates & Clauses
+- Template CRUD: create, edit, archive, clone templates by industry/project type/complexity
+- Clause library CRUD: add standard clauses (liability, IP, confidentiality, SLA, warranty, termination), set categories, track usage
+- Approval workflow for new/edited clauses before they appear in wizard
+- Template versioning: published templates are immutable; edits create new versions
+
+### Hallucination Prevention Threshold Configuration
+- **Entry Point:** Admin & Configuration > AI Governance > Hallucination Thresholds
+- Per-layer threshold configuration for the 8 hallucination prevention layers (Flow B4)
+- Threshold levels: what triggers green/yellow/red status per layer
+- Global strictness mode: Conservative (strict thresholds) / Standard / Permissive
+- Override authority: who can dismiss red-flagged hallucination warnings (RBAC-controlled)
+- Audit trail for all threshold changes
+
+### Ethics Rule Configuration
+- **Entry Point:** Admin & Configuration > Ethics & Compliance Rules
+- Configure ethics screening criteria: non-discrimination, labor standards, accessibility, environmental
+- Define prohibited clause patterns (regex or semantic matching)
+- Set minimum ethical constraints per SOW classification level
+- Industry-specific ethics rule sets (selectable per template)
+- Ethics rule versioning and activation scheduling
+
+### Risk Scoring Parameters
+- **Entry Point:** Admin & Configuration > Risk Scoring
+- Configure risk score weights: Completeness (default 30%), Confidence (default 25%), Compliance (default 25%), Pattern Match (default 20%)
+- Define risk-based routing thresholds: Low (0-25), Medium (26-50), High (51-75), Critical (76-100) -- thresholds adjustable
+- Configure actions per risk tier: which approval stages are mandatory, which can be skipped
+- Historical risk score benchmarks: compare new SOWs against portfolio averages
+- Audit trail for all parameter changes

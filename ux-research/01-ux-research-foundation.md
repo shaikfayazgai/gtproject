@@ -1,8 +1,9 @@
 # GlimmoraTeam UX Research Foundation
 
-**Version:** 1.0
-**Date:** 2026-03-06
-**Basis:** Every element in this document is derived from SOW V1.1. Anything beyond the SOW is explicitly marked [UX RECOMMENDATION].
+**Version:** 1.1
+**Date:** 2026-03-07
+**Basis:** Every element in this document is derived from SOW V2.0. Anything beyond the SOW is explicitly marked [UX RECOMMENDATION].
+**Change Log:** V1.1 — Updated Priya Nair journey map (dual SOW intake mode), Enterprise Admin Console IA (AI Parameter Wizard, multi-stage approval), added AI Transparency design principle, updated screen inventory. Only Enterprise-facing sections affected; Contributor Portal, Mentor Workspace, and Analytics sections unchanged.
 
 ---
 
@@ -64,6 +65,8 @@ Contributors are served by a single **Contributor Portal** (Section 19.2) with s
 - Budget-conscious: every rupee must be accounted for
 - Time-poor: 6-8 meetings/day, needs efficient interfaces
 - Risk-averse: prefers proven over cheap
+- Concerned about AI hallucination in generated content — demands visibility into AI confidence scores
+- Wants risk assessments and compliance checks before approving AI-drafted SOWs
 
 **Goals (mapped to SOW):**
 1. Reduce time-to-staff (SOW Section 1.4, Objective 1)
@@ -73,7 +76,11 @@ Contributors are served by a single **Contributor Portal** (Section 19.2) with s
 5. Reduce vendor management overhead
 
 **SOW Features She Uses:**
-- SOW ingestion via UI (DOC/PDF upload + structured form) — Section 3.1.MVP.1
+- SOW intake mode selection: AI Parameter Wizard OR manual upload — Section 3.1.MVP.1
+- AI Parameter Wizard: template-based SOW generation from approved clause libraries — Section 3.1.MVP.1
+- AI Draft Review: confidence scores, hallucination controls, risk assessment — Section 3.1.MVP.1
+- SOW ingestion via manual upload (DOC/PDF + NLP/OCR enhancement) — Section 3.1.MVP.1
+- Multi-stage SOW approval (Business → Legal → Security → Final) — Section 3.1.MVP.1
 - Task decomposition review and approval — Section 3.1.MVP.2
 - Team formation with human confirmation — Section 3.1.MVP.4
 - Evidence pack review and acceptance decision — Section 3.1.MVP.5
@@ -256,7 +263,11 @@ From Section 3.1.6 (3 sub-consoles):
 - Export and self-service analytics (filters, drilldowns)
 
 From Section 3.1.MVP.1:
-- SOW ingestion via UI (DOC/PDF upload + structured form)
+- SOW intake mode selection: AI Parameter Wizard OR manual upload
+- AI Parameter Wizard: template-based SOW generation from approved clause libraries
+- AI Draft Review: confidence scores, hallucination controls, risk assessment
+- Manual SOW upload (DOC/PDF) enhanced with NLP/OCR extraction
+- Multi-stage SOW approval (Business → Legal → Security → Final)
 - Configurable SOW intake forms (per client template)
 - SOW repository + search + export
 
@@ -378,9 +389,13 @@ This maps the end-to-end workflow from Section 4.1.
 | Stage | SOW Reference | Actions | Key SOW Capabilities Used |
 |-------|--------------|---------|--------------------------|
 | **Login** | 3.1.MVP.8 | Enterprise user logs in via SSO (SAML/OIDC) | SSO integration, RBAC |
-| **SOW Upload** | 3.1.MVP.1 | Uploads SOW document (DOC/PDF) or fills structured form | SOW ingestion via UI and API |
-| **AI Extraction** | 3.1.MVP.1, 3.1.MVP.7 | SOW Intake Assistant extracts metadata, tags clauses | Metadata extraction, clause tagging, SOW Intake Assistant |
-| **Human Validation** | 3.1.MVP.1 | Enterprise user reviews and validates extracted data | Clause tagging with human validation |
+| **Select SOW Intake Mode** | 3.1.MVP.1 | Chooses between AI Parameter Wizard (Path A) or Manual Upload (Path B) | Intake Mode Selector |
+| **Path A: AI Parameter Wizard** | 3.1.MVP.1 | Generates SOW from approved templates and clause libraries via guided wizard | AI Parameter Wizard, template library, clause library |
+| **Path A: AI Draft Review** | 3.1.MVP.1 | Reviews AI-generated SOW draft with confidence scores, hallucination controls, risk assessment | AI confidence scores, hallucination prevention, risk scoring |
+| **Path B: Manual SOW Upload** | 3.1.MVP.1 | Uploads existing SOW document (DOC/PDF); enhanced with NLP/OCR extraction | SOW ingestion via UI and API, NLP/OCR enhancement |
+| **AI Extraction** | 3.1.MVP.1, 3.1.MVP.7 | SOW Intake Assistant extracts metadata, tags clauses (both paths converge here) | Metadata extraction, clause tagging, SOW Intake Assistant |
+| **Human Validation** | 3.1.MVP.1 | Enterprise user reviews and validates extracted data; verifies AI-generated content accuracy | Clause tagging with human validation, confidence score review |
+| **Multi-Stage Approval** | 3.1.MVP.1 | SOW passes through Business → Legal → Security → Final approval gates | Multi-stage approval workflow, role-based sign-off |
 | **SOW Versioning** | 3.1.MVP.1 | SOW moves from draft to approved | SOW versioning (draft/approved), audit history |
 | **Decomposition** | 3.1.MVP.2 | AI suggests task plan: milestones, tasks, subtasks, skills tags | Semi-automated decomposition, Decomposition Assistant |
 | **Plan Review** | 3.1.MVP.2 | Enterprise user reviews, adjusts, approves plan | Human approval gates, Planner UI |
@@ -392,11 +407,14 @@ This maps the end-to-end workflow from Section 4.1.
 | **Monitoring** | 3.1.6 | Enterprise monitors project via operations console | Real-time/historical views, exception management |
 
 **Critical Moments (derived from SOW capabilities):**
-1. SOW extraction accuracy — if metadata extraction is wrong, trust breaks
-2. Task plan quality — decomposition must make domain sense
-3. Team match explainability — enterprise must understand "why matched"
-4. Evidence pack completeness — acceptance logs + evidence pack export must satisfy audit needs
-5. Export format — billing exports must integrate with enterprise procurement
+1. SOW intake mode selection — user must clearly understand trade-offs between AI-generated vs. manual upload paths
+2. AI Draft Review trust — confidence scores and hallucination controls must be transparent and actionable; if AI-generated content feels opaque, trust breaks immediately
+3. SOW extraction accuracy — if metadata extraction is wrong, trust breaks (both paths)
+4. Multi-stage approval flow — each approver (Business, Legal, Security) must see relevant context without bottleneck delays
+5. Task plan quality — decomposition must make domain sense
+6. Team match explainability — enterprise must understand "why matched"
+7. Evidence pack completeness — acceptance logs + evidence pack export must satisfy audit needs
+8. Export format — billing exports must integrate with enterprise procurement
 
 ---
 
@@ -492,14 +510,23 @@ Each principle below cites the SOW section it derives from.
 - All AI outputs include reasoning summaries (Section 7.5)
 - Override controls at platform and project levels (Section 7.3)
 
-### Principle 3: Governed by Design
+### Principle 3: AI Transparency
+**Source:** Section 3.1.MVP.1 (AI Parameter Wizard, AI Draft Review), Section 7.5 (AI reasoning summaries), Section 7.3 (override controls)
+- All AI-generated content must be clearly labeled and visually distinguished from human-authored content
+- Confidence scores must be visible for every AI output (clause generation, metadata extraction, risk assessment)
+- Hallucination prevention controls must be accessible: users can flag, edit, or reject AI-generated content at any point
+- Risk assessments and compliance checks must accompany AI-drafted SOWs before approval
+- Human override is always available — AI suggests, humans decide
+- AI reasoning summaries must explain why specific content was generated (Section 7.5)
+
+### Principle 4: Governed by Design
 **Source:** Sections 14, 7.3 — governance framework and guardrails
 - Immutable audit logging for all critical actions (Section 3.1.MVP.8)
 - Plagiarism detection, fraud detection, identity verification (Section 14.2)
 - Configurable stage gates, SLA templates, escalation rules (Section 4.3)
 - Code of conduct, anti-harassment policy (Section 14.3)
 
-### Principle 4: Inclusive and Accessible
+### Principle 5: Inclusive and Accessible
 **Source:** Sections 3.1.5, 20.2, 20.3
 - WCAG-aligned accessibility for core journeys (Section 1.4.1)
 - Localization framework for multiple languages (Section 3.1.5)
@@ -507,21 +534,21 @@ Each principle below cites the SOW section it derives from.
 - Inclusive design practices in UI (Section 20.3)
 - Flexible scheduling, remote-first task models (Section 20.2)
 
-### Principle 5: Segment-Aware, Single Portal
+### Principle 6: Segment-Aware, Single Portal
 **Source:** Sections 19.2, 20.1, 20.2, 3.1.4
 - ONE Contributor Portal with role-based and segment-based views (Section 3.1.4)
 - Student track: institutional onboarding, guardrails, supervision (Section 20.1)
 - Women track: flexible scheduling, accessible UX, financial inclusion (Section 20.2)
 - Same core features (task discovery, workroom, submission, credentials) for all contributors
 
-### Principle 6: Enterprise-Grade Infrastructure
+### Principle 7: Enterprise-Grade Infrastructure
 **Source:** Sections 15, 3.1.MVP.8
 - Zero trust security posture (Section 5.1)
 - Tenant isolation, encryption, RBAC (Section 15.2)
 - SSO via SAML/OIDC, MFA for privileged users (Section 15.2)
 - Export everything: CSV, PDF, API (Sections 3.1.MVP.1, 3.1.MVP.2, 3.1.MVP.6)
 
-### Principle 7: Outcome-Only Economics
+### Principle 8: Outcome-Only Economics
 **Source:** Sections 9.1, 3.1.MVP.6
 - Payment only for accepted outcomes (Section 9.1)
 - Rate card x effort pricing, not bidding (Section 3.1.MVP.6)
@@ -538,7 +565,22 @@ Each principle below cites the SOW section it derives from.
 Enterprise Admin Console
 |
 |-- SOW Management
-|   |-- SOW Upload (DOC/PDF + structured form) [3.1.MVP.1]
+|   |-- Intake Mode Selector (AI Parameter Wizard / Manual Upload) [3.1.MVP.1]
+|   |-- AI Parameter Wizard [3.1.MVP.1]
+|   |   |-- Template Selection (approved SOW templates)
+|   |   |-- Clause Library (approved clause catalog)
+|   |   |-- Parameter Configuration (guided wizard)
+|   |   |-- AI Draft Generation
+|   |-- AI Draft Review [3.1.MVP.1]
+|   |   |-- Confidence Scores Display
+|   |   |-- Hallucination Controls (flag/edit AI-generated content)
+|   |   |-- Risk Score & Assessment
+|   |-- Manual Upload (DOC/PDF + NLP/OCR enhancement) [3.1.MVP.1]
+|   |-- Multi-Stage Approval [3.1.MVP.1]
+|   |   |-- Business Approval
+|   |   |-- Legal Approval
+|   |   |-- Security Approval
+|   |   |-- Final Sign-off
 |   |-- SOW Repository (search + filter + export) [3.1.MVP.1]
 |   |-- SOW Detail (metadata, clauses, versions, audit history) [3.1.MVP.1]
 |
@@ -706,6 +748,10 @@ Organized by the SOW's key capability areas.
 2. How accurate must AI metadata extraction be before enterprises trust it?
 3. Do enterprise users prefer to edit AI-generated task plans or rebuild from scratch?
 4. What export formats for task plans are most useful for enterprise PMO? (CSV, PDF, Jira export)
+4a. [V2.0] What proportion of enterprises will prefer AI Parameter Wizard vs. manual upload? What factors drive the choice?
+4b. [V2.0] What confidence score threshold makes enterprise users comfortable approving AI-generated SOW content?
+4c. [V2.0] How should hallucination flags be presented — inline annotations, summary panel, or both?
+4d. [V2.0] What is the optimal multi-stage approval flow? Do all four stages (Business → Legal → Security → Final) apply to every SOW, or should stages be configurable per template?
 
 ### Contributor Onboarding (Section 3.1.MVP.3, 20.1, 20.2)
 5. What is the minimum registration flow that achieves consent capture without abandonment?
@@ -754,6 +800,7 @@ Organized by the SOW's key capability areas.
 | # | Risk | SOW Source | Likelihood | Impact | Mitigation (from SOW capabilities) |
 |---|------|-----------|-----------|--------|-------------------------------------|
 | R1 | SOW AI extraction produces inaccurate results, breaking enterprise trust | 3.1.MVP.1 | MEDIUM | CRITICAL | Human validation step for clause tagging; SOW Intake Assistant operates in assistive mode |
+| R1a | AI Parameter Wizard generates hallucinated or non-compliant SOW content | 3.1.MVP.1 | MEDIUM | CRITICAL | Confidence scores visible on all AI-generated content; hallucination controls (flag/edit/reject); multi-stage approval gates (Business → Legal → Security); risk assessment before final approval |
 | R2 | Contributors abandon registration due to complex onboarding | 3.1.MVP.3 | MEDIUM | HIGH | Progressive profile setup; consent capture is lightweight |
 | R3 | No matching tasks available for a contributor's skills | 3.1.MVP.4 | MEDIUM | HIGH | Skills self-declaration + evidence to widen matching; learning recommendations |
 | R4 | Review SLA breaches causing contributor disengagement | 3.1.MVP.5 | MEDIUM | HIGH | SLA timers, reassignment rules, escalation workflows |
@@ -818,7 +865,7 @@ This table determines what UX must be designed for Phase 1 vs deferred.
 
 | Capability | Phase 1 (MVP) | Phase 2+ |
 |-----------|---------------|----------|
-| SOW Intake | UI + API upload, metadata extraction, clause tagging, versioning | - |
+| SOW Intake | Dual-mode intake (AI Parameter Wizard + manual upload), AI draft review with confidence scores & hallucination controls, NLP/OCR enhancement, multi-stage approval (Business → Legal → Security → Final), metadata extraction, clause tagging, versioning | - |
 | Decomposition | Semi-automated with human approval gates | - |
 | Matching | Skills + availability + basic quality signals; explainability fields | Advanced graph-based matching |
 | Pricing | Configurable rate cards; rate card x effort | Dynamic market pricing, surge pricing, predictive optimization |
@@ -831,7 +878,7 @@ This table determines what UX must be designed for Phase 1 vs deferred.
 | Integrations | SSO/IdP + basic HRIS sync + webhooks for project tools | Deep ERP, complex invoicing, SCIM at scale |
 | Scale | Single region, pilot load | Multi-region, 1M+ contributors |
 | Contributor Portal | Full: registration, profile, task discovery, workroom, submission, earnings, credentials | Enhanced with advanced features |
-| Enterprise Console | Full: SOW intake, monitoring, admin, analytics | Enhanced integrations |
+| Enterprise Console | Full: dual-mode SOW intake (AI Wizard + manual), AI draft review, multi-stage approval, monitoring, admin, analytics | Enhanced integrations |
 | Mentor Workspace | Full: queues, rubrics, scoring, feedback | Enhanced with advanced tooling |
 
 ---
@@ -841,10 +888,15 @@ This table determines what UX must be designed for Phase 1 vs deferred.
 | Term | Definition | SOW Source |
 |------|-----------|-----------|
 | Agentic AI | Autonomous/semi-autonomous AI agents under governance rules | 1.5 |
+| AI Parameter Wizard | Guided SOW generation tool using approved templates and clause libraries; produces AI draft with confidence scores | 3.1.MVP.1 |
+| AI Draft Review | Review interface for AI-generated SOW content with hallucination controls, confidence scores, and risk assessment | 3.1.MVP.1 |
 | APG | Autonomous Project Governor — orchestration engine for task execution, SLAs, escalations | 1.5 |
 | Contributor | Any individual or AI agent performing tasks (employees, freelancers, students, women workforce, mentors, reviewers) | 1.5 |
 | Digital Twin | Structured digital representation: verified skills, performance, learning signals, behavioral attributes | 1.5 |
+| Confidence Score | Numerical indicator (0-100%) of AI certainty for generated content; visible on all AI outputs | 3.1.MVP.1 |
 | GWOS | Global Workforce Operating System — platform control plane | 1.5 |
+| Intake Mode Selector | Entry point for SOW management: choose AI Parameter Wizard (Path A) or Manual Upload (Path B) | 3.1.MVP.1 |
+| Multi-Stage Approval | SOW approval workflow: Business → Legal → Security → Final sign-off gates | 3.1.MVP.1 |
 | PoDL / Proof-of-Delivery | Verifiable record of completion and acceptance, linked to reputation and credentials | 1.5 |
 | Skill Genome | Skills taxonomies, adjacencies, proficiencies across human and AI agents | 5.3 |
 | SOW | Statement of Work — enterprise document defining project scope | Throughout |
@@ -862,30 +914,34 @@ This table determines what UX must be designed for Phase 1 vs deferred.
 Prioritized by MVP critical path (SOW Section 22.1 workstreams).
 
 ### Tier 1: MVP Critical Path Screens
-1. Enterprise Console — SOW Upload (DOC/PDF + structured form)
-2. Enterprise Console — SOW AI Extraction Review (metadata, clauses, validation)
-3. Enterprise Console — Task Decomposition View (milestones, tasks, dependencies, approval)
-4. Enterprise Console — Team Formation (matching results + "why matched" + confirmation)
-5. Enterprise Console — Project Monitoring (task status, team, SLAs, exceptions)
-6. Enterprise Console — Deliverable Review & Acceptance (evidence pack, accept/rework)
-7. Contributor Portal — Registration & Onboarding
-8. Contributor Portal — Dashboard / Home
-9. Contributor Portal — Task Discovery (browse, filter, task detail, accept/decline)
-10. Contributor Portal — Task Workroom (instructions, upload, Q&A, evidence checklist, submit)
-11. Contributor Portal — Earnings & Payout View
-12. Mentor Workspace — Review Queue
-13. Mentor Workspace — Review Detail (context, artifacts, rubric, feedback, decision)
+1. Enterprise Console — SOW Intake Mode Selector (AI Parameter Wizard / Manual Upload)
+2. Enterprise Console — AI Parameter Wizard (template selection, clause library, parameter config, draft generation)
+3. Enterprise Console — AI Draft Review (confidence scores, hallucination controls, risk assessment)
+4. Enterprise Console — Manual SOW Upload (DOC/PDF + NLP/OCR enhancement)
+5. Enterprise Console — SOW AI Extraction Review (metadata, clauses, validation — both paths converge)
+6. Enterprise Console — Multi-Stage SOW Approval (Business → Legal → Security → Final)
+7. Enterprise Console — Task Decomposition View (milestones, tasks, dependencies, approval)
+8. Enterprise Console — Team Formation (matching results + "why matched" + confirmation)
+9. Enterprise Console — Project Monitoring (task status, team, SLAs, exceptions)
+10. Enterprise Console — Deliverable Review & Acceptance (evidence pack, accept/rework)
+11. Contributor Portal — Registration & Onboarding
+12. Contributor Portal — Dashboard / Home
+13. Contributor Portal — Task Discovery (browse, filter, task detail, accept/decline)
+14. Contributor Portal — Task Workroom (instructions, upload, Q&A, evidence checklist, submit)
+15. Contributor Portal — Earnings & Payout View
+16. Mentor Workspace — Review Queue
+17. Mentor Workspace — Review Detail (context, artifacts, rubric, feedback, decision)
 
 ### Tier 2: Important Supporting Screens
-14. Enterprise Console — Rate Card Configuration
-15. Enterprise Console — Billing/Payout Export
-16. Enterprise Console — Admin Configuration (roles, policies, integrations)
-17. Contributor Portal — Profile & Digital Twin View
-18. Contributor Portal — Credential Wallet
-19. Contributor Portal — Submission History & Review Status
-20. Mentor Workspace — Review History
+18. Enterprise Console — Rate Card Configuration
+19. Enterprise Console — Billing/Payout Export
+20. Enterprise Console — Admin Configuration (roles, policies, integrations)
+21. Contributor Portal — Profile & Digital Twin View
+22. Contributor Portal — Credential Wallet
+23. Contributor Portal — Submission History & Review Status
+24. Mentor Workspace — Review History
 
 ### Tier 3: Analytics & Intelligence
-21. Analytics — Workforce Intelligence Dashboard (skills, gaps, utilization)
-22. Analytics — Economic Dashboard (spend, savings, ROI)
-23. Analytics — Governance & Risk Dashboard (incidents, fraud, overrides)
+25. Analytics — Workforce Intelligence Dashboard (skills, gaps, utilization)
+26. Analytics — Economic Dashboard (spend, savings, ROI)
+27. Analytics — Governance & Risk Dashboard (incidents, fraud, overrides)

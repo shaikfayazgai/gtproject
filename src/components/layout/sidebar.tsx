@@ -20,16 +20,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-/* ── NOTE: Sidebar is enterprise-scoped.
-   Only items from UX spec Section A2 navigation tree appear here.
-   No invented features (Ask APG, Help, global search, etc.) ── */
 
 interface SidebarProps {
   config: ModuleConfig;
 }
-
-/* Single consistent icon style for all nav items */
-const iconColorClass = "bg-beige-100/70 text-beige-600";
 
 export function Sidebar({ config }: SidebarProps) {
   const pathname = usePathname();
@@ -50,7 +44,6 @@ export function Sidebar({ config }: SidebarProps) {
     setExpandedSections((prev) => ({ ...prev, [idx]: !prev[idx] }));
   }
 
-  /* Collect all hrefs to detect parent/child overlap */
   const allHrefs = React.useMemo(
     () => config.sections.flatMap((s) => s.items.map((i) => i.href)),
     [config.sections]
@@ -63,7 +56,6 @@ export function Sidebar({ config }: SidebarProps) {
       href === config.basePath + "/overview"
     )
       return false;
-    /* Only use startsWith if no OTHER item is a more specific match */
     const hasMoreSpecific = allHrefs.some(
       (h) => h !== href && h.startsWith(href + "/") && pathname.startsWith(h)
     );
@@ -93,7 +85,7 @@ export function Sidebar({ config }: SidebarProps) {
                 <p className="text-[15px] font-bold text-brown-900 tracking-[-0.02em]">
                   Glimmora
                 </p>
-                <p className="text-[10px] font-semibold text-beige-500 tracking-wide uppercase mt-[-2px]">
+                <p className="text-[10px] font-semibold text-gray-400 tracking-wide uppercase mt-[-2px]">
                   {config.shortName}
                 </p>
               </motion.div>
@@ -114,22 +106,22 @@ export function Sidebar({ config }: SidebarProps) {
                 {section.title && !isCollapsed && (
                   <button
                     onClick={() => toggleSection(sIdx)}
-                    className="flex items-center justify-between w-full px-3 py-1.5 mb-0.5 rounded-lg group hover:bg-beige-50/50 transition-colors"
+                    className="flex items-center justify-between w-full px-3 py-1.5 mb-0.5 rounded-lg group hover:bg-gray-50/60 transition-colors"
                   >
-                    <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-beige-400 group-hover:text-beige-600 transition-colors">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-gray-400 group-hover:text-gray-500 transition-colors">
                       {section.title}
                     </span>
                     <motion.div
                       animate={{ rotate: isExpanded ? 0 : -90 }}
                       transition={{ duration: 0.15 }}
                     >
-                      <ChevronDown className="w-3 h-3 text-beige-300 group-hover:text-beige-500 transition-colors" />
+                      <ChevronDown className="w-3 h-3 text-gray-300 group-hover:text-gray-400 transition-colors" />
                     </motion.div>
                   </button>
                 )}
 
                 {section.title && isCollapsed && (
-                  <div className="mx-2 mb-2 mt-1 border-t border-beige-200/40" />
+                  <div className="mx-2 mb-2 mt-1 border-t border-gray-200/40" />
                 )}
 
                 <AnimatePresence initial={false}>
@@ -155,25 +147,23 @@ export function Sidebar({ config }: SidebarProps) {
                                 "group/item relative flex items-center gap-3 rounded-xl px-3 py-[9px] text-[13px] font-medium transition-all duration-200",
                                 isCollapsed && "justify-center px-2.5",
                                 active
-                                  ? "bg-white/80 shadow-sm shadow-brown-200/20 border border-beige-200/50"
+                                  ? "bg-white/80 shadow-sm shadow-brown-100/30 border border-brown-200/40"
                                   : "hover:bg-white/40 border border-transparent"
                               )}
                             >
-                              {/* Icon with colored background */}
+                              {/* Icon */}
                               <div
                                 className={cn(
                                   "w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200",
                                   active
                                     ? "bg-gradient-to-br from-brown-500 to-brown-600 shadow-sm shadow-brown-400/20"
-                                    : iconColorClass + " group-hover/item:scale-105"
+                                    : "bg-gray-100/80 text-gray-400 group-hover/item:bg-gray-200/60 group-hover/item:text-gray-600 group-hover/item:scale-105"
                                 )}
                               >
                                 <Icon
                                   className={cn(
                                     "w-[14px] h-[14px] transition-colors duration-200",
-                                    active
-                                      ? "text-white"
-                                      : ""
+                                    active ? "text-white" : ""
                                   )}
                                 />
                               </div>
@@ -186,7 +176,9 @@ export function Sidebar({ config }: SidebarProps) {
                                     exit={{ opacity: 0, width: 0 }}
                                     className={cn(
                                       "whitespace-nowrap overflow-hidden transition-colors",
-                                      active ? "text-brown-800 font-semibold" : "text-beige-700 group-hover/item:text-brown-700"
+                                      active
+                                        ? "text-brown-800 font-semibold"
+                                        : "text-gray-500 group-hover/item:text-gray-700"
                                     )}
                                   >
                                     {item.label}
@@ -201,7 +193,7 @@ export function Sidebar({ config }: SidebarProps) {
                                     "ml-auto text-[10px] font-bold min-w-[22px] text-center py-0.5 px-1.5 rounded-lg",
                                     active
                                       ? "bg-brown-500 text-white"
-                                      : "bg-beige-100 text-beige-600 border border-beige-200/50"
+                                      : "bg-gray-100 text-gray-500 border border-gray-200/50"
                                   )}
                                 >
                                   {item.badge}
@@ -236,12 +228,12 @@ export function Sidebar({ config }: SidebarProps) {
         </TooltipProvider>
       </nav>
 
-      {/* ── Bottom: collapse toggle only ── */}
+      {/* ── Bottom: collapse toggle ── */}
       <div className="px-3 pb-4">
         {!isCollapsed ? (
           <button
             onClick={toggle}
-            className="flex items-center justify-center gap-2 w-full rounded-xl py-2.5 text-[11px] text-beige-500 hover:text-brown-600 hover:bg-beige-100/50 transition-colors"
+            className="flex items-center justify-center gap-2 w-full rounded-xl py-2.5 text-[11px] text-gray-400 hover:text-gray-600 hover:bg-gray-100/50 transition-colors"
           >
             <PanelLeftClose className="w-3.5 h-3.5" />
             Collapse
@@ -249,7 +241,7 @@ export function Sidebar({ config }: SidebarProps) {
         ) : (
           <button
             onClick={toggle}
-            className="flex items-center justify-center w-full rounded-xl py-2.5 text-beige-400 hover:text-brown-600 hover:bg-beige-100/50 transition-colors"
+            className="flex items-center justify-center w-full rounded-xl py-2.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100/50 transition-colors"
           >
             <PanelLeftOpen className="w-4 h-4" />
           </button>
@@ -266,14 +258,14 @@ export function Sidebar({ config }: SidebarProps) {
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className={cn(
           "hidden lg:flex flex-col fixed top-0 left-0 h-screen z-40 overflow-hidden",
-          "bg-gradient-to-b from-white/80 via-beige-50/60 to-white/70",
-          "backdrop-blur-2xl border-r border-beige-200/50"
+          "bg-gradient-to-b from-white/85 via-gray-50/30 to-white/75",
+          "backdrop-blur-2xl border-r border-gray-200/50"
         )}
       >
-        {/* Subtle ambient orb to give warmth */}
+        {/* Subtle ambient */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute w-[200px] h-[200px] rounded-full bg-brown-200/20 blur-[60px] -top-[40px] left-[20%]" />
-          <div className="absolute w-[150px] h-[150px] rounded-full bg-teal-200/10 blur-[50px] bottom-[20%] right-[-20px]" />
+          <div className="absolute w-[200px] h-[200px] rounded-full bg-brown-100/20 blur-[60px] -top-[40px] left-[20%]" />
+          <div className="absolute w-[150px] h-[150px] rounded-full bg-teal-200/8 blur-[50px] bottom-[20%] right-[-20px]" />
         </div>
         <div className="relative z-10 flex flex-col h-full">
           {sidebarContent}
@@ -288,7 +280,7 @@ export function Sidebar({ config }: SidebarProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-brown-900/15 backdrop-blur-sm lg:hidden"
+              className="fixed inset-0 z-40 bg-gray-900/15 backdrop-blur-sm lg:hidden"
               onClick={closeMobile}
             />
             <motion.aside
@@ -296,11 +288,11 @@ export function Sidebar({ config }: SidebarProps) {
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="fixed top-0 left-0 h-screen w-[264px] z-50 lg:hidden overflow-hidden bg-white/95 backdrop-blur-2xl border-r border-beige-200/50"
+              className="fixed top-0 left-0 h-screen w-[264px] z-50 lg:hidden overflow-hidden bg-white/95 backdrop-blur-2xl border-r border-gray-200/50"
             >
               <button
                 onClick={closeMobile}
-                className="absolute top-5 right-4 p-1.5 rounded-lg text-beige-400 hover:text-brown-700 z-20"
+                className="absolute top-5 right-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 z-20"
               >
                 <X className="w-4 h-4" />
               </button>

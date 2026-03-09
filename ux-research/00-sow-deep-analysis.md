@@ -1,8 +1,10 @@
 # GlimmoraTeam SOW Deep Analysis
 
-**Source Document:** GLIMMORATEAM - Global Workforce Intelligence Platform_V1.1 with MVP
-**Analysis Date:** 2026-03-06
+**Source Document:** GLIMMORATEAM - Global Workforce Intelligence Platform_V2.0 Accelerated
+**Previous Version:** V1.1 with MVP
+**Analysis Date:** 2026-03-07 (updated from 2026-03-06 V1.1 analysis)
 **Method:** Section-by-section analysis. Every statement below is directly from the SOW or clearly marked as [INFERENCE] when derived.
+**V2.0 Key Deltas:** Dual SOW Intake (AI-Generated + Manual Upload), Hallucination Prevention Framework (8-layer), Ethics/Security/Risk Controls, SOW Generation Guardrails Engine, 30-day accelerated timeline (was 90 days), Python microservices for AI/NLP, Vector DB added, Multi-Stage Approval workflow, Figma as Design Authority.
 
 ---
 
@@ -48,14 +50,17 @@ Create a global labor operating system where:
 
 The Phase 1 deliverable is a production-usable MVP that can run real pilot projects end-to-end.
 
-7 MVP success criteria:
-1. **SOW to Task Graph:** Ingest SOWs and generate task plans (task graph + milestones + skills tags) with human approval and versioning
+10 MVP success criteria — [V2.0: expanded from 7 to 10]:
+1. **SOW to Task Graph:** Ingest SOWs (via AI-Generated wizard OR Manual Upload with OCR/NLP) and generate task plans (task graph + milestones + skills tags) with human approval and versioning — [V2.0: dual intake]
 2. **Contributor Lifecycle:** Onboard contributors (internal + invited external), capture consent, verify identity at basic level, assign roles
 3. **Matching & Assignment:** Recommend and assign contributors to tasks using skills and availability signals (baseline ranking)
 4. **Review & Acceptance:** Submit work artifacts, route reviews (mentor/reviewer/client), complete acceptance with immutable audit trails
 5. **Commercial Readiness:** Price tasks using configurable rate cards (not dynamic), generate payout eligibility, export billing/payout reports
 6. **Security & Auditability:** SSO + RBAC + tenant isolation + audit logs + operational monitoring, aligned to Zero Trust principles
 7. **Accessibility Baseline:** MVP UI adheres to WCAG-aligned practices for core journeys
+8. **Hallucination Prevention Verification (NEW V2.0):** AI-generated SOWs must pass all 8 defense layers (input validation, template locking, clause library, completeness checks, 90%+ confidence scoring, pattern matching, human approval, audit logging) with documented test results
+9. **Security and Ethics Gate Validation (NEW V2.0):** Prohibited content detection, data sensitivity classification, risk scoring (0-100), and jurisdiction screening must be functional and pass acceptance testing
+10. **Manual Upload Processing 95%+ Accuracy (NEW V2.0):** OCR + NLP extraction pipeline achieves 95%+ accuracy on a defined test document corpus
 
 ---
 
@@ -94,23 +99,42 @@ GlimmoraTeam replaces resume-based hiring and bid-based freelancing with evidenc
 
 ---
 
-## 8. MVP FUNCTIONAL SCOPE (Section 3.1.MVP)
+## 8. MVP FUNCTIONAL SCOPE (Section 3.1.MVP) — [V2.0: significant expansion]
 
 Delivered in two tracks:
-- **Phase 1 (0-90 Days):** MVP — production-usable core platform for pilot execution
+- **Phase 1 (0-30 Days):** MVP — production-usable core platform for pilot execution — [V2.0 CHANGE: accelerated from 90 days to 30 days]
 - **Phase 2 (3-6 Months):** Advanced — autonomous economy depth, advanced agent governance, multi-region scale, deep enterprise integrations
 
 ### 8.1 SOW Intake & Normalization (3.1.MVP.1)
-**Capabilities:**
+
+**[V2.0 CHANGE] Dual SOW Intake Pathways:**
+
+V2.0 introduces two distinct intake pathways (V1.1 only had manual upload):
+
+**Pathway A — AI-Generated SOW (NEW in V2.0):**
+- Parameter wizard with guided input (industry, scope, budget, timeline, team size)
+- Template-locked generation with guardrails (prevents hallucination/drift)
+- Clause library enforcement — AI selects from pre-approved clause library, no free-form generation
+- Completeness checks — validates all required sections present before finalization
+- Confidence scoring — minimum 90% confidence threshold for AI-generated content
+- Pattern matching against historical SOWs for consistency validation
+- Human approval gate — generated SOW requires explicit human sign-off
+- Audit logging — full trace of generation parameters, template used, clauses selected
+
+**Pathway B — Manual Upload (Enhanced in V2.0):**
 - SOW ingestion via UI and API (DOC/PDF upload + structured form)
+- Enhanced with OCR for scanned documents
+- NLP-based extraction and gap analysis — identifies missing sections, ambiguous clauses
 - Metadata extraction (title, dates, stakeholders, confidentiality, deliverables list)
 - Clause tagging (dependencies, assumptions, constraints) with human validation
 - SOW versioning (draft/approved) and audit history
 
 **Deliverables:**
 - Configurable SOW intake forms (per client template)
+- AI SOW generation wizard with parameter-driven interface
 - SOW repository + search + export
 - Audit events for SOW lifecycle
+- Gap analysis reports for manual uploads
 
 ### 8.2 Task Decomposition & Planning (3.1.MVP.2)
 **Capabilities:**
@@ -170,7 +194,7 @@ Delivered in two tracks:
 **MVP Policy:** Agents operate in assistive mode for high-impact decisions; human approvals mandatory for: acceptance, payouts, sanctions, policy overrides.
 
 **4 MVP Agents:**
-1. SOW Intake Assistant (extract/summarize/tag + recommendations)
+1. SOW Intake Assistant — **[V2.0 CHANGE]** Now covers both AI-Generated and Manual Upload modes: extract/summarize/tag + recommendations for manual uploads; parameter validation + template selection + guardrail enforcement for AI generation mode
 2. Decomposition Assistant (task plan suggestions)
 3. Contributor Support Assistant (guided help inside workroom)
 4. Review Assistant (rubric suggestions + summarization)
@@ -184,7 +208,56 @@ Delivered in two tracks:
 - Monitoring: service health dashboards, error alerting, basic tracing
 - OpenAPI 3.1 for platform APIs
 
-### 8.9 Integrations — MVP (3.1.MVP.9)
+### 8.9 Hallucination Prevention Framework (NEW in V2.0)
+
+**[V2.0 NEW SECTION]** 8-layer defense system for AI-generated SOW content:
+
+| Layer | Function |
+|-------|----------|
+| 1. Input Validation | Validate all wizard parameters before generation begins |
+| 2. Template Locking | AI operates within locked templates — no free-form document generation |
+| 3. Clause Library | All clauses selected from pre-approved library; no novel clause creation |
+| 4. Completeness Checks | Validates all required SOW sections are present and populated |
+| 5. Confidence Scoring | Minimum 90% confidence threshold — below threshold triggers human review |
+| 6. Pattern Matching | Cross-reference against historical SOW patterns for consistency |
+| 7. Human Approval | Mandatory human sign-off before any AI-generated SOW is finalized |
+| 8. Audit Logging | Full trace: generation parameters, template version, clauses used, confidence scores, approval chain |
+
+### 8.10 Ethics, Security & Risk Controls (NEW in V2.0)
+
+**[V2.0 NEW SECTION]** Controls applied during SOW intake and throughout platform:
+
+**Prohibited Content Detection:**
+- Automated screening for prohibited/unethical content in SOW submissions
+- Flag and block SOWs containing sanctioned activities or jurisdictional violations
+
+**Data Sensitivity Classification:**
+- 4-tier classification: Public, Internal, Confidential, Restricted
+- Classification assigned during SOW intake and propagated to tasks/assignments
+- Access controls enforced per classification level
+
+**Risk Scoring Model:**
+- Numeric risk score (0-100) calculated per SOW/project
+- Factors: data sensitivity, jurisdiction, industry, budget, compliance requirements
+- Approval routing based on risk score thresholds
+
+**Jurisdiction Screening:**
+- Automated screening against sanctioned jurisdictions
+- Export control compliance checks
+- Cross-border work regulation validation
+
+### 8.11 Multi-Stage Approval Workflow (NEW in V2.0)
+
+**[V2.0 NEW SECTION]** SOW approval follows a defined multi-stage pipeline:
+
+1. **Business Owner Approval** — Validates scope, budget, timeline
+2. **Legal/Compliance Review** — Verifies regulatory compliance, contract terms
+3. **Security Review** — Assesses data sensitivity, risk score, access requirements
+4. **Final Approval** — Digital signature from authorized approver
+
+Each stage produces an audit trail entry. Rejection at any stage returns to the submitter with structured feedback.
+
+### 8.12 Integrations — MVP (3.1.MVP.9)
 **Included:**
 - SSO/IdP
 - HRIS import/sync (minimum viable: employee ID, role, org, manager, cost center)
@@ -325,15 +398,18 @@ Also excluded (Section 3.2.1-3.2.5):
 
 ## 11. END-TO-END DELIVERY WORKFLOW (Section 4)
 
-**8-step workflow (Section 4.1):**
-1. Enterprise uploads or defines a SOW
-2. AI interprets scope and constraints
-3. Project decomposed into tasks and subtasks
-4. Teams automatically assembled from global contributor pools
-5. APG orchestrates execution
-6. Deliverables validated by AI plus human reviewers
-7. Payments and reputational updates triggered post-acceptance
-8. Proof-of-Delivery credentials issued and linked to talent graph
+**8-step workflow (Section 4.1) — [V2.0: Step 1 expanded for dual intake]:**
+1. Enterprise creates SOW via **AI-Generated pathway (parameter wizard)** OR **Manual Upload (DOC/PDF with OCR + NLP gap analysis)** — [V2.0 CHANGE: dual intake replaces upload-only]
+2. AI interprets scope and constraints; hallucination prevention framework validates AI-generated content (8-layer defense) — [V2.0 CHANGE: guardrails layer added]
+3. Multi-stage approval: Business Owner -> Legal/Compliance -> Security -> Final (digital signature) — [V2.0 NEW STEP: was implicit, now formalized]
+4. Project decomposed into tasks and subtasks
+5. Teams automatically assembled from global contributor pools
+6. APG orchestrates execution
+7. Deliverables validated by AI plus human reviewers
+8. Payments and reputational updates triggered post-acceptance
+9. Proof-of-Delivery credentials issued and linked to talent graph
+
+**[V2.0 NOTE]** Post-intake workflow (steps 4-9) is unchanged from V1.1. The V2.0 changes are concentrated in SOW intake and approval (steps 1-3).
 
 **Workflow variants (Section 4.2):**
 - Software development and IT projects
@@ -357,25 +433,34 @@ Also excluded (Section 3.2.1-3.2.5):
 - Zero trust security posture with least privilege
 - Cloud-agnostic deployment patterns
 
+### Backend Stack — [V2.0 CHANGES]
+
+**[V2.0 NEW]** The following technology additions are specified in V2.0:
+
+- **Python microservices for AI/NLP services** — sow-nlp-svc, sow-guardrails-svc use Python (FastAPI) instead of Node.js/NestJS. NLP libraries: spaCy, NLTK, HuggingFace Transformers for SOW text processing, gap analysis, clause extraction.
+- **Vector Database added** — Pinecone, Weaviate, or Qdrant for semantic search over SOW templates, clause library, and historical SOW corpus. Used by guardrails engine for pattern matching and similarity scoring.
+- **Existing stack unchanged** — Node.js/NestJS remains for core business services. PostgreSQL + Graph DB (Neo4j/Janus) + Redis/BullMQ + Kafka remain as specified in V1.1.
+
 ### Four Platform Layers (5.2)
 1. **Experience Layer:** Web portals, mobile apps, admin consoles
-2. **Intelligence & Orchestration Layer:** Agentic AI, APG, economic intelligence
+2. **Intelligence & Orchestration Layer:** Agentic AI, APG, economic intelligence, SOW Guardrails Engine (V2.0)
 3. **Core Services Layer:** SOW, tasks, talent graph, reputation, payments
-4. **Infrastructure & Platform Layer:** Kubernetes, message bus, data platform, observability
+4. **Infrastructure & Platform Layer:** Kubernetes, message bus, data platform, observability, Vector DB (V2.0)
 
-### 12 Core Engines (5.3)
+### 13 Core Engines (5.3) — [V2.0: was 12, now 13]
 1. SOW Intelligence Engine — NLP/NLU to parse/normalize SOW documents
-2. Project Decomposition Engine — Convert scope into tasks, milestones, dependency graphs
-3. Instant Team Formation Engine — Matching using talent graph data
-4. Autonomous Project Governor (APG) — Multi-agent governance framework
-5. Learning-by-Delivery Engine — Capture learnings, update skills, trigger interventions
-6. Skill Genome Engine — Skills taxonomies, adjacencies, proficiencies
-7. Proof-of-Delivery Ledger — Immutable record of outcomes, sign-offs, credentials
-8. Workforce Reputation Engine — Reliability, quality, collaboration, learning velocity scoring
-9. Fraud Detection Engine — Anomaly detection on identity, submissions, behavior
-10. Task Pricing Intelligence — Dynamic pricing based on demand/supply/complexity/performance
-11. Enterprise Procurement Interface — POs, approvals, invoicing
-12. Global Payment Infrastructure — PSP connectors, payroll, cross-border settlement
+2. **SOW Generation Guardrails Engine (NEW in V2.0)** — Parameter validation, template locking, clause library enforcement, hallucination prevention (8-layer defense), confidence scoring
+3. Project Decomposition Engine — Convert scope into tasks, milestones, dependency graphs
+4. Instant Team Formation Engine — Matching using talent graph data
+5. Autonomous Project Governor (APG) — Multi-agent governance framework
+6. Learning-by-Delivery Engine — Capture learnings, update skills, trigger interventions
+7. Skill Genome Engine — Skills taxonomies, adjacencies, proficiencies
+8. Proof-of-Delivery Ledger — Immutable record of outcomes, sign-offs, credentials
+9. Workforce Reputation Engine — Reliability, quality, collaboration, learning velocity scoring
+10. Fraud Detection Engine — Anomaly detection on identity, submissions, behavior
+11. Task Pricing Intelligence — Dynamic pricing based on demand/supply/complexity/performance
+12. Enterprise Procurement Interface — POs, approvals, invoicing
+13. Global Payment Infrastructure — PSP connectors, payroll, cross-border settlement
 
 ---
 
@@ -389,10 +474,13 @@ Also excluded (Section 3.2.1-3.2.5):
 5. Security, Identity & Compliance Domain Services
 6. Observability & Platform Domain Services
 
-### Example Catalogue (6.2)
+### Example Catalogue (6.2) — [V2.0: 3 new services added]
 | Domain | Service | Responsibilities |
 |--------|---------|-----------------|
 | SOW & Project | sow-ingestion-svc | Upload, OCR, parsing, metadata extraction |
+| SOW & Project | **sow-guardrails-svc (NEW V2.0)** | Hallucination prevention, confidence scoring, template locking, clause library enforcement, 8-layer defense pipeline |
+| SOW & Project | **sow-template-svc (NEW V2.0)** | SOW template management, versioning, parameter wizard configuration, clause library CRUD |
+| SOW & Project | **sow-nlp-svc (NEW V2.0)** | NLP processing for manual uploads — gap analysis, ambiguity detection, clause extraction, completeness validation (Python-based) |
 | SOW & Project | project-decomposition-svc | Task graph decomposition and dependencies |
 | Talent & Contributor | contributor-profile-svc | Profiles, identity linkage, demographics |
 | Talent & Contributor | skill-genome-svc | Skills taxonomy, proficiencies, adjacencies |
@@ -407,8 +495,8 @@ Also excluded (Section 3.2.1-3.2.5):
 - Asynchronous messaging (Kafka/Service Bus) for events (task state changes, reputation, payments)
 - Outbox pattern and idempotent consumers
 
-### MVP Microservices — Phase 1 (Annexure A)
-sow-ingestion-svc, sow-normalization-svc, decomposition-svc, project-lifecycle-svc, task-mgmt-svc, matching-svc (v1), assignment-svc, workroom-svc, submission-svc, review-svc, acceptance-svc, pricing-ratecard-svc, payout-eligibility-ledger-svc, contributor-profile-svc, consent-svc, iam-rbac-svc, audit-log-svc, notification-svc (email/in-app), reporting-export-svc, api-gateway-svc, observability-collector-svc
+### MVP Microservices — Phase 1 (Annexure A) — [V2.0: 3 new services added]
+sow-ingestion-svc, sow-normalization-svc, **sow-guardrails-svc (NEW V2.0)**, **sow-template-svc (NEW V2.0)**, **sow-nlp-svc (NEW V2.0)**, decomposition-svc, project-lifecycle-svc, task-mgmt-svc, matching-svc (v1), assignment-svc, workroom-svc, submission-svc, review-svc, acceptance-svc, pricing-ratecard-svc, payout-eligibility-ledger-svc, contributor-profile-svc, consent-svc, iam-rbac-svc, audit-log-svc, notification-svc (email/in-app), reporting-export-svc, api-gateway-svc, observability-collector-svc
 
 ### Phase 2 Additions (Annexure A)
 apg-orchestrator-svc (full), proof-of-delivery-ledger-svc, fraud-detection-svc (advanced), dynamic-pricing-svc, incentive-penalty-svc, credential-wallet-integration-svc, multi-region-policy-svc
@@ -417,7 +505,12 @@ apg-orchestrator-svc (full), proof-of-delivery-ledger-svc, fraud-detection-svc (
 
 ## 14. FRONTEND UI MODULES (Section 19)
 
-**The SOW defines exactly 4 frontend UI modules:**
+**[V2.0 NEW] Design Authority:**
+- **Figma** is explicitly stated as the design authority — all UI specifications, component designs, and interaction patterns are defined in Figma
+- **Storybook** for component documentation — all UI components must have Storybook stories for visual testing and developer reference
+- Design-to-code handoff workflow: Figma (source of truth) -> Storybook (component docs) -> Implementation
+
+**The SOW defines exactly 4 frontend UI modules (unchanged from V1.1):**
 
 ### 14.1 Enterprise Admin Console (19.1)
 - SOW intake and project portfolio views
@@ -562,7 +655,7 @@ Task-based economy: enterprises submit work, AI decomposes it, contributors exec
 - Periodic penetration tests
 
 **Data Governance (Section 17.4):**
-- Data classification: Public, Internal, Confidential, Restricted
+- Data classification: Public, Internal, Confidential, Restricted — [V2.0: classification now applied at SOW intake via data sensitivity classification gate, propagated to tasks/assignments]
 - Data lineage tracking
 - Automated validation (schema, duplicate detection, skill normalization, economic integrity)
 - Retention/archival/deletion policies
@@ -605,7 +698,11 @@ Task-based economy: enterprises submit work, AI decomposes it, contributors exec
 | Category | Endpoint | Purpose |
 |----------|----------|---------|
 | SOW | POST /v1/sows | Create SOW (upload or structured) |
+| SOW | POST /v1/sows/generate | **[V2.0 NEW]** AI-Generate SOW from parameter wizard input |
+| SOW | POST /v1/sows/validate | **[V2.0 NEW]** Run hallucination prevention + guardrails checks on SOW |
+| SOW | POST /v1/sows/{id}/approve | **[V2.0 NEW]** Multi-stage approval action (per stage) |
 | SOW | GET /v1/sows/{id} | Retrieve SOW with parsed structure |
+| SOW | GET /v1/sows/{id}/risk-score | **[V2.0 NEW]** Get risk score and classification |
 | Projects | POST /v1/projects | Create project from SOW |
 | Projects | GET /v1/projects?filters= | List/filter projects |
 | Talent | POST /v1/contributors | Create/update contributor |
@@ -636,23 +733,29 @@ Task-based economy: enterprises submit work, AI decomposes it, contributors exec
 
 ## 23. IMPLEMENTATION ROADMAP (Section 22)
 
-### Phase 1 — MVP Foundation (0-90 Days)
+### Phase 1 — MVP Foundation (0-30 Days) — [V2.0 CHANGE: accelerated from 90 days to 30 days]
 **Goal:** Production-usable MVP for pilot delivery projects end-to-end
 
 **Workstreams:**
 - Platform Setup: tenant, environments (DEV/TEST/PROD), CI/CD baseline
 - Identity & Access: SSO + RBAC, admin roles, audit log baseline
-- Core Workflow: SOW ingestion -> decomposition -> assignment -> submission -> review -> acceptance
+- Core Workflow: SOW ingestion (dual pathway: AI-Generated + Manual Upload) -> decomposition -> assignment -> submission -> review -> acceptance — [V2.0: dual intake added]
+- SOW Guardrails: hallucination prevention framework, template locking, clause library, confidence scoring — [V2.0 NEW]
+- Ethics & Risk Controls: prohibited content detection, data sensitivity classification, risk scoring, jurisdiction screening — [V2.0 NEW]
+- Multi-Stage Approval: Business Owner -> Legal/Compliance -> Security -> Final (digital signature) — [V2.0 NEW]
 - Contributor Experience: contributor portal, workroom, notifications
 - Matching v1: skills-based recommendation + explainability fields
 - Commercial Baseline: rate cards, task pricing, payout eligibility ledger, exports
 - Observability: logging/metrics/alerts for critical services
 - Pilot Execution: 2-3 pilot SOWs configured, executed, closed with acceptance packs
 
-**Exit Criteria:**
+**Exit Criteria — [V2.0: expanded with new success criteria]:**
 - All critical journeys pass UAT
 - Security sign-off for SSO/RBAC/audit logs
 - Pilot completion with accepted outcomes and exported financial reports
+- **Hallucination Prevention Verification** — AI-generated SOWs pass all 8 defense layers with documented test results [V2.0 NEW]
+- **Security and Ethics Gate Validation** — Prohibited content detection, risk scoring, and jurisdiction screening functional and tested [V2.0 NEW]
+- **Manual Upload Processing 95%+ accuracy** — OCR + NLP extraction achieves 95%+ accuracy on test document corpus [V2.0 NEW]
 
 ### Phase 2 — Advanced Governance & Autonomous Economy (3-6 Months)
 - APG (expanded orchestration + SLA automation)
@@ -680,7 +783,11 @@ Task-based economy: enterprises submit work, AI decomposes it, contributors exec
 ### MVP Acceptance Criteria (Section 25.3)
 
 **Functional:**
-- SOW ingestion succeeds for agreed formats, produces structured output
+- SOW ingestion succeeds for agreed formats, produces structured output — [V2.0: both AI-Generated and Manual Upload pathways]
+- AI-Generated SOWs pass all 8 hallucination prevention layers [V2.0 NEW]
+- Manual Upload achieves 95%+ OCR/NLP extraction accuracy [V2.0 NEW]
+- Multi-stage approval workflow (Business Owner -> Legal -> Security -> Final) completes with digital signatures [V2.0 NEW]
+- Ethics/security gates block prohibited content and flag high-risk SOWs [V2.0 NEW]
 - Task plans created/edited/approved; task state machine works end-to-end
 - Contributor onboarding + role assignment works for internal and invited external
 - Matching returns ranked candidates with explainability fields
@@ -693,6 +800,8 @@ Task-based economy: enterprises submit work, AI decomposes it, contributors exec
 - Monitoring for uptime/error rates; incident workflow documented
 - Accessibility: core journeys follow WCAG-aligned practices
 - API documentation published in OpenAPI format; OAuth2/OIDC auth
+- Confidence scoring consistently above 90% threshold for AI-generated content [V2.0 NEW]
+- Risk scoring model (0-100) produces consistent, repeatable scores [V2.0 NEW]
 
 ---
 

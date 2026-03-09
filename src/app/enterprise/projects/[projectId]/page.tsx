@@ -476,10 +476,10 @@ export default function ProjectDetailPage() {
                           <div className="flex flex-wrap gap-1">
                             {task.skillsRequired.map((skill) => (
                               <span
-                                key={skill}
+                                key={skill.name}
                                 className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-beige-100 text-beige-600"
                               >
-                                {skill}
+                                {skill.name}
                               </span>
                             ))}
                           </div>
