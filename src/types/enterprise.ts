@@ -199,9 +199,12 @@ export interface PlanVersion {
   status: PlanStatus;
 }
 
+export type AssignmentStatus = "pending_response" | "accepted" | "declined" | "timed_out";
+
 export interface TeamPool {
   id: string;
   planId: string;
+  projectId?: string;
   name: string;
   status: TeamStatus;
   createdAt: string;
@@ -209,6 +212,7 @@ export interface TeamPool {
   totalMembers: number;
   requiredSkills: string[];
   members: TeamMember[];
+  taskAssignments?: Record<string, string>; /* taskId → memberId */
 }
 
 export interface TeamMember {
@@ -222,6 +226,24 @@ export interface TeamMember {
   track: "women" | "student" | "general";
   tasksCompleted: number;
   rating: number;
+  whyMatched?: string;
+}
+
+export interface Assignment {
+  id: string;
+  teamId: string;
+  teamName: string;
+  memberId: string;
+  memberDisplayName: string;
+  memberAvatar: string;
+  taskId: string;
+  taskTitle: string;
+  projectName: string;
+  status: AssignmentStatus;
+  sentAt: string;
+  respondBy: string;
+  respondedAt?: string;
+  declineReason?: string;
 }
 
 export interface Project {

@@ -25,6 +25,7 @@ import {
   Timer,
   BarChart3,
   XCircle,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp, scaleIn, slideInRight } from "@/lib/utils/motion-variants";
@@ -198,6 +199,7 @@ export default function ProjectDetailPage() {
     (d) => d.projectId === project.id
   );
   const hc = healthConfig[project.health];
+  const [resolvedExceptions, setResolvedExceptions] = React.useState<Set<string>>(new Set());
 
   const budgetPct = Math.round((project.spent / project.budget) * 100);
   const daysLeft = Math.max(
@@ -288,6 +290,14 @@ export default function ProjectDetailPage() {
             <p className="text-[13px] text-beige-500 mt-1">
               {project.client}
             </p>
+            <Link
+              href={`/enterprise/sow/${project.sowId}`}
+              className="inline-flex items-center gap-1 text-[11px] text-teal-600 hover:text-teal-700 hover:underline font-medium mt-0.5 transition-colors"
+            >
+              <FileText className="w-3 h-3" />
+              SOW: {project.sowTitle}
+              <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+            </Link>
           </div>
 
           {/* Right: Key metrics row */}
@@ -347,6 +357,22 @@ export default function ProjectDetailPage() {
             </div>
           </div>
         </div>
+      </motion.div>
+
+      {/* Sub-page navigation */}
+      <motion.div variants={fadeUp} className="flex items-center gap-3">
+        <Link
+          href={`/enterprise/projects/${projectId}/milestones`}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-beige-200 bg-white/80 text-[11px] font-semibold text-brown-700 hover:bg-beige-50 hover:border-brown-300 transition-all"
+        >
+          <Layers className="w-3.5 h-3.5" /> View Milestones
+        </Link>
+        <Link
+          href={`/enterprise/projects/${projectId}/monitor`}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-beige-200 bg-white/80 text-[11px] font-semibold text-brown-700 hover:bg-beige-50 hover:border-brown-300 transition-all"
+        >
+          <Zap className="w-3.5 h-3.5" /> Live Monitor
+        </Link>
       </motion.div>
 
       {/* Tabs */}
@@ -446,12 +472,15 @@ export default function ProjectDetailPage() {
                     const ts = taskStatusConfig[task.status];
                     const pc = priorityConfig[task.priority];
                     return (
-                      <TableRow key={task.id}>
+                      <TableRow key={task.id} className="cursor-pointer hover:bg-beige-50/50 transition-colors">
                         <TableCell>
                           <div>
-                            <p className="text-[13px] font-semibold text-brown-900">
+                            <Link
+                              href={`/enterprise/projects/${projectId}/tasks/${task.id}`}
+                              className="text-[13px] font-semibold text-brown-900 hover:text-teal-700 hover:underline transition-colors"
+                            >
                               {task.title}
-                            </p>
+                            </Link>
                             <p className="text-[11px] text-beige-500 mt-0.5 line-clamp-1">
                               {task.description}
                             </p>
@@ -595,7 +624,7 @@ export default function ProjectDetailPage() {
                       {team.members.map((member) => {
                         const tl = trackLabel(member.track);
                         return (
-                          <TableRow key={member.id}>
+                          <TableRow key={member.id} className="hover:bg-beige-50/50 transition-colors">
                             <TableCell>
                               <div className="flex items-center gap-3">
                                 <div
@@ -1176,7 +1205,9 @@ export default function ProjectDetailPage() {
                           </span>
                           <Badge
                             variant={
-                              exc.status === "open"
+                              resolvedExceptions.has(exc.id)
+                                ? "forest"
+                                : exc.status === "open"
                                 ? "gold"
                                 : exc.status === "investigating"
                                 ? "teal"
@@ -1184,16 +1215,42 @@ export default function ProjectDetailPage() {
                             }
                             size="sm"
                           >
-                            {exc.status}
+                            {resolvedExceptions.has(exc.id) ? "resolved" : exc.status}
                           </Badge>
                         </div>
                         <p className="text-[12px] text-beige-600 leading-relaxed">
                           {exc.description}
                         </p>
-                        <p className="text-[10px] text-beige-400 mt-2 flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {exc.date}
-                        </p>
+                        <div className="flex items-center justify-between mt-3">
+                          <p className="text-[10px] text-beige-400 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {exc.date}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            {!resolvedExceptions.has(exc.id) && (
+                              <button
+                                onClick={() =>
+                                  setResolvedExceptions((prev) => {
+                                    const next = new Set(prev);
+                                    next.add(exc.id);
+                                    return next;
+                                  })
+                                }
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-forest-50 text-[10px] font-semibold text-forest-700 hover:bg-forest-100 border border-forest-200 transition-all"
+                              >
+                                <CheckCircle2 className="w-3 h-3" />
+                                Resolve
+                              </button>
+                            )}
+                            <Link
+                              href="/enterprise/projects/exceptions"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-beige-200 bg-white/80 text-[10px] font-semibold text-brown-700 hover:bg-beige-50 hover:border-brown-300 transition-all"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              View in Queue
+                            </Link>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </motion.div>
@@ -1296,6 +1353,7 @@ export default function ProjectDetailPage() {
                     <TableHead>Submitted</TableHead>
                     <TableHead>Evidence</TableHead>
                     <TableHead>Notes</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1327,17 +1385,43 @@ export default function ProjectDetailPage() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1.5">
-                            <FileText className="w-3.5 h-3.5 text-beige-400" />
-                            <span className="text-[12px] font-semibold text-brown-800">
+                          <Link
+                            href={`/enterprise/review/${del.id}`}
+                            className="flex items-center gap-1.5 hover:text-teal-700 transition-colors group"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-beige-400 group-hover:text-teal-500" />
+                            <span className="text-[12px] font-semibold text-brown-800 group-hover:text-teal-700 group-hover:underline">
                               {del.evidenceFiles} files
                             </span>
-                          </div>
+                          </Link>
                         </TableCell>
                         <TableCell>
                           <p className="text-[11px] text-beige-500 max-w-[200px] truncate">
                             {del.reviewerNotes ?? "--"}
                           </p>
+                        </TableCell>
+                        <TableCell>
+                          {del.status === "pending" ? (
+                            <Link
+                              href={`/enterprise/review/${del.id}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gradient-to-r from-teal-500 to-teal-600 text-white text-[10px] font-semibold hover:from-teal-600 hover:to-teal-700 transition-all shadow-sm"
+                            >
+                              <Eye className="w-3 h-3" />
+                              Review
+                            </Link>
+                          ) : del.status === "rework" ? (
+                            <Link
+                              href={`/enterprise/review/${del.id}`}
+                              className="inline-flex items-center gap-1 text-[10px] font-semibold text-brown-600 hover:text-brown-800 hover:underline transition-colors"
+                            >
+                              <FileCheck className="w-3 h-3" />
+                              View Feedback
+                            </Link>
+                          ) : (
+                            <span className="text-[10px] text-beige-400">
+                              {del.status === "approved" ? "Approved" : "Rejected"}
+                            </span>
+                          )}
                         </TableCell>
                       </TableRow>
                     );

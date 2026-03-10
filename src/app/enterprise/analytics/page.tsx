@@ -19,43 +19,62 @@ import {
   DollarSign,
   FileText,
   Download,
+  Filter,
+  Heart,
+  GraduationCap,
+  Globe2,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
 import { MetricRing } from "@/components/enterprise/metric-ring";
+import { Badge } from "@/components/ui";
+import { toast } from "@/lib/stores/toast-store";
 
 /* ══════════════════════════════════════════
    I1 — Workforce Dashboard
-   Skills heatmap, capacity metrics, performance overview
+   SOW: Section 3.1.6, 19.4, 27.3
+   Skills heatmap, capacity, performance, engagement, diversity
    ══════════════════════════════════════════ */
+
+/* ── Filter Options ── */
+const segmentOptions = ["All Segments", "Students", "Women Workforce", "Freelancers", "Internal"];
+const regionOptions = ["All Regions", "South Asia", "Southeast Asia", "Middle East", "Africa", "Global"];
+const dateRangeOptions = ["Last 7 days", "Last 30 days", "This Quarter", "This Year"];
 
 /* ── Inline Mock Data ── */
 const kpis = [
   { label: "Active Contributors", value: "47", change: "+8", positive: true, icon: Users, bg: "bg-brown-50", iconColor: "text-brown-600" },
-  { label: "Avg Match Score", value: "91%", change: "+2.4%", positive: true, icon: Target, bg: "bg-teal-50", iconColor: "text-teal-600" },
+  { label: "Engagement Level", value: "74%", change: "+3.8%", positive: true, icon: Heart, bg: "bg-teal-50", iconColor: "text-teal-600" },
   { label: "Skills Coverage", value: "86%", change: "+5.1%", positive: true, icon: Layers, bg: "bg-forest-50", iconColor: "text-forest-600" },
   { label: "Capacity Utilization", value: "82%", change: "-1.3%", positive: false, icon: Gauge, bg: "bg-gold-50", iconColor: "text-gold-600" },
 ];
 
+/* ── SOW 27.3 Secondary Metrics ── */
+const secondaryMetrics = [
+  { label: "Skill Development Progress", value: "68%", description: "Contributors advancing proficiency this quarter", icon: GraduationCap, color: "text-teal-600", bg: "bg-teal-50" },
+  { label: "Diversity Index", value: "0.82", description: "Shannon diversity across segments and geography", icon: Globe2, color: "text-forest-600", bg: "bg-forest-50" },
+  { label: "Inclusion Participation", value: "91%", description: "Women & student contributors actively engaged", icon: Heart, color: "text-brown-600", bg: "bg-brown-50" },
+];
+
 const skillHeatmapData = [
-  { skill: "React / Next.js", demand: 92, availability: 88, gap: 4 },
-  { skill: "Node.js / NestJS", demand: 85, availability: 78, gap: 7 },
-  { skill: "PostgreSQL", demand: 78, availability: 82, gap: -4 },
-  { skill: "TypeScript", demand: 95, availability: 91, gap: 4 },
-  { skill: "DevOps / CI-CD", demand: 68, availability: 55, gap: 13 },
-  { skill: "Security / Auth", demand: 62, availability: 48, gap: 14 },
-  { skill: "Mobile / RN", demand: 54, availability: 60, gap: -6 },
-  { skill: "QA / Testing", demand: 72, availability: 65, gap: 7 },
-  { skill: "UI / UX Design", demand: 58, availability: 52, gap: 6 },
-  { skill: "Data / Analytics", demand: 45, availability: 38, gap: 7 },
-  { skill: "Finance Domain", demand: 40, availability: 35, gap: 5 },
-  { skill: "HR Domain", demand: 32, availability: 30, gap: 2 },
+  { skill: "React / Next.js", demand: 92, availability: 88, gap: 4, proficiency: { beginner: 8, intermediate: 42, advanced: 50 } },
+  { skill: "Node.js / NestJS", demand: 85, availability: 78, gap: 7, proficiency: { beginner: 15, intermediate: 45, advanced: 40 } },
+  { skill: "PostgreSQL", demand: 78, availability: 82, gap: -4, proficiency: { beginner: 12, intermediate: 48, advanced: 40 } },
+  { skill: "TypeScript", demand: 95, availability: 91, gap: 4, proficiency: { beginner: 5, intermediate: 35, advanced: 60 } },
+  { skill: "DevOps / CI-CD", demand: 68, availability: 55, gap: 13, proficiency: { beginner: 25, intermediate: 45, advanced: 30 } },
+  { skill: "Security / Auth", demand: 62, availability: 48, gap: 14, proficiency: { beginner: 30, intermediate: 40, advanced: 30 } },
+  { skill: "Mobile / RN", demand: 54, availability: 60, gap: -6, proficiency: { beginner: 18, intermediate: 47, advanced: 35 } },
+  { skill: "QA / Testing", demand: 72, availability: 65, gap: 7, proficiency: { beginner: 20, intermediate: 50, advanced: 30 } },
+  { skill: "UI / UX Design", demand: 58, availability: 52, gap: 6, proficiency: { beginner: 22, intermediate: 43, advanced: 35 } },
+  { skill: "Data / Analytics", demand: 45, availability: 38, gap: 7, proficiency: { beginner: 28, intermediate: 42, advanced: 30 } },
+  { skill: "Finance Domain", demand: 40, availability: 35, gap: 5, proficiency: { beginner: 35, intermediate: 40, advanced: 25 } },
+  { skill: "HR Domain", demand: 32, availability: 30, gap: 2, proficiency: { beginner: 32, intermediate: 43, advanced: 25 } },
 ];
 
 const capacityData = [
-  { label: "Full-Time", available: 28, total: 32, color: "#4D5741" },
-  { label: "Part-Time", available: 11, total: 15, color: "#5B9BA2" },
-  { label: "Limited", available: 3, total: 8, color: "#D0B060" },
+  { label: "Full-Time", utilized: 28, total: 32, color: "#4D5741" },
+  { label: "Part-Time", utilized: 12, total: 15, color: "#5B9BA2" },
+  { label: "Limited", utilized: 5, total: 8, color: "#D0B060" },
 ];
 
 const performanceMetrics = [
@@ -123,6 +142,10 @@ function NavCard({
    PAGE COMPONENT
    ══════════════════════════════════════════ */
 export default function WorkforceDashboardPage() {
+  const [segment, setSegment] = React.useState("All Segments");
+  const [region, setRegion] = React.useState("All Regions");
+  const [dateRange, setDateRange] = React.useState("This Quarter");
+
   return (
     <motion.div
       variants={stagger}
@@ -130,19 +153,86 @@ export default function WorkforceDashboardPage() {
       animate="show"
       className="max-w-[1200px] mx-auto space-y-6"
     >
-      {/* Page header */}
-      <motion.div variants={fadeUp}>
-        <h1 className="text-[22px] font-bold text-brown-900 tracking-[-0.02em]">
-          Workforce Dashboard
-        </h1>
-        <p className="text-[13px] text-beige-500 mt-1">
-          Skills heatmap, contributor capacity, and performance overview across all active projects.
-        </p>
+      {/* ── Page Header + Export ── */}
+      <motion.div variants={fadeUp} className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-[22px] font-bold text-brown-900 tracking-[-0.02em]">
+            Workforce Dashboard
+          </h1>
+          <p className="text-[13px] text-beige-500 mt-1">
+            Skills heatmap, contributor capacity, and performance overview across all active projects.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => toast.info("CSV export would be generated for the current workforce view.")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-beige-600 bg-white/70 border border-beige-200/60 hover:border-beige-300 hover:text-brown-700 transition-all"
+          >
+            <Download className="w-3.5 h-3.5" />
+            CSV
+          </button>
+          <button
+            onClick={() => toast.info("PDF report would be generated for the current workforce view.")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-white bg-brown-500 hover:bg-brown-600 transition-all"
+          >
+            <Download className="w-3.5 h-3.5" />
+            PDF
+          </button>
+        </div>
+      </motion.div>
+
+      {/* ── Filter Bar (SOW: filter by segment/region) ── */}
+      <motion.div
+        variants={fadeUp}
+        className="flex flex-wrap items-center gap-3 rounded-xl border border-beige-200/50 bg-white/60 backdrop-blur-sm px-4 py-3"
+      >
+        <Filter className="w-3.5 h-3.5 text-beige-400" />
+        <span className="text-[11px] font-semibold text-beige-500 uppercase tracking-wider mr-1">Filters</span>
+
+        {/* Segment */}
+        <select
+          value={segment}
+          onChange={(e) => setSegment(e.target.value)}
+          className="h-7 rounded-lg border border-beige-200/60 bg-white/80 px-2.5 text-[11px] text-brown-700 focus:outline-none focus:ring-2 focus:ring-brown-200/40 focus:border-brown-200"
+        >
+          {segmentOptions.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+
+        {/* Region */}
+        <select
+          value={region}
+          onChange={(e) => setRegion(e.target.value)}
+          className="h-7 rounded-lg border border-beige-200/60 bg-white/80 px-2.5 text-[11px] text-brown-700 focus:outline-none focus:ring-2 focus:ring-brown-200/40 focus:border-brown-200"
+        >
+          {regionOptions.map((r) => (
+            <option key={r} value={r}>{r}</option>
+          ))}
+        </select>
+
+        {/* Date Range Quick Picks */}
+        <div className="flex items-center gap-1 ml-auto">
+          {dateRangeOptions.map((dr) => (
+            <button
+              key={dr}
+              onClick={() => setDateRange(dr)}
+              className={cn(
+                "px-2.5 py-1 rounded-md text-[10px] font-medium transition-all",
+                dateRange === dr
+                  ? "bg-brown-500 text-white"
+                  : "text-beige-500 hover:text-brown-700 hover:bg-beige-100/60"
+              )}
+            >
+              {dr}
+            </button>
+          ))}
+        </div>
       </motion.div>
 
       {/* ── KPI Row ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((kpi, i) => {
+        {kpis.map((kpi) => {
           const Icon = kpi.icon;
           return (
             <motion.div
@@ -179,7 +269,32 @@ export default function WorkforceDashboardPage() {
         })}
       </div>
 
-      {/* ── Skills Heatmap ── */}
+      {/* ── SOW 27.3: Secondary Metrics (Skill Development, Diversity, Inclusion) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {secondaryMetrics.map((m) => {
+          const Icon = m.icon;
+          return (
+            <motion.div
+              key={m.label}
+              variants={fadeUp}
+              className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-4 flex items-start gap-3"
+            >
+              <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center shrink-0", m.bg)}>
+                <Icon className={cn("w-4 h-4", m.color)} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[18px] font-bold text-brown-900">{m.value}</span>
+                  <span className="text-[11px] font-semibold text-brown-700 truncate">{m.label}</span>
+                </div>
+                <p className="text-[10px] text-beige-500 mt-0.5 leading-relaxed">{m.description}</p>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* ── Skills Heatmap (with proficiency breakdown) ── */}
       <motion.div
         variants={fadeUp}
         className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5"
@@ -190,7 +305,7 @@ export default function WorkforceDashboardPage() {
               Skills Heatmap
             </h2>
             <p className="text-[11px] text-beige-500 mt-0.5">
-              Demand vs availability — darker cells indicate higher intensity
+              Demand vs availability with proficiency distribution — darker cells indicate higher intensity
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -210,21 +325,22 @@ export default function WorkforceDashboardPage() {
         </div>
 
         {/* Heatmap Header */}
-        <div className="grid grid-cols-[180px_1fr_1fr_80px] gap-2 px-2 py-2 text-[10px] font-semibold text-beige-500 uppercase tracking-wider border-b border-beige-100">
+        <div className="grid grid-cols-[150px_1fr_1fr_70px_minmax(140px,1fr)] gap-2 px-2 py-2 text-[10px] font-semibold text-beige-500 uppercase tracking-wider border-b border-beige-100">
           <div>Skill</div>
           <div className="text-center">Demand</div>
           <div className="text-center">Availability</div>
           <div className="text-center">Gap</div>
+          <div className="text-center">Proficiency</div>
         </div>
 
         {/* Heatmap Rows */}
         <div className="divide-y divide-beige-50">
-          {skillHeatmapData.map((row, i) => {
+          {skillHeatmapData.map((row) => {
             const gb = gapBadge(row.gap);
             return (
               <div
                 key={row.skill}
-                className="grid grid-cols-[180px_1fr_1fr_80px] gap-2 px-2 py-2.5 items-center hover:bg-beige-50/40 transition-colors"
+                className="grid grid-cols-[150px_1fr_1fr_70px_minmax(140px,1fr)] gap-2 px-2 py-2.5 items-center hover:bg-beige-50/40 transition-colors"
               >
                 <span className="text-[12px] font-medium text-brown-700">
                   {row.skill}
@@ -262,9 +378,46 @@ export default function WorkforceDashboardPage() {
                     {gb.text}
                   </span>
                 </div>
+
+                {/* Proficiency distribution bar */}
+                <div className="flex items-center gap-1.5">
+                  <div className="flex-1 h-5 rounded-md overflow-hidden flex">
+                    <div
+                      className="h-full bg-beige-300"
+                      style={{ width: `${row.proficiency.beginner}%` }}
+                      title={`Beginner: ${row.proficiency.beginner}%`}
+                    />
+                    <div
+                      className="h-full bg-brown-300"
+                      style={{ width: `${row.proficiency.intermediate}%` }}
+                      title={`Intermediate: ${row.proficiency.intermediate}%`}
+                    />
+                    <div
+                      className="h-full bg-brown-600"
+                      style={{ width: `${row.proficiency.advanced}%` }}
+                      title={`Advanced: ${row.proficiency.advanced}%`}
+                    />
+                  </div>
+                </div>
               </div>
             );
           })}
+        </div>
+
+        {/* Proficiency legend */}
+        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-beige-100/60 justify-end">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-2.5 rounded-sm bg-beige-300" />
+            <span className="text-[10px] text-beige-500">Beginner</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-2.5 rounded-sm bg-brown-300" />
+            <span className="text-[10px] text-beige-500">Intermediate</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-2.5 rounded-sm bg-brown-600" />
+            <span className="text-[10px] text-beige-500">Advanced</span>
+          </div>
         </div>
       </motion.div>
 
@@ -279,12 +432,12 @@ export default function WorkforceDashboardPage() {
             Contributor Capacity
           </h3>
           <p className="text-[11px] text-beige-500 mb-4">
-            Available vs total slots by availability type
+            Utilized vs total contributors by availability tier
           </p>
 
           <div className="space-y-5">
             {capacityData.map((seg) => {
-              const pct = Math.round((seg.available / seg.total) * 100);
+              const pct = Math.round((seg.utilized / seg.total) * 100);
               return (
                 <div key={seg.label}>
                   <div className="flex items-center justify-between mb-1.5">
@@ -298,7 +451,7 @@ export default function WorkforceDashboardPage() {
                       </span>
                     </div>
                     <span className="text-[11px] font-semibold text-brown-800">
-                      {seg.available} / {seg.total}
+                      {seg.utilized} / {seg.total}
                     </span>
                   </div>
                   <div className="relative h-7 bg-beige-100/60 rounded-lg overflow-hidden">
@@ -323,7 +476,7 @@ export default function WorkforceDashboardPage() {
               Total capacity
             </span>
             <span className="text-[13px] font-bold text-brown-800">
-              42 / 55 contributors available
+              45 / 55 contributors assigned
             </span>
           </div>
         </motion.div>
@@ -379,14 +532,14 @@ export default function WorkforceDashboardPage() {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <NavCard
-            href="/enterprise/analytics/cost"
+            href="/enterprise/analytics/economic"
             icon={<DollarSign className="w-5 h-5 text-white" />}
             title="Economic Dashboard"
             description="Budget vs actual, cost trends, and forecasts."
             gradient="from-gold-400 to-gold-600"
           />
           <NavCard
-            href="/enterprise/analytics/quality"
+            href="/enterprise/analytics/governance"
             icon={<Shield className="w-5 h-5 text-white" />}
             title="Governance & Risk"
             description="Incidents, fraud flags, and APG overrides."

@@ -27,17 +27,44 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui";
 import type { ModuleConfig } from "@/lib/config/navigation";
-import { mockPlans } from "@/mocks/data/enterprise-projects";
+import { mockPlans, mockTeams } from "@/mocks/data/enterprise-projects";
 import { mockSOWs } from "@/mocks/data/enterprise-sow";
+
+/* ── Static friendly labels for URL segments that don't auto-capitalize well ── */
+const segmentLabels: Record<string, string> = {
+  apg: "Policies",
+  "sow-forms": "SOW Intake Forms",
+  "clause-library": "Clause Library",
+  "review-rubrics": "Review Rubrics",
+  sow: "SOW",
+  users: "Contributors",
+};
+
+/* ── Template ID → name lookup ── */
+const templateNames: Record<string, string> = {
+  "tpl-001": "Healthcare Standard SOW",
+  "tpl-002": "FinTech Compliance SOW",
+  "tpl-003": "Technology Platform SOW",
+  "tpl-004": "Retail E-Commerce SOW",
+  "tpl-005": "General Purpose SOW",
+  "tpl-006": "Government RFP SOW",
+};
 
 /* ── Friendly name lookup for dynamic route segments (#5) ── */
 function getFriendlyLabel(segment: string, _prevSegments: string[]): string | null {
+  /* Static overrides first */
+  if (segmentLabels[segment]) return segmentLabels[segment];
   /* Plan IDs → plan title */
   const plan = mockPlans.find((p) => p.id === segment);
   if (plan) return plan.title;
   /* SOW IDs → sow title */
   const sow = mockSOWs.find((s) => s.id === segment);
   if (sow) return sow.title;
+  /* Team IDs → team name */
+  const team = mockTeams.find((t) => t.id === segment);
+  if (team) return team.name;
+  /* Template IDs → template name */
+  if (templateNames[segment]) return templateNames[segment];
   return null;
 }
 
