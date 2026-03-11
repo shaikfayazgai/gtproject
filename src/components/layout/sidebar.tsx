@@ -15,6 +15,11 @@ import { cn } from "@/lib/utils/cn";
 import { useSidebarStore } from "@/lib/stores/sidebar-store";
 import type { ModuleConfig } from "@/lib/config/navigation";
 import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -32,6 +37,7 @@ export function Sidebar({ config }: SidebarProps) {
     Record<number, boolean>
   >({});
 
+  /* Expand all sections by default on mount */
   React.useEffect(() => {
     const initial: Record<number, boolean> = {};
     config.sections.forEach((_, idx) => {
@@ -65,50 +71,71 @@ export function Sidebar({ config }: SidebarProps) {
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
-      {/* ── Brand ── */}
-      <div className={cn("px-5 pt-6 pb-2", isCollapsed && "px-3 pt-5")}>
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="relative">
-            <div className="absolute inset-[-3px] rounded-2xl bg-gradient-to-br from-brown-400/30 via-gold-400/20 to-teal-400/20 blur-[6px] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-brown-500 via-brown-600 to-brown-700 flex items-center justify-center shadow-lg shadow-brown-500/20">
-              <Sparkles className="w-[18px] h-[18px] text-gold-200" />
+      {/* ── Brand + Collapse toggle ── 16px top, 16px bottom */}
+      <div className={cn("px-4 pt-4 pb-4", isCollapsed && "px-2 pt-4 pb-3")}>
+        <div className="flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5 group min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brown-400 to-brown-600 flex items-center justify-center shrink-0">
+              <Sparkles className="w-3.5 h-3.5 text-white/90" />
             </div>
-          </div>
-          <AnimatePresence>
-            {!isCollapsed && (
-              <motion.div
-                initial={{ opacity: 0, x: -6 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -6 }}
-                transition={{ duration: 0.15 }}
-              >
-                <p className="text-[15px] font-bold text-brown-900 tracking-[-0.02em]">
-                  Glimmora
-                </p>
-                <p className="text-[10px] font-semibold text-gray-400 tracking-wide uppercase mt-[-2px]">
-                  {config.shortName}
-                </p>
-              </motion.div>
+            <AnimatePresence>
+              {!isCollapsed && (
+                <motion.div
+                  initial={{ opacity: 0, x: -4 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -4 }}
+                  transition={{ duration: 0.12 }}
+                  className="min-w-0"
+                >
+                  <p className="text-[13px] font-semibold text-gray-800 tracking-[-0.01em] leading-tight">
+                    Glimmora
+                  </p>
+                  <p className="text-[10px] text-gray-400 leading-tight">
+                    {config.shortName}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </Link>
+          <button
+            onClick={toggle}
+            className="p-1 rounded text-gray-300 hover:text-gray-500 hover:bg-gray-100/60 transition-colors shrink-0"
+          >
+            {isCollapsed ? (
+              <PanelLeftOpen className="w-[14px] h-[14px]" />
+            ) : (
+              <PanelLeftClose className="w-[14px] h-[14px]" />
             )}
-          </AnimatePresence>
-        </Link>
+          </button>
+        </div>
       </div>
 
-      {/* ── Navigation ── */}
-      <nav className="flex-1 overflow-y-auto px-3 pb-4 scrollbar-none">
+      {/* Separator between brand and nav */}
+      {!isCollapsed && <div className="h-px bg-gray-200/40 mx-4 mb-3" />}
+      {isCollapsed && <div className="h-px bg-gray-200/40 mx-2 mb-2" />}
+
+      {/* ── Navigation ── px-3 = 12px side padding */}
+      <nav className="flex-1 overflow-y-auto px-3 pb-3 scrollbar-none">
         <TooltipProvider delayDuration={0}>
           {config.sections.map((section, sIdx) => {
             const isExpanded = expandedSections[sIdx] ?? true;
+            const hasSectionTitle = !!section.title;
 
             return (
-              <div key={sIdx} className={sIdx > 0 ? "mt-3" : ""}>
-                {/* Section header */}
-                {section.title && !isCollapsed && (
+              <div
+                key={sIdx}
+                className={cn(
+                  sIdx > 0 && hasSectionTitle && "mt-4",
+                  sIdx > 0 && !hasSectionTitle && "mt-1"
+                )}
+              >
+                {/* Section header — 4px vertical padding, 2px bottom margin */}
+                {hasSectionTitle && !isCollapsed && (
                   <button
                     onClick={() => toggleSection(sIdx)}
-                    className="flex items-center justify-between w-full px-3 py-1.5 mb-0.5 rounded-lg group hover:bg-gray-50/60 transition-colors"
+                    className="flex items-center justify-between w-full pl-2 pr-2 py-1 mb-0.5 rounded group transition-colors hover:bg-gray-50/80"
                   >
-                    <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-gray-400 group-hover:text-gray-500 transition-colors">
+                    <span className="text-[11px] font-medium text-gray-400 group-hover:text-gray-500 transition-colors">
                       {section.title}
                     </span>
                     <motion.div
@@ -120,17 +147,18 @@ export function Sidebar({ config }: SidebarProps) {
                   </button>
                 )}
 
-                {section.title && isCollapsed && (
-                  <div className="mx-2 mb-2 mt-1 border-t border-gray-200/40" />
+                {hasSectionTitle && isCollapsed && (
+                  <div className="h-px bg-gray-100 mx-2 my-2" />
                 )}
 
+                {/* Items */}
                 <AnimatePresence initial={false}>
-                  {(isExpanded || isCollapsed) && (
+                  {(isExpanded || isCollapsed || !hasSectionTitle) && (
                     <motion.div
-                      initial={{ height: 0, opacity: 0 }}
+                      initial={hasSectionTitle ? { height: 0, opacity: 0 } : false}
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
+                      transition={{ duration: 0.2, ease: "easeInOut" }}
                       className="overflow-hidden"
                     >
                       <div className="space-y-0.5">
@@ -144,29 +172,31 @@ export function Sidebar({ config }: SidebarProps) {
                               href={item.href}
                               onClick={() => closeMobile()}
                               className={cn(
-                                "group/item relative flex items-center gap-3 rounded-xl px-3 py-[9px] text-[13px] font-medium transition-all duration-200",
-                                isCollapsed && "justify-center px-2.5",
+                                "group/item relative flex items-center gap-2 rounded-lg py-1.5 text-[13px] transition-all duration-200",
+                                isCollapsed ? "justify-center px-1.5" : "px-2",
                                 active
-                                  ? "bg-white/80 shadow-sm shadow-brown-100/30 border border-brown-200/40"
-                                  : "hover:bg-white/40 border border-transparent"
+                                  ? "text-gray-900 font-medium"
+                                  : "text-gray-500 hover:text-gray-700"
                               )}
                             >
-                              {/* Icon */}
-                              <div
+                              {/* Icon container — 24px box */}
+                              <span
                                 className={cn(
-                                  "w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200",
+                                  "flex items-center justify-center w-6 h-6 rounded-md shrink-0 transition-all duration-200",
                                   active
-                                    ? "bg-gradient-to-br from-brown-500 to-brown-600 shadow-sm shadow-brown-400/20"
-                                    : "bg-gray-100/80 text-gray-400 group-hover/item:bg-gray-200/60 group-hover/item:text-gray-600 group-hover/item:scale-105"
+                                    ? "bg-brown-500 shadow-sm shadow-brown-500/20"
+                                    : "bg-gray-100/60 group-hover/item:bg-gray-100"
                                 )}
                               >
                                 <Icon
                                   className={cn(
-                                    "w-[14px] h-[14px] transition-colors duration-200",
-                                    active ? "text-white" : ""
+                                    "w-[13px] h-[13px] transition-colors duration-200",
+                                    active
+                                      ? "text-white"
+                                      : "text-gray-400 group-hover/item:text-gray-500"
                                   )}
                                 />
-                              </div>
+                              </span>
 
                               <AnimatePresence>
                                 {!isCollapsed && (
@@ -174,12 +204,7 @@ export function Sidebar({ config }: SidebarProps) {
                                     initial={{ opacity: 0, width: 0 }}
                                     animate={{ opacity: 1, width: "auto" }}
                                     exit={{ opacity: 0, width: 0 }}
-                                    className={cn(
-                                      "whitespace-nowrap overflow-hidden transition-colors",
-                                      active
-                                        ? "text-brown-800 font-semibold"
-                                        : "text-gray-500 group-hover/item:text-gray-700"
-                                    )}
+                                    className="whitespace-nowrap overflow-hidden"
                                   >
                                     {item.label}
                                   </motion.span>
@@ -188,14 +213,7 @@ export function Sidebar({ config }: SidebarProps) {
 
                               {/* Badge */}
                               {item.badge && !isCollapsed && (
-                                <span
-                                  className={cn(
-                                    "ml-auto text-[10px] font-bold min-w-[22px] text-center py-0.5 px-1.5 rounded-lg",
-                                    active
-                                      ? "bg-brown-500 text-white"
-                                      : "bg-gray-100 text-gray-500 border border-gray-200/50"
-                                  )}
-                                >
+                                <span className="ml-auto flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-rose-500 text-[10px] font-bold text-white px-1">
                                   {item.badge}
                                 </span>
                               )}
@@ -228,25 +246,45 @@ export function Sidebar({ config }: SidebarProps) {
         </TooltipProvider>
       </nav>
 
-      {/* ── Bottom: collapse toggle ── */}
-      <div className="px-3 pb-4">
-        {!isCollapsed ? (
-          <button
-            onClick={toggle}
-            className="flex items-center justify-center gap-2 w-full rounded-xl py-2.5 text-[11px] text-gray-400 hover:text-gray-600 hover:bg-gray-100/50 transition-colors"
-          >
-            <PanelLeftClose className="w-3.5 h-3.5" />
-            Collapse
-          </button>
-        ) : (
-          <button
-            onClick={toggle}
-            className="flex items-center justify-center w-full rounded-xl py-2.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100/50 transition-colors"
-          >
-            <PanelLeftOpen className="w-4 h-4" />
-          </button>
-        )}
-      </div>
+      {/* ── Bottom: User profile ── */}
+      {!isCollapsed && (
+        <div className="px-4 pb-4">
+          <div className="h-px bg-gray-200/40 mb-3" />
+          <div className="flex items-center gap-2.5 px-1">
+            <Avatar size="sm">
+              <AvatarImage src="" alt="User" />
+              <AvatarFallback>PN</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="text-[12px] font-medium text-gray-700 truncate leading-tight">
+                Priya Nair
+              </p>
+              <p className="text-[10px] text-gray-400 truncate leading-tight">
+                priya@enterprise.com
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isCollapsed && (
+        <div className="px-2 pb-4">
+          <div className="h-px bg-gray-200/40 mx-1 mb-2" />
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex justify-center py-1">
+                  <Avatar size="sm">
+                    <AvatarImage src="" alt="User" />
+                    <AvatarFallback>PN</AvatarFallback>
+                  </Avatar>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right">Priya Nair</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      )}
     </div>
   );
 
@@ -254,22 +292,11 @@ export function Sidebar({ config }: SidebarProps) {
     <>
       {/* Desktop */}
       <motion.aside
-        animate={{ width: isCollapsed ? 72 : 264 }}
+        animate={{ width: isCollapsed ? 68 : 240 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className={cn(
-          "hidden lg:flex flex-col fixed top-0 left-0 h-screen z-40 overflow-hidden",
-          "bg-gradient-to-b from-white/85 via-gray-50/30 to-white/75",
-          "backdrop-blur-2xl border-r border-gray-200/50"
-        )}
+        className="hidden lg:flex flex-col fixed top-0 left-0 h-screen z-40 overflow-hidden bg-gradient-to-b from-[#F9F3EE] via-[#FBF8F6] to-white border-r border-gray-200/50"
       >
-        {/* Subtle ambient */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute w-[200px] h-[200px] rounded-full bg-brown-100/20 blur-[60px] -top-[40px] left-[20%]" />
-          <div className="absolute w-[150px] h-[150px] rounded-full bg-teal-200/8 blur-[50px] bottom-[20%] right-[-20px]" />
-        </div>
-        <div className="relative z-10 flex flex-col h-full">
-          {sidebarContent}
-        </div>
+        {sidebarContent}
       </motion.aside>
 
       {/* Mobile */}
@@ -280,19 +307,19 @@ export function Sidebar({ config }: SidebarProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-gray-900/15 backdrop-blur-sm lg:hidden"
+              className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[2px] lg:hidden"
               onClick={closeMobile}
             />
             <motion.aside
-              initial={{ x: -280 }}
+              initial={{ x: -250 }}
               animate={{ x: 0 }}
-              exit={{ x: -280 }}
+              exit={{ x: -250 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="fixed top-0 left-0 h-screen w-[264px] z-50 lg:hidden overflow-hidden bg-white/95 backdrop-blur-2xl border-r border-gray-200/50"
+              className="fixed top-0 left-0 h-screen w-[240px] z-50 lg:hidden overflow-hidden bg-gradient-to-b from-[#F9F3EE] via-[#FBF8F6] to-white border-r border-gray-200/50 shadow-xl shadow-black/5"
             >
               <button
                 onClick={closeMobile}
-                className="absolute top-5 right-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 z-20"
+                className="absolute top-3 right-3 p-1 rounded text-gray-400 hover:text-gray-600 z-20"
               >
                 <X className="w-4 h-4" />
               </button>

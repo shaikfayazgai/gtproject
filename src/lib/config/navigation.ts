@@ -84,24 +84,9 @@ export const enterpriseNav: ModuleConfig = {
       ],
     },
     {
-      title: "SOW Management",
       items: [
-        // #1: Removed "New SOW" — it's an action, not a destination.
-        //     SOW Repository page has a "New SOW" CTA button instead.
         { label: "SOW Repository", href: "/enterprise/sow", icon: FileText },
-      ],
-    },
-    {
-      title: "Task Planning",
-      items: [
-        // #3: Removed "Plan Approval" — it's a filtered view of Decomposition,
-        //     not a separate destination. Accessible via tab/filter on the page.
         { label: "Decomposition", href: "/enterprise/decomposition", icon: Boxes },
-      ],
-    },
-    {
-      title: "Team Formation",
-      items: [
         { label: "Teams", href: "/enterprise/team", icon: UsersRound },
       ],
     },
@@ -121,9 +106,7 @@ export const enterpriseNav: ModuleConfig = {
       ],
     },
     {
-      title: "Finance",
       items: [
-        // Single entry — sub-pages (Invoices, Rate Cards, Pricing, Reports) accessible via in-page tabs
         { label: "Billing", href: "/enterprise/billing", icon: Wallet },
       ],
     },

@@ -29,9 +29,9 @@ export function AppShell({ config, children }: AppShellProps) {
       <Sidebar config={config} />
 
       <motion.div
-        animate={{ marginLeft: isCollapsed ? 72 : 264 }}
+        animate={{ marginLeft: isCollapsed ? 68 : 240 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="relative z-10 min-h-screen lg:ml-[264px] ml-0"
+        className="relative z-10 min-h-screen lg:ml-[240px] ml-0"
       >
         <TopBar config={config} />
         <main className="px-6 py-5 pb-10">
