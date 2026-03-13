@@ -385,6 +385,16 @@ body::after {
 .link-gold:hover { color: #A67763; }
 
 /* ══════════════════════════════════════════════════════════════
+   FORM INPUT STYLES
+   ══════════════════════════════════════════════════════════════ */
+input::placeholder,
+textarea::placeholder,
+[data-placeholder]::before {
+  color: var(--ink-faint) !important;
+  opacity: 0.7;
+}
+
+/* ══════════════════════════════════════════════════════════════
    PROGRESS & BADGE STYLES
    ══════════════════════════════════════════════════════════════ */
 
