@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "flag-icons/css/flag-icons.min.css";
 
 /* ══════════════════════════════════════════════════════════════
    GLIMMORA DESIGN SYSTEM — TAILWIND v4 THEME
@@ -389,3 +390,4 @@ body {
   outline-offset: 2px;
   border-radius: 6px;
 }
+
