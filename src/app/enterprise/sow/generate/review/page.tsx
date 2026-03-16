@@ -1,57 +1,36 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
-  Shield,
+  ArrowRight,
   ShieldCheck,
-  Brain,
   Sparkles,
-  Eye,
   AlertTriangle,
   CheckCircle2,
   Clock,
   FileText,
-  Lock,
-  Scale,
   Search,
-  ScanEye,
   GitCompare,
   BarChart3,
-  CircleDot,
-  ArrowRight,
   RefreshCcw,
   PenLine,
   Send,
-  Users,
-  CalendarDays,
-  Bug,
-  Lightbulb,
   X,
+  Lightbulb,
+  Eye,
+  CircleDot,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
-import { cn } from "@/lib/utils/cn";
-import { stagger, fadeUp, slideInRight } from "@/lib/utils/motion-variants";
-import {
-  Button,
-  Badge,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-  Progress,
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-  Textarea,
-} from "@/components/ui";
-import { MetricRing } from "@/components/enterprise/metric-ring";
+import { stagger, fadeUp } from "@/lib/utils/motion-variants";
+import { Textarea } from "@/components/ui";
+import { useSidebarStore } from "@/lib/stores/sidebar-store";
 
 /* ═══════════════════════════════════════════════════════════
-   MOCK DATA — Healthcare Patient Portal (sow-004)
+   MOCK DATA
    ═══════════════════════════════════════════════════════════ */
 
 const sowMeta = {
@@ -125,70 +104,14 @@ const generatedSections = [
 ];
 
 const hallucinationLayers = [
-  {
-    id: "layer-1",
-    name: "Input Validation",
-    description: "Verified all input parameters against schema constraints and business rules",
-    status: "passed" as const,
-    score: 100,
-    details: "All 23 input fields validated. No schema violations detected. Data types, ranges, and format constraints all satisfied.",
-  },
-  {
-    id: "layer-2",
-    name: "Template Locking",
-    description: "Ensured generated output follows approved SOW template structure",
-    status: "passed" as const,
-    score: 100,
-    details: "All 8 mandatory sections present. Section ordering matches MedFirst template v3.2. No unauthorized sections injected.",
-  },
-  {
-    id: "layer-3",
-    name: "Clause Library Matching",
-    description: "Cross-referenced generated clauses against approved clause library",
-    status: "warning" as const,
-    score: 85,
-    details: "42 of 44 clauses matched. 2 clauses generated from context inference rather than library: budget contingency clause and telehealth SLA clause.",
-  },
-  {
-    id: "layer-4",
-    name: "Completeness Checks",
-    description: "Validated all required deliverables and acceptance criteria are present",
-    status: "passed" as const,
-    score: 96,
-    details: "96% completeness. All critical sections present. Minor gap: disaster recovery testing frequency not explicitly stated.",
-  },
-  {
-    id: "layer-5",
-    name: "Confidence Scoring",
-    description: "Statistical confidence analysis across all generated content",
-    status: "passed" as const,
-    score: 92,
-    details: "Overall 92% confidence exceeds 90% threshold. 7 of 8 sections above 90%. Budget section at 82% — flagged for human review.",
-  },
-  {
-    id: "layer-6",
-    name: "Pattern Matching",
-    description: "Compared against historical SOW patterns for anomaly detection",
-    status: "warning" as const,
-    score: 88,
-    details: "1 unusual pattern detected: Budget allocation for security (10%) is lower than healthcare industry median (14%). Flagged for review.",
-  },
-  {
-    id: "layer-7",
-    name: "Human Approval Gate",
-    description: "Requires human verification before final submission",
-    status: "pending" as const,
-    score: 0,
-    details: "Awaiting human review and approval. This layer cannot be automated — requires explicit sign-off from authorized approver.",
-  },
-  {
-    id: "layer-8",
-    name: "Audit Logging",
-    description: "Immutable record of all AI generation steps and decisions",
-    status: "active" as const,
-    score: 100,
-    details: "All 847 generation steps logged with timestamps, model versions, and confidence deltas. Audit trail exportable for compliance.",
-  },
+  { id: "layer-1", name: "Input Validation", status: "passed" as const, score: 100, details: "All 23 input fields validated. No schema violations detected." },
+  { id: "layer-2", name: "Template Locking", status: "passed" as const, score: 100, details: "All 8 mandatory sections present. Section ordering matches template v3.2." },
+  { id: "layer-3", name: "Clause Library Matching", status: "warning" as const, score: 85, details: "42 of 44 clauses matched. 2 clauses generated from context inference." },
+  { id: "layer-4", name: "Completeness Checks", status: "passed" as const, score: 96, details: "96% completeness. Minor gap: DR testing frequency not explicitly stated." },
+  { id: "layer-5", name: "Confidence Scoring", status: "passed" as const, score: 92, details: "Overall 92% exceeds threshold. Budget section at 82% — flagged for review." },
+  { id: "layer-6", name: "Pattern Matching", status: "warning" as const, score: 88, details: "Security budget (10%) is below healthcare median (14%). Flagged for review." },
+  { id: "layer-7", name: "Human Approval Gate", status: "pending" as const, score: 0, details: "Awaiting human review and approval." },
+  { id: "layer-8", name: "Audit Logging", status: "active" as const, score: 100, details: "All 847 generation steps logged with timestamps and confidence deltas." },
 ];
 
 const hallucinationFlags = [
@@ -197,8 +120,8 @@ const hallucinationFlags = [
     severity: "medium" as const,
     section: "Budget Breakdown",
     clause: "Contingency: 12% buffer included in line items.",
-    reason: "This contingency percentage was not specified in the input parameters. The AI inferred 12% based on project complexity scoring, but no explicit contingency requirement was provided.",
-    suggestion: "Verify the 12% contingency rate aligns with MedFirst's procurement policy. Healthcare projects typically range 10-20%. Consider adjusting based on organization standards.",
+    reason: "This contingency percentage was not specified in the input parameters. The AI inferred 12% based on project complexity scoring.",
+    suggestion: "Verify the 12% contingency rate aligns with MedFirst's procurement policy. Healthcare projects typically range 10-20%.",
     resolved: false,
   },
   {
@@ -206,8 +129,8 @@ const hallucinationFlags = [
     severity: "low" as const,
     section: "Timeline & Milestones",
     clause: "Security penetration test (Week 20)",
-    reason: "Penetration test timing was auto-scheduled based on phase completion patterns. The original parameters did not specify when security testing should occur.",
-    suggestion: "Week 20 allows 4 weeks of buffer before go-live. Consider if this aligns with your security team's availability and remediation timeline.",
+    reason: "Penetration test timing was auto-scheduled based on phase completion patterns.",
+    suggestion: "Week 20 allows 4 weeks of buffer before go-live. Consider if this aligns with your security team's availability.",
     resolved: false,
   },
   {
@@ -215,8 +138,8 @@ const hallucinationFlags = [
     severity: "high" as const,
     section: "Budget Breakdown",
     clause: "Security & Compliance (10%): $124,000",
-    reason: "The security budget allocation (10%) is significantly below the healthcare industry median of 14% for HIPAA-regulated patient portals. This could indicate insufficient security investment.",
-    suggestion: "Increase security allocation to at least 14% ($173,600). Healthcare breaches average $10.9M per incident. Recommended: add dedicated HIPAA compliance officer and expand penetration testing scope.",
+    reason: "The security budget allocation (10%) is significantly below the healthcare industry median of 14% for HIPAA-regulated patient portals.",
+    suggestion: "Increase security allocation to at least 14% ($173,600). Healthcare breaches average $10.9M per incident.",
     resolved: false,
   },
 ];
@@ -229,149 +152,58 @@ const riskBreakdown = [
 ];
 
 const comparisonSections = [
-  {
-    id: "cmp-1",
-    label: "Project Duration",
-    input: "6 months estimated delivery window with phased rollout",
-    generated: "24 weeks (approximately 6 months) with 4 distinct phases: Infrastructure (6 wks), Core Features (8 wks), Advanced Features (6 wks), Launch (4 wks)",
-    match: "high" as const,
-  },
-  {
-    id: "cmp-2",
-    label: "Budget",
-    input: "Approximately $1.2M total budget, flexible on allocation",
-    generated: "$1,240,000 allocated across Engineering (60%), Design (10%), Infrastructure (15%), Security (10%), PM (5%) with 12% contingency buffer",
-    match: "high" as const,
-  },
-  {
-    id: "cmp-3",
-    label: "Security Requirements",
-    input: "HIPAA compliance mandatory, SOC 2 desired, standard encryption",
-    generated: "Full HIPAA BAA coverage, AES-256 at rest, TLS 1.3 in transit, SOC 2 Type II within 12 months, CREST-certified annual pen testing, 7-year audit log retention",
-    match: "expanded" as const,
-  },
-  {
-    id: "cmp-4",
-    label: "Team Size",
-    input: "15-20 team members across disciplines",
-    generated: "18 team members: 1 PM, 1 Architect, 5 Frontend, 5 Backend, 2 DevOps, 2 QA, 1 Security, 1 UX Designer, 1 Accessibility Specialist",
-    match: "high" as const,
-  },
+  { id: "cmp-1", label: "Project Duration", input: "6 months estimated delivery window with phased rollout", generated: "24 weeks (approximately 6 months) with 4 distinct phases", match: "high" as const },
+  { id: "cmp-2", label: "Budget", input: "Approximately $1.2M total budget, flexible on allocation", generated: "$1,240,000 allocated across Engineering (60%), Design (10%), Infrastructure (15%), Security (10%), PM (5%)", match: "high" as const },
+  { id: "cmp-3", label: "Security Requirements", input: "HIPAA compliance mandatory, SOC 2 desired, standard encryption", generated: "Full HIPAA BAA, AES-256, TLS 1.3, SOC 2 Type II within 12 months, CREST-certified pen testing", match: "expanded" as const },
+  { id: "cmp-4", label: "Team Size", input: "15-20 team members across disciplines", generated: "18 team members: 1 PM, 1 Architect, 5 Frontend, 5 Backend, 2 DevOps, 2 QA, 1 Security, 2 UX", match: "high" as const },
 ];
 
 /* ═══════════════════════════════════════════════════════════
-   HELPER FUNCTIONS
+   HELPERS
    ═══════════════════════════════════════════════════════════ */
 
-function confidenceRingColor(c: number): "forest" | "teal" | "gold" {
-  if (c >= 90) return "forest";
-  if (c >= 75) return "teal";
-  return "gold";
+const TABS = [
+  { key: "generated", label: "Generated SOW", icon: FileText },
+  { key: "hallucination", label: "Verification", icon: ShieldCheck },
+  { key: "risk", label: "Risk Assessment", icon: BarChart3 },
+  { key: "comparison", label: "Comparison", icon: GitCompare },
+] as const;
+
+type TabKey = (typeof TABS)[number]["key"];
+
+function severityStyle(s: "high" | "medium" | "low") {
+  if (s === "high") return { bg: "rgba(192,68,68,0.08)", color: "#983030", border: "rgba(192,68,68,0.20)" };
+  if (s === "medium") return { bg: "rgba(208,176,96,0.10)", color: "#7A6030", border: "rgba(208,176,96,0.25)" };
+  return { bg: "rgba(166,119,99,0.06)", color: "var(--ink-muted)", border: "var(--border-soft)" };
 }
 
-function severityConfig(s: "high" | "medium" | "low") {
-  switch (s) {
-    case "high":
-      return {
-        label: "High",
-        dot: "bg-[var(--danger,#c44)]",
-        text: "text-[var(--danger,#c44)]",
-        bg: "bg-[var(--danger,#c44)]/10",
-        border: "border-[var(--danger,#c44)]/20",
-        badge: "brown" as const,
-      };
-    case "medium":
-      return {
-        label: "Medium",
-        dot: "bg-gold-500",
-        text: "text-gold-700",
-        bg: "bg-gold-50",
-        border: "border-gold-200/60",
-        badge: "gold" as const,
-      };
-    case "low":
-      return {
-        label: "Low",
-        dot: "bg-beige-400",
-        text: "text-beige-600",
-        bg: "bg-beige-50",
-        border: "border-beige-200",
-        badge: "beige" as const,
-      };
-  }
+function confidenceStyle(c: number) {
+  if (c >= 90) return { bg: "rgba(77,87,65,0.08)", color: "#344028", gradient: "linear-gradient(90deg, #4D5741, #949A8D)" };
+  if (c >= 85) return { bg: "rgba(91,155,162,0.08)", color: "#3A6368", gradient: "linear-gradient(90deg, #5B9BA2, #8FC0C7)" };
+  return { bg: "rgba(208,176,96,0.10)", color: "#7A6030", gradient: "linear-gradient(90deg, #D0B060, #E0CC8A)" };
 }
 
-function layerStatusConfig(s: "passed" | "warning" | "pending" | "active") {
-  switch (s) {
-    case "passed":
-      return {
-        label: "Passed",
-        variant: "forest" as const,
-        icon: CheckCircle2,
-        ring: "ring-forest-200",
-        bg: "bg-forest-50",
-        iconColor: "text-forest-600",
-      };
-    case "warning":
-      return {
-        label: "Warning",
-        variant: "gold" as const,
-        icon: AlertTriangle,
-        ring: "ring-gold-200",
-        bg: "bg-gold-50",
-        iconColor: "text-gold-600",
-      };
-    case "pending":
-      return {
-        label: "Pending",
-        variant: "beige" as const,
-        icon: Clock,
-        ring: "ring-beige-200",
-        bg: "bg-beige-100",
-        iconColor: "text-beige-500",
-      };
-    case "active":
-      return {
-        label: "Active",
-        variant: "teal" as const,
-        icon: CircleDot,
-        ring: "ring-teal-200",
-        bg: "bg-teal-50",
-        iconColor: "text-teal-600",
-      };
-  }
-}
-
-function riskLevelLabel(score: number) {
-  if (score <= 30) return { label: "Low Risk", color: "text-forest-700", bg: "bg-forest-100", variant: "forest" as const };
-  if (score <= 60) return { label: "Medium Risk", color: "text-gold-700", bg: "bg-gold-100", variant: "gold" as const };
-  return { label: "High Risk", color: "text-[var(--danger,#c44)]", bg: "bg-[var(--danger,#c44)]/10", variant: "brown" as const };
-}
-
-function matchBadge(m: "high" | "expanded" | "partial" | "low") {
-  switch (m) {
-    case "high":
-      return { label: "High Match", variant: "forest" as const };
-    case "expanded":
-      return { label: "AI Expanded", variant: "teal" as const };
-    case "partial":
-      return { label: "Partial Match", variant: "gold" as const };
-    case "low":
-      return { label: "Low Match", variant: "brown" as const };
-  }
+function layerStatusStyle(s: "passed" | "warning" | "pending" | "active") {
+  if (s === "passed") return { bg: "rgba(77,87,65,0.08)", color: "#344028", border: "rgba(77,87,65,0.18)", icon: CheckCircle2, label: "Passed" };
+  if (s === "warning") return { bg: "rgba(208,176,96,0.10)", color: "#7A6030", border: "rgba(208,176,96,0.22)", icon: AlertTriangle, label: "Warning" };
+  if (s === "pending") return { bg: "rgba(166,119,99,0.06)", color: "var(--ink-muted)", border: "var(--border-soft)", icon: Clock, label: "Pending" };
+  return { bg: "rgba(91,155,162,0.08)", color: "#3A6368", border: "rgba(91,155,162,0.20)", icon: CircleDot, label: "Active" };
 }
 
 /* ═══════════════════════════════════════════════════════════
-   PAGE COMPONENT
+   PAGE
    ═══════════════════════════════════════════════════════════ */
 
 export default function SOWAIDraftReviewPage() {
   const router = useRouter();
+  const { isCollapsed } = useSidebarStore();
+  const [activeTab, setActiveTab] = React.useState<TabKey>("generated");
   const [resolvedFlags, setResolvedFlags] = React.useState<Set<string>>(new Set());
+  const [expandedSections, setExpandedSections] = React.useState<Set<string>>(new Set(["sec-1", "sec-2"]));
   const [submitted, setSubmitted] = React.useState(false);
   const [showChangesDialog, setShowChangesDialog] = React.useState(false);
-  const [changesFeedback, setChangesFeedback] = React.useState("");
   const [showRejectDialog, setShowRejectDialog] = React.useState(false);
+  const [changesFeedback, setChangesFeedback] = React.useState("");
 
   const toggleResolve = (id: string) => {
     setResolvedFlags((prev) => {
@@ -382,1172 +214,613 @@ export default function SOWAIDraftReviewPage() {
     });
   };
 
+  const toggleSection = (id: string) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const unresolvedCount = hallucinationFlags.filter((f) => !resolvedFlags.has(f.id)).length;
 
   return (
-    <motion.div
-      variants={stagger}
-      initial="hidden"
-      animate="show"
-      className="max-w-[1400px] mx-auto space-y-6 pb-28"
-    >
-      {/* ───── Back Link ───── */}
-      <motion.div variants={fadeUp}>
-        <Link
-          href="/enterprise/sow/generate"
-          className="inline-flex items-center gap-2 text-sm text-beige-600 hover:text-brown-700 transition-colors group"
-        >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back to SOW Generation
-        </Link>
-      </motion.div>
+    <motion.div variants={stagger} initial="hidden" animate="show" style={{ paddingBottom: 80 }}>
 
-      {/* ───── Header ───── */}
-      <motion.div variants={fadeUp}>
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brown-400 to-brown-600 flex items-center justify-center shrink-0 shadow-lg shadow-brown-200/40">
-            <Brain className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-brown-900 tracking-tight font-heading">
-              AI Draft Review
-            </h1>
-            <p className="text-sm text-beige-600 mt-0.5 max-w-2xl">
-              Review the AI-generated SOW for{" "}
-              <span className="font-semibold text-brown-700">{sowMeta.title}</span>.
-              Verify hallucination controls, risk scores, and content accuracy before
-              submitting for approval.
-            </p>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* ───── Top Stats Row ───── */}
-      <motion.div variants={fadeUp} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Overall Confidence */}
-        <div className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5 flex items-center gap-4">
-          <MetricRing value={92} size={64} strokeWidth={5} color="forest" />
-          <div>
-            <p className="text-[10px] font-bold text-beige-500 uppercase tracking-wider">
-              Overall Confidence
-            </p>
-            <p className="text-lg font-bold text-brown-900 mt-0.5">92%</p>
-            <p className="text-[11px] text-forest-600 font-medium">Above threshold</p>
-          </div>
-        </div>
-
-        {/* Risk Score */}
-        <div className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5 flex items-center gap-4">
-          <MetricRing value={82} max={100} size={64} strokeWidth={5} color="forest" label="" />
-          <div>
-            <p className="text-[10px] font-bold text-beige-500 uppercase tracking-wider">
-              Risk Score
-            </p>
-            <p className="text-lg font-bold text-brown-900 mt-0.5">18/100</p>
-            <Badge variant="forest" size="sm" dot>
-              Low Risk
-            </Badge>
-          </div>
-        </div>
-
-        {/* Hallucination Flags */}
-        <div className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5 flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gold-100 to-gold-200/80 flex items-center justify-center shrink-0">
-            <AlertTriangle className="w-7 h-7 text-gold-600" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold text-beige-500 uppercase tracking-wider">
-              Hallucination Flags
-            </p>
-            <p className="text-lg font-bold text-brown-900 mt-0.5">
-              {unresolvedCount}
-              <span className="text-sm font-normal text-beige-500 ml-1">
-                / {hallucinationFlags.length}
-              </span>
-            </p>
-            <p className="text-[11px] text-gold-600 font-medium">
-              {unresolvedCount === 0 ? "All resolved" : "Needs review"}
-            </p>
-          </div>
-        </div>
-
-        {/* Completeness */}
-        <div className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5 flex items-center gap-4">
-          <MetricRing value={96} size={64} strokeWidth={5} color="teal" />
-          <div>
-            <p className="text-[10px] font-bold text-beige-500 uppercase tracking-wider">
-              Completeness
-            </p>
-            <p className="text-lg font-bold text-brown-900 mt-0.5">96%</p>
-            <p className="text-[11px] text-teal-600 font-medium">Near complete</p>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* ───── Main Tabbed Content ───── */}
-      <motion.div variants={fadeUp}>
-        <Tabs defaultValue="generated" className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="generated" className="gap-1.5">
-              <FileText className="w-3.5 h-3.5" />
-              Generated SOW
-            </TabsTrigger>
-            <TabsTrigger value="hallucination" className="gap-1.5">
-              <ScanEye className="w-3.5 h-3.5" />
-              Hallucination Analysis
-              {unresolvedCount > 0 && (
-                <span className="ml-1 w-5 h-5 rounded-full bg-gold-500 text-white text-[10px] font-bold flex items-center justify-center">
-                  {unresolvedCount}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="risk" className="gap-1.5">
-              <BarChart3 className="w-3.5 h-3.5" />
-              Risk Assessment
-            </TabsTrigger>
-            <TabsTrigger value="comparison" className="gap-1.5">
-              <GitCompare className="w-3.5 h-3.5" />
-              Comparison
-            </TabsTrigger>
-          </TabsList>
-
-          {/* ═══════════════════════════════════════════════════════
-              TAB 1: Generated SOW
-              ═══════════════════════════════════════════════════════ */}
-          <TabsContent value="generated">
-            <div className="space-y-4">
-              {/* SOW metadata bar */}
-              <div className="rounded-2xl border border-beige-200/50 bg-gradient-to-r from-white/80 to-beige-50/60 backdrop-blur-sm p-4 flex items-center justify-between flex-wrap gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brown-100 to-beige-100 flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-brown-500" />
-                  </div>
-                  <div>
-                    <p className="text-[14px] font-semibold text-brown-900">
-                      {sowMeta.title}
-                    </p>
-                    <p className="text-[12px] text-beige-500">
-                      {sowMeta.client} &middot; Generated{" "}
-                      {new Date(sowMeta.generatedAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="teal" size="md" dot>
-                    8 Sections
-                  </Badge>
-                  <Badge variant="forest" size="md">
-                    <Sparkles className="w-3 h-3" />
-                    AI Generated
-                  </Badge>
-                </div>
-              </div>
-
-              {/* Accordion sections */}
-              <Accordion type="multiple" defaultValue={["sec-1", "sec-2"]} className="space-y-3">
-                {generatedSections.map((section, idx) => {
-                  const isLowConfidence = section.confidence < 85;
-                  return (
-                    <AccordionItem
-                      key={section.id}
-                      value={section.id}
-                      className={cn(
-                        "rounded-2xl border bg-white/70 backdrop-blur-sm overflow-hidden transition-all hover:shadow-md",
-                        isLowConfidence
-                          ? "border-gold-200/60"
-                          : "border-beige-200/50"
-                      )}
-                    >
-                      <AccordionTrigger className="px-5 py-4 hover:no-underline">
-                        <div className="flex items-center gap-3 flex-1 min-w-0 pr-3">
-                          <div
-                            className={cn(
-                              "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-[11px] font-bold",
-                              isLowConfidence
-                                ? "bg-gold-100 text-gold-700"
-                                : "bg-beige-100 text-beige-600"
-                            )}
-                          >
-                            {String(idx + 1).padStart(2, "0")}
-                          </div>
-                          <span className="text-[14px] font-semibold text-brown-900 truncate">
-                            {section.title}
-                          </span>
-                          <div className="flex items-center gap-2 ml-auto shrink-0">
-                            {isLowConfidence && (
-                              <AlertTriangle className="w-3.5 h-3.5 text-gold-500" />
-                            )}
-                            <Badge
-                              variant={
-                                section.confidence >= 90
-                                  ? "forest"
-                                  : section.confidence >= 85
-                                  ? "teal"
-                                  : "gold"
-                              }
-                              size="sm"
-                            >
-                              {section.confidence}%
-                            </Badge>
-                          </div>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="px-5 pb-5">
-                        <p className="text-[13px] text-brown-700 leading-relaxed mb-4">
-                          {section.content}
-                        </p>
-
-                        {/* Confidence bar */}
-                        <div className="flex items-center gap-3">
-                          <span className="text-[10px] font-bold text-beige-500 uppercase tracking-wider w-20 shrink-0">
-                            Confidence
-                          </span>
-                          <div className="flex-1">
-                            <Progress
-                              value={section.confidence}
-                              size="sm"
-                              variant={
-                                section.confidence >= 90
-                                  ? "gradient-forest"
-                                  : section.confidence >= 85
-                                  ? "teal"
-                                  : "gold"
-                              }
-                            />
-                          </div>
-                          <span className="text-[11px] font-mono font-bold text-brown-700 w-8 text-right">
-                            {section.confidence}%
-                          </span>
-                        </div>
-
-                        {/* Low-confidence warning callout */}
-                        {isLowConfidence && (
-                          <div className="mt-3 rounded-xl bg-gradient-to-r from-gold-50 to-beige-50 border border-gold-200/60 p-3.5">
-                            <div className="flex items-start gap-2.5">
-                              <div className="w-6 h-6 rounded-md bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center shrink-0 mt-0.5">
-                                <AlertTriangle className="w-3 h-3 text-white" />
-                              </div>
-                              <div>
-                                <p className="text-[11px] font-bold text-gold-800 uppercase tracking-wider mb-0.5">
-                                  Below Confidence Threshold
-                                </p>
-                                <p className="text-[12px] text-gold-700 leading-relaxed">
-                                  This section scored below the 85% confidence threshold.
-                                  Review the content carefully and verify against your
-                                  original requirements before approving.
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </AccordionContent>
-                    </AccordionItem>
-                  );
-                })}
-              </Accordion>
-            </div>
-          </TabsContent>
-
-          {/* ═══════════════════════════════════════════════════════
-              TAB 2: Hallucination Analysis
-              ═══════════════════════════════════════════════════════ */}
-          <TabsContent value="hallucination">
-            <div className="space-y-6">
-              {/* Intro card */}
-              <div className="rounded-2xl border border-teal-200/50 bg-gradient-to-br from-teal-50/60 via-white/80 to-beige-50/60 backdrop-blur-sm p-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center shrink-0 shadow-lg shadow-teal-200/40">
-                    <Shield className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h2 className="text-lg font-bold text-brown-900 font-heading">
-                      8-Layer Hallucination Prevention
-                    </h2>
-                    <p className="text-[13px] text-beige-600 mt-1 max-w-2xl leading-relaxed">
-                      Every AI-generated SOW passes through 8 verification layers before
-                      reaching you. This analysis shows the results of each layer,
-                      flagged content, and recommended actions.
-                    </p>
-                    <div className="flex items-center gap-4 mt-3">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-forest-500" />
-                        <span className="text-[11px] font-semibold text-forest-700">
-                          {hallucinationLayers.filter((l) => l.status === "passed").length} Passed
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-gold-500" />
-                        <span className="text-[11px] font-semibold text-gold-700">
-                          {hallucinationLayers.filter((l) => l.status === "warning").length} Warnings
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-beige-400" />
-                        <span className="text-[11px] font-semibold text-beige-600">
-                          {hallucinationLayers.filter((l) => l.status === "pending").length} Pending
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-teal-500" />
-                        <span className="text-[11px] font-semibold text-teal-700">
-                          {hallucinationLayers.filter((l) => l.status === "active").length} Active
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Verification layers grid */}
-              <div>
-                <h3 className="text-[13px] font-bold text-beige-500 uppercase tracking-wider mb-3">
-                  Verification Layers
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {hallucinationLayers.map((layer, idx) => {
-                    const config = layerStatusConfig(layer.status);
-                    const StatusIcon = config.icon;
-                    return (
-                      <motion.div
-                        key={layer.id}
-                        variants={slideInRight}
-                        className={cn(
-                          "rounded-2xl border bg-white/70 backdrop-blur-sm p-5 transition-all hover:shadow-md",
-                          layer.status === "warning"
-                            ? "border-gold-200/60"
-                            : "border-beige-200/50"
-                        )}
-                      >
-                        <div className="flex items-start gap-3.5">
-                          {/* Layer number + status icon */}
-                          <div className="relative shrink-0">
-                            <div
-                              className={cn(
-                                "w-11 h-11 rounded-xl flex items-center justify-center ring-2",
-                                config.bg,
-                                config.ring
-                              )}
-                            >
-                              <span className="text-[13px] font-bold text-brown-800">
-                                L{idx + 1}
-                              </span>
-                            </div>
-                            <div
-                              className={cn(
-                                "absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center",
-                                config.bg,
-                                "ring-2 ring-white"
-                              )}
-                            >
-                              <StatusIcon className={cn("w-3 h-3", config.iconColor)} />
-                            </div>
-                          </div>
-
-                          {/* Layer info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2 mb-1">
-                              <h4 className="text-[13px] font-semibold text-brown-900 truncate">
-                                {layer.name}
-                              </h4>
-                              <Badge variant={config.variant} size="sm" dot>
-                                {config.label}
-                              </Badge>
-                            </div>
-                            <p className="text-[11px] text-beige-500 mb-2">
-                              {layer.description}
-                            </p>
-                            <p className="text-[12px] text-brown-700 leading-relaxed">
-                              {layer.details}
-                            </p>
-
-                            {/* Score bar (not for pending) */}
-                            {layer.status !== "pending" && (
-                              <div className="flex items-center gap-2 mt-3">
-                                <div className="flex-1">
-                                  <Progress
-                                    value={layer.score}
-                                    size="sm"
-                                    variant={
-                                      layer.score >= 95
-                                        ? "gradient-forest"
-                                        : layer.score >= 85
-                                        ? "teal"
-                                        : "gold"
-                                    }
-                                  />
-                                </div>
-                                <span className="text-[11px] font-mono font-semibold text-brown-700 w-10 text-right">
-                                  {layer.score}%
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Flagged Clauses Section */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-[13px] font-bold text-beige-500 uppercase tracking-wider">
-                    Flagged Clauses
-                    <span className="ml-2 text-[11px] font-normal text-beige-400 normal-case">
-                      ({hallucinationFlags.length} flags, {unresolvedCount} unresolved)
-                    </span>
-                  </h3>
-                  {unresolvedCount === 0 && (
-                    <Badge variant="forest" size="sm" dot>
-                      All Resolved
-                    </Badge>
-                  )}
-                </div>
-
-                <div className="space-y-3">
-                  {hallucinationFlags.map((flag) => {
-                    const sev = severityConfig(flag.severity);
-                    const isResolved = resolvedFlags.has(flag.id);
-                    return (
-                      <div
-                        key={flag.id}
-                        className={cn(
-                          "rounded-2xl border backdrop-blur-sm overflow-hidden transition-all",
-                          isResolved
-                            ? "border-beige-200/50 bg-beige-50/50 opacity-60"
-                            : sev.border + " bg-white/70"
-                        )}
-                      >
-                        {/* Severity strip */}
-                        <div
-                          className={cn(
-                            "h-1 w-full",
-                            flag.severity === "high"
-                              ? "bg-gradient-to-r from-[var(--danger,#c44)] to-gold-500"
-                              : flag.severity === "medium"
-                              ? "bg-gradient-to-r from-gold-400 to-gold-500"
-                              : "bg-gradient-to-r from-beige-300 to-beige-400"
-                          )}
-                        />
-
-                        <div className="p-5">
-                          {/* Flag header */}
-                          <div className="flex items-start justify-between gap-3 mb-3">
-                            <div className="flex items-center gap-2.5">
-                              <div
-                                className={cn(
-                                  "w-8 h-8 rounded-lg flex items-center justify-center",
-                                  sev.bg
-                                )}
-                              >
-                                <Bug className={cn("w-4 h-4", sev.text)} />
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <Badge variant={sev.badge} size="sm">
-                                    {sev.label} Severity
-                                  </Badge>
-                                  <span className="text-[11px] text-beige-500">
-                                    in{" "}
-                                    <span className="font-semibold text-brown-700">
-                                      {flag.section}
-                                    </span>
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                            {isResolved && (
-                              <Badge variant="forest" size="sm" dot>
-                                Resolved
-                              </Badge>
-                            )}
-                          </div>
-
-                          {/* Flagged clause */}
-                          <div className="rounded-xl bg-beige-50/80 border border-beige-200/50 p-3.5 mb-3">
-                            <p className="text-[10px] font-bold text-beige-500 uppercase tracking-wider mb-1">
-                              Flagged Clause
-                            </p>
-                            <p className="text-[13px] text-brown-800 font-medium leading-relaxed italic">
-                              &ldquo;{flag.clause}&rdquo;
-                            </p>
-                          </div>
-
-                          {/* Reason */}
-                          <div className="mb-3">
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <Search className="w-3 h-3 text-beige-400" />
-                              <p className="text-[10px] font-bold text-beige-500 uppercase tracking-wider">
-                                Why Flagged
-                              </p>
-                            </div>
-                            <p className="text-[12px] text-brown-700 leading-relaxed">
-                              {flag.reason}
-                            </p>
-                          </div>
-
-                          {/* AI Suggestion */}
-                          <div className="rounded-xl bg-gradient-to-r from-teal-50 to-beige-50 border border-teal-100/60 p-3.5 mb-4">
-                            <div className="flex items-start gap-2">
-                              <div className="w-5 h-5 rounded-md bg-gradient-to-br from-teal-400 to-teal-500 flex items-center justify-center shrink-0 mt-0.5">
-                                <Lightbulb className="w-3 h-3 text-white" />
-                              </div>
-                              <div>
-                                <p className="text-[10px] font-bold text-teal-800 uppercase tracking-wider mb-0.5">
-                                  AI Recommendation
-                                </p>
-                                <p className="text-[12px] text-teal-700 leading-relaxed">
-                                  {flag.suggestion}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Action buttons */}
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant={isResolved ? "outline" : "secondary"}
-                              size="sm"
-                              onClick={() => toggleResolve(flag.id)}
-                            >
-                              {isResolved ? (
-                                <>
-                                  <RefreshCcw className="w-3.5 h-3.5" />
-                                  Unresolve
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
-                                  Resolve
-                                </>
-                              )}
-                            </Button>
-                            {!isResolved && (
-                              <Button variant="ghost" size="sm">
-                                <X className="w-3.5 h-3.5" />
-                                Dismiss
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Overall hallucination prevention score */}
-              <div className="rounded-2xl border border-beige-200/50 bg-gradient-to-br from-white/80 via-forest-50/20 to-teal-50/30 backdrop-blur-sm p-6">
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-forest-400 to-teal-500 flex items-center justify-center shadow-lg shadow-forest-200/30">
-                      <ShieldCheck className="w-7 h-7 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-bold text-beige-500 uppercase tracking-wider">
-                        Hallucination Prevention Score
-                      </p>
-                      <p className="text-2xl font-bold text-brown-900 font-heading">
-                        94.6
-                        <span className="text-sm font-normal text-beige-500 ml-1">/ 100</span>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <div className="text-center">
-                      <p className="text-xl font-bold text-forest-700">6</p>
-                      <p className="text-[10px] text-beige-500 font-medium">Layers Passed</p>
-                    </div>
-                    <div className="w-px h-8 bg-beige-200" />
-                    <div className="text-center">
-                      <p className="text-xl font-bold text-gold-600">2</p>
-                      <p className="text-[10px] text-beige-500 font-medium">Warnings</p>
-                    </div>
-                    <div className="w-px h-8 bg-beige-200" />
-                    <div className="text-center">
-                      <p className="text-xl font-bold text-beige-500">1</p>
-                      <p className="text-[10px] text-beige-500 font-medium">Pending</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* ═══════════════════════════════════════════════════════
-              TAB 3: Risk Assessment
-              ═══════════════════════════════════════════════════════ */}
-          <TabsContent value="risk">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left: Breakdown */}
-              <div className="lg:col-span-2 space-y-5">
-                {/* Risk breakdown bars */}
-                <div className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-6">
-                  <h3 className="text-[13px] font-bold text-beige-500 uppercase tracking-wider mb-5">
-                    Risk Score Breakdown
-                  </h3>
-                  <div className="space-y-5">
-                    {riskBreakdown.map((item) => {
-                      const pct = Math.round((item.score / item.maxScore) * 100);
-                      return (
-                        <div key={item.category}>
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[13px] font-semibold text-brown-800">
-                                {item.category}
-                              </span>
-                              <span className="text-[11px] text-beige-500">
-                                (Weight: {item.weight}%)
-                              </span>
-                            </div>
-                            <span className="text-[13px] font-mono font-bold text-brown-900">
-                              {item.score}
-                              <span className="text-beige-400">/{item.maxScore}</span>
-                            </span>
-                          </div>
-                          <div className="relative">
-                            <Progress
-                              value={pct}
-                              size="md"
-                              variant={
-                                pct >= 90
-                                  ? "gradient-forest"
-                                  : pct >= 75
-                                  ? "teal"
-                                  : "gold"
-                              }
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Total */}
-                  <div className="mt-6 pt-5 border-t border-beige-200/50">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[14px] font-bold text-brown-900">
-                        Total Risk Points Lost
-                      </span>
-                      <span className="text-[18px] font-mono font-bold text-brown-900">
-                        {riskBreakdown.reduce(
-                          (acc, r) => acc + (r.maxScore - r.score),
-                          0
-                        )}
-                        <span className="text-sm text-beige-400 ml-1">/ 100</span>
-                      </span>
-                    </div>
-                    <p className="text-[12px] text-beige-500 mt-1">
-                      Risk score = total points deducted from a perfect 100.
-                      Lower score = lower risk.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Risk level scale */}
-                <div className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-6">
-                  <h3 className="text-[13px] font-bold text-beige-500 uppercase tracking-wider mb-4">
-                    Risk Level Scale
-                  </h3>
-                  <div className="space-y-3">
-                    {[
-                      {
-                        range: "0 - 30",
-                        label: "Low Risk",
-                        color: "bg-forest-500",
-                        textColor: "text-forest-700",
-                        description:
-                          "AI output is well-supported by input data with minimal hallucination risk. Safe for approval with standard review.",
-                        active: true,
-                      },
-                      {
-                        range: "31 - 60",
-                        label: "Medium Risk",
-                        color: "bg-gold-500",
-                        textColor: "text-gold-700",
-                        description:
-                          "Some AI inferences lack direct input support. Requires careful review of flagged sections before approval.",
-                        active: false,
-                      },
-                      {
-                        range: "61 - 100",
-                        label: "High Risk",
-                        color: "bg-[var(--danger,#c44)]",
-                        textColor: "text-[var(--danger,#c44)]",
-                        description:
-                          "Significant hallucination risk detected. Not recommended for approval without substantial manual revision.",
-                        active: false,
-                      },
-                    ].map((level) => (
-                      <div
-                        key={level.range}
-                        className={cn(
-                          "rounded-xl border p-4 flex items-start gap-3 transition-all",
-                          level.active
-                            ? "border-forest-200 bg-forest-50/40 ring-1 ring-forest-200"
-                            : "border-beige-200/50 bg-beige-50/40"
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            "w-3 h-3 rounded-full mt-0.5 shrink-0",
-                            level.color
-                          )}
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span
-                              className={cn(
-                                "text-[13px] font-bold",
-                                level.textColor
-                              )}
-                            >
-                              {level.label}
-                            </span>
-                            <span className="text-[11px] text-beige-500 font-mono">
-                              ({level.range})
-                            </span>
-                            {level.active && (
-                              <Badge variant="forest" size="sm">
-                                Current
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-[12px] text-brown-700 leading-relaxed">
-                            {level.description}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: Overall risk card */}
-              <div className="space-y-4">
-                {/* Risk gauge card */}
-                <div className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-6 text-center">
-                  <h3 className="text-[12px] font-bold text-beige-500 uppercase tracking-wider mb-4">
-                    Overall Risk Score
-                  </h3>
-                  <div className="flex justify-center mb-3">
-                    <MetricRing
-                      value={82}
-                      max={100}
-                      size={120}
-                      strokeWidth={8}
-                      color="forest"
-                      label="Safe"
-                    />
-                  </div>
-                  <p className="text-2xl font-bold text-brown-900 font-heading">
-                    18
-                    <span className="text-sm font-normal text-beige-500 ml-1">
-                      / 100
-                    </span>
-                  </p>
-                  <Badge variant="forest" size="md" dot className="mt-2">
-                    Low Risk
-                  </Badge>
-                  <p className="text-[12px] text-beige-600 mt-3 leading-relaxed">
-                    This SOW draft has a low risk score, indicating the AI
-                    generation closely followed input parameters with minimal
-                    hallucination.
-                  </p>
-                </div>
-
-                {/* Quick risk factors */}
-                <div className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-6">
-                  <h3 className="text-[12px] font-bold text-beige-500 uppercase tracking-wider mb-3">
-                    Risk Factors
-                  </h3>
-                  <div className="space-y-3">
-                    {[
-                      {
-                        icon: ShieldCheck,
-                        label: "HIPAA Compliance",
-                        value: "Verified",
-                        color: "text-forest-600",
-                        bg: "bg-forest-100",
-                      },
-                      {
-                        icon: Lock,
-                        label: "Data Encryption",
-                        value: "AES-256",
-                        color: "text-forest-600",
-                        bg: "bg-forest-100",
-                      },
-                      {
-                        icon: Scale,
-                        label: "Budget Alignment",
-                        value: "82% match",
-                        color: "text-gold-600",
-                        bg: "bg-gold-100",
-                      },
-                      {
-                        icon: CalendarDays,
-                        label: "Timeline Feasibility",
-                        value: "Achievable",
-                        color: "text-forest-600",
-                        bg: "bg-forest-100",
-                      },
-                      {
-                        icon: Users,
-                        label: "Team Sizing",
-                        value: "Optimal",
-                        color: "text-teal-600",
-                        bg: "bg-teal-100",
-                      },
-                    ].map((factor) => (
-                      <div
-                        key={factor.label}
-                        className="flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={cn(
-                              "w-6 h-6 rounded-md flex items-center justify-center",
-                              factor.bg
-                            )}
-                          >
-                            <factor.icon
-                              className={cn("w-3.5 h-3.5", factor.color)}
-                            />
-                          </div>
-                          <span className="text-[12px] text-beige-600">
-                            {factor.label}
-                          </span>
-                        </div>
-                        <span
-                          className={cn(
-                            "text-[12px] font-semibold",
-                            factor.color
-                          )}
-                        >
-                          {factor.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Industry benchmark */}
-                <div className="rounded-xl bg-gradient-to-br from-teal-50 to-beige-50 border border-teal-100/60 p-4">
-                  <h4 className="text-[12px] font-bold text-teal-800 uppercase tracking-wider mb-1.5">
-                    Industry Benchmark
-                  </h4>
-                  <p className="text-[12px] text-teal-700 leading-relaxed">
-                    Healthcare SOWs average a risk score of 28/100. This draft
-                    scores 36% better than the industry median, indicating strong
-                    alignment with input requirements.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* ═══════════════════════════════════════════════════════
-              TAB 4: Comparison
-              ═══════════════════════════════════════════════════════ */}
-          <TabsContent value="comparison">
-            <div className="space-y-5">
-              {/* Comparison intro */}
-              <div className="rounded-2xl border border-beige-200/50 bg-gradient-to-r from-white/80 to-beige-50/60 backdrop-blur-sm p-5 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brown-100 to-beige-100 flex items-center justify-center shrink-0">
-                  <GitCompare className="w-5 h-5 text-brown-500" />
-                </div>
-                <div>
-                  <p className="text-[14px] font-semibold text-brown-900">
-                    Input vs. Generated Comparison
-                  </p>
-                  <p className="text-[12px] text-beige-500">
-                    Side-by-side view of your original parameters and what the AI
-                    generated. Verify that generated content faithfully represents
-                    your intent.
-                  </p>
-                </div>
-              </div>
-
-              {/* Comparison cards */}
-              <div className="space-y-4">
-                {comparisonSections.map((cmp) => {
-                  const badge = matchBadge(cmp.match);
-                  return (
-                    <div
-                      key={cmp.id}
-                      className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm overflow-hidden"
-                    >
-                      {/* Section label */}
-                      <div className="px-5 py-3 bg-beige-50/60 border-b border-beige-200/50 flex items-center justify-between">
-                        <h4 className="text-[13px] font-semibold text-brown-900">
-                          {cmp.label}
-                        </h4>
-                        <Badge variant={badge.variant} size="sm" dot>
-                          {badge.label}
-                        </Badge>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-beige-200/50">
-                        {/* Input */}
-                        <div className="p-5">
-                          <div className="flex items-center gap-1.5 mb-2">
-                            <div className="w-5 h-5 rounded-md bg-beige-100 flex items-center justify-center">
-                              <ArrowRight className="w-3 h-3 text-beige-500" />
-                            </div>
-                            <p className="text-[10px] font-bold text-beige-500 uppercase tracking-wider">
-                              Your Input
-                            </p>
-                          </div>
-                          <p className="text-[13px] text-brown-700 leading-relaxed">
-                            {cmp.input}
-                          </p>
-                        </div>
-
-                        {/* Generated */}
-                        <div className="p-5">
-                          <div className="flex items-center gap-1.5 mb-2">
-                            <div className="w-5 h-5 rounded-md bg-teal-100 flex items-center justify-center">
-                              <Sparkles className="w-3 h-3 text-teal-500" />
-                            </div>
-                            <p className="text-[10px] font-bold text-teal-700 uppercase tracking-wider">
-                              AI Generated
-                            </p>
-                          </div>
-                          <p className="text-[13px] text-brown-700 leading-relaxed">
-                            {cmp.generated}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Match indicator bar */}
-                      {cmp.match === "expanded" && (
-                        <div className="px-5 py-2.5 bg-teal-50/40 border-t border-teal-100/50 flex items-center gap-2">
-                          <Eye className="w-3.5 h-3.5 text-teal-500" />
-                          <p className="text-[11px] text-teal-700">
-                            AI expanded this section with additional detail beyond
-                            your input. Review to ensure accuracy.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Comparison summary */}
-              <div className="rounded-2xl border border-beige-200/50 bg-gradient-to-br from-forest-50/30 to-white/80 backdrop-blur-sm p-6">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-forest-100 flex items-center justify-center">
-                    <CheckCircle2 className="w-4 h-4 text-forest-600" />
-                  </div>
-                  <h3 className="text-[14px] font-semibold text-brown-900">
-                    Comparison Summary
-                  </h3>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { label: "High Match", count: 3, variant: "forest" as const },
-                    { label: "AI Expanded", count: 1, variant: "teal" as const },
-                    { label: "Partial Match", count: 0, variant: "gold" as const },
-                    { label: "Low Match", count: 0, variant: "beige" as const },
-                  ].map((stat) => (
-                    <div
-                      key={stat.label}
-                      className="text-center rounded-xl border border-beige-200/50 bg-white/60 p-3"
-                    >
-                      <p className="text-xl font-bold text-brown-900">
-                        {stat.count}
-                      </p>
-                      <Badge variant={stat.variant} size="sm" className="mt-1">
-                        {stat.label}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </motion.div>
-
-      {/* ───── Request Changes Dialog ───── */}
-      {showChangesDialog && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-brown-950/40 backdrop-blur-sm"
-            onClick={() => setShowChangesDialog(false)}
-          />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative z-10 w-full max-w-lg mx-4 rounded-2xl border border-beige-200/60 bg-white/90 backdrop-blur-xl shadow-2xl p-6 space-y-5"
+      {/* ═══ HERO ═══ */}
+      <motion.div variants={fadeUp} className="relative" style={{ marginBottom: 24 }}>
+        <div className="absolute pointer-events-none" style={{
+          top: -60, left: -80, width: 500, height: 300,
+          background: 'radial-gradient(ellipse at 20% 40%, rgba(208,176,96,0.08) 0%, transparent 50%), radial-gradient(ellipse at 70% 20%, rgba(91,155,162,0.06) 0%, transparent 45%)',
+          filter: 'blur(40px)',
+        }} />
+        <div className="relative">
+          <h1
+            className="font-heading leading-[1.15]"
+            style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--ink)', letterSpacing: '-0.02em' }}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gold-100 to-gold-200 flex items-center justify-center">
-                  <PenLine className="w-5 h-5 text-gold-700" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-brown-900">Request Changes</h3>
-                  <p className="text-xs text-beige-500">Provide feedback for the AI to revise the draft</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowChangesDialog(false)}
-                className="w-8 h-8 rounded-lg hover:bg-beige-100 flex items-center justify-center transition-colors"
-              >
-                <X className="w-4 h-4 text-beige-500" />
-              </button>
-            </div>
+            AI Draft Review
+          </h1>
+          <p style={{ marginTop: 6, fontSize: 13, color: 'var(--ink-muted)', fontWeight: 400, lineHeight: 1.55 }}>
+            <span style={{ fontWeight: 600, color: 'var(--ink-mid)' }}>{sowMeta.title}</span> for {sowMeta.client} · Generated {new Date(sowMeta.generatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+          </p>
+        </div>
+      </motion.div>
 
+      {/* ═══ KPI ROW ═══ */}
+      <motion.div variants={fadeUp} className="grid grid-cols-4 gap-3" style={{ marginBottom: 20 }}>
+        {[
+          { label: "Confidence", value: `${sowMeta.overallConfidence}%`, sub: "Above threshold", style: confidenceStyle(sowMeta.overallConfidence) },
+          { label: "Risk Score", value: `${sowMeta.riskScore}/100`, sub: "Low risk", style: { bg: "rgba(77,87,65,0.06)", color: "#344028", fill: "#4D5741" } },
+          { label: "Flags", value: `${unresolvedCount}`, sub: unresolvedCount === 0 ? "All resolved" : `of ${hallucinationFlags.length} unresolved`, style: { bg: unresolvedCount > 0 ? "rgba(208,176,96,0.08)" : "rgba(77,87,65,0.06)", color: unresolvedCount > 0 ? "#7A6030" : "#344028", fill: "" } },
+          { label: "Completeness", value: `${sowMeta.completeness}%`, sub: "8 sections", style: { bg: "rgba(91,155,162,0.06)", color: "#3A6368", fill: "" } },
+        ].map((kpi) => (
+          <div key={kpi.label} className="rounded-lg" style={{
+            padding: '14px 16px',
+            background: kpi.style.bg,
+            border: `1px solid ${kpi.style.color}22`,
+          }}>
+            <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-faint)', letterSpacing: '0.04em', textTransform: 'uppercase' as const }}>{kpi.label}</div>
+            <div className="num-display" style={{ fontSize: '1.4rem', color: '#000000', marginTop: 2 }}>{kpi.value}</div>
+            <div style={{ fontSize: 11, color: kpi.style.color, fontWeight: 500, marginTop: 1 }}>{kpi.sub}</div>
+          </div>
+        ))}
+      </motion.div>
+
+      {/* ═══ TAB BAR ═══ */}
+      <motion.div variants={fadeUp} style={{ marginBottom: 16 }}>
+        <div className="flex items-center gap-1" style={{ borderBottom: '1px solid var(--border-hair)', paddingBottom: 0 }}>
+          {TABS.map((tab) => {
+            const isActive = activeTab === tab.key;
+            const TabIcon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className="flex items-center gap-1.5 transition-all duration-200"
+                style={{
+                  padding: '8px 14px',
+                  fontSize: 12,
+                  fontWeight: isActive ? 600 : 500,
+                  color: isActive ? 'var(--ink)' : 'var(--ink-muted)',
+                  borderBottom: `2px solid ${isActive ? '#A67763' : 'transparent'}`,
+                  marginBottom: -1,
+                  cursor: 'pointer',
+                  background: 'transparent',
+                }}
+              >
+                <TabIcon style={{ width: 13, height: 13 }} />
+                {tab.label}
+                {tab.key === "hallucination" && unresolvedCount > 0 && (
+                  <span style={{
+                    width: 16, height: 16, borderRadius: '50%',
+                    background: 'rgba(208,176,96,0.20)', color: '#7A6030',
+                    fontSize: 9, fontWeight: 700,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  }}>{unresolvedCount}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </motion.div>
+
+      {/* ═══ TAB CONTENT ═══ */}
+
+      {/* TAB: Generated SOW */}
+      {activeTab === "generated" && (
+        <motion.div variants={fadeUp} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {generatedSections.map((section, idx) => {
+            const isLow = section.confidence < 85;
+            const cs = confidenceStyle(section.confidence);
+            const isOpen = expandedSections.has(section.id);
+
+            return (
+              <div key={section.id} className="card-parchment" style={{ overflow: 'hidden' }}>
+                <button
+                  onClick={() => toggleSection(section.id)}
+                  className="w-full flex items-center gap-3 text-left transition-all"
+                  style={{ padding: '14px 20px', cursor: 'pointer', background: 'transparent', border: 'none' }}
+                >
+                  <span style={{
+                    width: 24, height: 24, borderRadius: 6, flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: isLow ? 'rgba(208,176,96,0.12)' : 'rgba(166,119,99,0.06)',
+                    fontSize: 10, fontWeight: 700, color: isLow ? '#7A6030' : 'var(--ink-muted)',
+                  }}>
+                    {String(idx + 1).padStart(2, "0")}
+                  </span>
+                  <span className="flex-1 truncate" style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+                    {section.title}
+                  </span>
+                  {isLow && <AlertTriangle style={{ width: 13, height: 13, color: '#D0B060', flexShrink: 0 }} />}
+                  <span className="badge-parchment" style={{ background: cs.bg, color: cs.color, border: `1px solid ${cs.color}33` }}>
+                    {section.confidence}%
+                  </span>
+                  {isOpen
+                    ? <ChevronDown style={{ width: 14, height: 14, color: 'var(--ink-faint)', flexShrink: 0 }} />
+                    : <ChevronRight style={{ width: 14, height: 14, color: 'var(--ink-faint)', flexShrink: 0 }} />
+                  }
+                </button>
+
+                {isOpen && (
+                  <div style={{ padding: '0 20px 16px' }}>
+                    <p style={{ fontSize: 13, color: 'var(--ink-mid)', lineHeight: 1.7, marginBottom: 12 }}>
+                      {section.content}
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-faint)', letterSpacing: '0.04em', textTransform: 'uppercase' as const, width: 70, flexShrink: 0 }}>Confidence</span>
+                      <div className="prog-track flex-1">
+                        <div className="prog-fill" style={{ width: `${section.confidence}%`, background: cs.gradient }} />
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: cs.color, width: 32, textAlign: 'right' as const }}>{section.confidence}%</span>
+                    </div>
+                    {isLow && (
+                      <div style={{
+                        marginTop: 10, padding: '10px 14px', borderRadius: 8,
+                        background: 'rgba(208,176,96,0.06)', border: '1px solid rgba(208,176,96,0.18)',
+                      }}>
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle style={{ width: 12, height: 12, color: '#D0B060', marginTop: 1, flexShrink: 0 }} />
+                          <span style={{ fontSize: 12, color: '#7A6030', lineHeight: 1.5 }}>
+                            Below 85% confidence threshold. Review this section carefully against your original requirements.
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </motion.div>
+      )}
+
+      {/* TAB: Verification */}
+      {activeTab === "hallucination" && (
+        <motion.div variants={fadeUp} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Verification Layers */}
+          <div className="card-parchment">
+            <div className="section-header-parchment">
+              <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: 600, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+                Verification Layers
+              </div>
+            </div>
+            <div style={{ padding: '6px 20px 14px' }}>
+              {hallucinationLayers.map((layer, idx, arr) => {
+                const ls = layerStatusStyle(layer.status);
+                const StatusIcon = ls.icon;
+                const iconContainerStyle = layer.status === "passed"
+                  ? { bg: 'linear-gradient(135deg, rgba(77,87,65,0.14), rgba(91,155,162,0.05))', border: 'rgba(77,87,65,0.22)' }
+                  : layer.status === "warning"
+                    ? { bg: 'linear-gradient(135deg, rgba(208,176,96,0.16), rgba(166,119,99,0.05))', border: 'rgba(208,176,96,0.25)' }
+                    : layer.status === "active"
+                      ? { bg: 'linear-gradient(135deg, rgba(91,155,162,0.14), rgba(77,87,65,0.05))', border: 'rgba(91,155,162,0.22)' }
+                      : { bg: 'linear-gradient(135deg, rgba(166,119,99,0.08), rgba(166,119,99,0.03))', border: 'var(--border-soft)' };
+
+                return (
+                  <div
+                    key={layer.id}
+                    className="flex items-center gap-[14px]"
+                    style={{
+                      padding: '13px 0',
+                      borderBottom: idx < arr.length - 1 ? '1px solid var(--border-hair)' : 'none',
+                    }}
+                  >
+                    <div
+                      className="flex items-center justify-center shrink-0"
+                      style={{
+                        width: 34, height: 34, borderRadius: 9,
+                        background: iconContainerStyle.bg,
+                        border: `1px solid ${iconContainerStyle.border}`,
+                      }}
+                    >
+                      <StatusIcon style={{ width: 15, height: 15, color: ls.color }} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="flex items-center gap-2">
+                        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-mid)' }}>{layer.name}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 2 }}>{layer.details}</div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {layer.status !== "pending" && (
+                        <div style={{ width: 80 }}>
+                          <div className="prog-track">
+                            <div className="prog-fill" style={{
+                              width: `${layer.score}%`,
+                              background: layer.score >= 95
+                                ? 'linear-gradient(90deg, #4D5741, #949A8D)'
+                                : layer.score >= 85
+                                  ? 'linear-gradient(90deg, #5B9BA2, #8FC0C7)'
+                                  : 'linear-gradient(90deg, #D0B060, #E0CC8A)',
+                            }} />
+                          </div>
+                        </div>
+                      )}
+                      <span
+                        className="badge-parchment"
+                        style={{ background: ls.bg, color: ls.color, border: `1px solid ${ls.border}` }}
+                      >
+                        {layer.status !== "pending" ? `${layer.score}%` : ls.label}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Flagged Clauses */}
+          <div className="card-parchment">
+            <div className="section-header-parchment">
+              <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: 600, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+                Flagged Clauses
+              </div>
+              {unresolvedCount === 0 ? (
+                <span className="badge-parchment flex items-center gap-1" style={{ background: 'rgba(77,87,65,0.08)', color: '#344028', border: '1px solid rgba(77,87,65,0.18)' }}>
+                  <CheckCircle2 style={{ width: 9, height: 9 }} /> All Resolved
+                </span>
+              ) : (
+                <span style={{ fontSize: 11, color: 'var(--ink-faint)' }}>{unresolvedCount} of {hallucinationFlags.length} unresolved</span>
+              )}
+            </div>
+            <div style={{ padding: '6px 20px 14px' }}>
+              {hallucinationFlags.map((flag, idx, arr) => {
+                const ss = severityStyle(flag.severity);
+                const isResolved = resolvedFlags.has(flag.id);
+                return (
+                  <div
+                    key={flag.id}
+                    style={{
+                      padding: '16px 0',
+                      borderBottom: idx < arr.length - 1 ? '1px solid var(--border-hair)' : 'none',
+                      opacity: isResolved ? 0.5 : 1,
+                      transition: 'opacity 0.2s',
+                    }}
+                  >
+                    {/* Row 1: severity + section + resolve */}
+                    <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+                      <div className="flex items-center gap-2">
+                        <div style={{
+                          width: 8, height: 8, borderRadius: '50%',
+                          background: flag.severity === "high" ? '#c44' : flag.severity === "medium" ? '#D0B060' : 'var(--ink-faint)',
+                        }} />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: ss.color }}>
+                          {flag.severity.charAt(0).toUpperCase() + flag.severity.slice(1)}
+                        </span>
+                        <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>·</span>
+                        <span style={{ fontSize: 12, color: 'var(--ink-muted)' }}>{flag.section}</span>
+                      </div>
+                      <button
+                        onClick={() => toggleResolve(flag.id)}
+                        className="flex items-center gap-1.5 rounded-lg transition-all duration-200"
+                        style={{
+                          padding: '6px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                          background: isResolved ? 'transparent' : 'linear-gradient(135deg, #4D5741, #6B7A5E)',
+                          color: isResolved ? 'var(--ink-mid)' : '#FFFFFF',
+                          border: `1px solid ${isResolved ? 'var(--border-soft)' : 'rgba(77,87,65,0.35)'}`,
+                          boxShadow: isResolved ? 'none' : '0 1px 4px rgba(77,87,65,0.15)',
+                        }}
+                        onMouseEnter={(e) => { if (!isResolved) { e.currentTarget.style.boxShadow = '0 3px 10px rgba(77,87,65,0.25)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+                        onMouseLeave={(e) => { if (!isResolved) { e.currentTarget.style.boxShadow = '0 1px 4px rgba(77,87,65,0.15)'; e.currentTarget.style.transform = ''; } }}
+                      >
+                        {isResolved
+                          ? <><RefreshCcw style={{ width: 11, height: 11 }} /> Undo</>
+                          : <><CheckCircle2 style={{ width: 11, height: 11 }} /> Resolve</>
+                        }
+                      </button>
+                    </div>
+
+                    {/* Row 2: clause quote */}
+                    <p style={{ fontSize: 13, color: 'var(--ink)', fontStyle: 'italic', lineHeight: 1.6, marginBottom: 8 }}>
+                      &ldquo;{flag.clause}&rdquo;
+                    </p>
+
+                    {/* Row 3: reason */}
+                    <p style={{ fontSize: 12, color: 'var(--ink-muted)', lineHeight: 1.55, marginBottom: 8 }}>
+                      {flag.reason}
+                    </p>
+
+                    {/* Row 4: suggestion */}
+                    <div className="flex items-start gap-2" style={{
+                      padding: '9px 12px', borderRadius: 7,
+                      background: 'rgba(91,155,162,0.04)', border: '1px solid rgba(91,155,162,0.12)',
+                    }}>
+                      <Lightbulb style={{ width: 12, height: 12, color: '#5B9BA2', marginTop: 1, flexShrink: 0 }} />
+                      <p style={{ fontSize: 12, color: '#3A6368', lineHeight: 1.55 }}>{flag.suggestion}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* TAB: Risk Assessment */}
+      {activeTab === "risk" && (
+        <motion.div variants={fadeUp} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Risk score summary */}
+          <div className="flex items-center justify-between rounded-lg" style={{
+            padding: '14px 20px',
+            background: 'rgba(77,87,65,0.05)', border: '1px solid rgba(77,87,65,0.14)',
+          }}>
+            <div>
+              <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-faint)', letterSpacing: '0.04em', textTransform: 'uppercase' as const }}>Overall Risk Score</span>
+              <div className="num-display" style={{ fontSize: '1.8rem', color: '#000000' }}>18<span style={{ fontSize: 14, color: 'var(--ink-faint)', fontWeight: 400 }}>/100</span></div>
+            </div>
+            <span className="badge-parchment flex items-center gap-1" style={{ background: 'rgba(77,87,65,0.10)', color: '#344028', border: '1px solid rgba(77,87,65,0.22)' }}>
+              <CheckCircle2 style={{ width: 10, height: 10 }} /> Low Risk
+            </span>
+          </div>
+
+          {/* Breakdown */}
+          <div className="card-parchment">
+            <div className="section-header-parchment">
+              <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: 600, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+                Score Breakdown
+              </div>
+            </div>
+            <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {riskBreakdown.map((item) => {
+                const pct = Math.round((item.score / item.maxScore) * 100);
+                const gradient = pct >= 90 ? 'linear-gradient(90deg, #4D5741, #949A8D)' : pct >= 75 ? 'linear-gradient(90deg, #5B9BA2, #8FC0C7)' : 'linear-gradient(90deg, #D0B060, #E0CC8A)';
+                return (
+                  <div key={item.category}>
+                    <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
+                      <div className="flex items-center gap-2">
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{item.category}</span>
+                        <span style={{ fontSize: 11, color: 'var(--ink-faint)' }}>Weight: {item.weight}%</span>
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>
+                        {item.score}<span style={{ color: 'var(--ink-faint)' }}>/{item.maxScore}</span>
+                      </span>
+                    </div>
+                    <div className="prog-track">
+                      <div className="prog-fill" style={{ width: `${pct}%`, background: gradient }} />
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div style={{ paddingTop: 14, borderTop: '1px solid var(--border-hair)' }}>
+                <div className="flex items-center justify-between">
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Total Points Lost</span>
+                  <span className="num-display" style={{ fontSize: '1.1rem', color: '#000000' }}>
+                    {riskBreakdown.reduce((a, r) => a + (r.maxScore - r.score), 0)}
+                    <span style={{ fontSize: 12, color: 'var(--ink-faint)', fontWeight: 400 }}> / 100</span>
+                  </span>
+                </div>
+                <p style={{ fontSize: 11.5, color: 'var(--ink-muted)', marginTop: 4 }}>
+                  Lower score = lower risk. This SOW scores 36% better than the healthcare industry median.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Risk factors */}
+          <div className="card-parchment">
+            <div className="section-header-parchment">
+              <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: 600, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+                Risk Factors
+              </div>
+            </div>
+            <div style={{ padding: '14px 20px' }}>
+              {[
+                { label: "HIPAA Compliance", value: "Verified", ok: true },
+                { label: "Data Encryption", value: "AES-256", ok: true },
+                { label: "Budget Alignment", value: "82% match", ok: false },
+                { label: "Timeline Feasibility", value: "Achievable", ok: true },
+                { label: "Team Sizing", value: "Optimal", ok: true },
+              ].map((f, i, arr) => (
+                <div key={f.label} className="flex items-center justify-between" style={{
+                  padding: '10px 0',
+                  borderBottom: i < arr.length - 1 ? '1px solid var(--border-hair)' : 'none',
+                }}>
+                  <span style={{ fontSize: 12, color: 'var(--ink-muted)' }}>{f.label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: f.ok ? '#344028' : '#7A6030' }}>{f.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* TAB: Comparison */}
+      {activeTab === "comparison" && (
+        <motion.div variants={fadeUp} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {comparisonSections.map((cmp) => {
+            const matchStyle = cmp.match === "high"
+              ? { bg: "rgba(77,87,65,0.08)", color: "#344028", label: "High Match" }
+              : cmp.match === "expanded"
+                ? { bg: "rgba(91,155,162,0.08)", color: "#3A6368", label: "AI Expanded" }
+                : { bg: "rgba(208,176,96,0.10)", color: "#7A6030", label: "Partial Match" };
+
+            return (
+              <div key={cmp.id} className="card-parchment" style={{ overflow: 'hidden' }}>
+                {/* Header */}
+                <div className="flex items-center justify-between" style={{
+                  padding: '12px 20px',
+                  borderBottom: '1px solid var(--border-hair)',
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{cmp.label}</span>
+                  <span className="badge-parchment" style={{ background: matchStyle.bg, color: matchStyle.color, border: `1px solid ${matchStyle.color}33` }}>
+                    {matchStyle.label}
+                  </span>
+                </div>
+
+                {/* Columns */}
+                <div className="grid grid-cols-1 md:grid-cols-2" style={{ borderBottom: cmp.match === "expanded" ? '1px solid var(--border-hair)' : 'none' }}>
+                  <div style={{ padding: '14px 20px', borderRight: '1px solid var(--border-hair)' }}>
+                    <div className="flex items-center gap-1.5" style={{ marginBottom: 6 }}>
+                      <ArrowRight style={{ width: 10, height: 10, color: 'var(--ink-faint)' }} />
+                      <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-faint)', letterSpacing: '0.04em', textTransform: 'uppercase' as const }}>Your Input</span>
+                    </div>
+                    <p style={{ fontSize: 12.5, color: 'var(--ink-mid)', lineHeight: 1.6 }}>{cmp.input}</p>
+                  </div>
+                  <div style={{ padding: '14px 20px' }}>
+                    <div className="flex items-center gap-1.5" style={{ marginBottom: 6 }}>
+                      <Sparkles style={{ width: 10, height: 10, color: '#5B9BA2' }} />
+                      <span style={{ fontSize: 10, fontWeight: 600, color: '#3A6368', letterSpacing: '0.04em', textTransform: 'uppercase' as const }}>AI Generated</span>
+                    </div>
+                    <p style={{ fontSize: 12.5, color: 'var(--ink-mid)', lineHeight: 1.6 }}>{cmp.generated}</p>
+                  </div>
+                </div>
+
+                {cmp.match === "expanded" && (
+                  <div className="flex items-center gap-2" style={{
+                    padding: '8px 20px',
+                    background: 'rgba(91,155,162,0.04)',
+                  }}>
+                    <Eye style={{ width: 11, height: 11, color: '#5B9BA2' }} />
+                    <span style={{ fontSize: 11, color: '#3A6368' }}>AI expanded this section beyond your input. Review for accuracy.</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </motion.div>
+      )}
+
+      {/* ═══ REQUEST CHANGES DIALOG ═══ */}
+      {showChangesDialog && (
+        <div className="fixed inset-0" style={{ zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(4px)' }} onClick={() => setShowChangesDialog(false)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            style={{
+              position: 'relative', zIndex: 10, width: '100%', maxWidth: 480, margin: '0 16px',
+              borderRadius: 12, background: '#FFFFFF', border: '1px solid var(--border-soft)',
+              boxShadow: '0 16px 40px rgba(0,0,0,0.12)', padding: 24,
+            }}
+          >
+            <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', fontFamily: 'var(--font-heading)' }}>Request Changes</div>
+                <p style={{ fontSize: 12, color: 'var(--ink-muted)', marginTop: 2 }}>Provide feedback for the AI to revise the draft</p>
+              </div>
+              <button onClick={() => setShowChangesDialog(false)} style={{
+                width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', background: 'transparent', border: 'none', color: 'var(--ink-faint)',
+              }}><X style={{ width: 16, height: 16 }} /></button>
+            </div>
             <Textarea
-              placeholder="Describe the changes you'd like — e.g. 'Expand the security section to include HIPAA compliance details' or 'Reduce timeline estimates for Phase 2'..."
+              placeholder="Describe changes — e.g. 'Expand the security section to include HIPAA details'..."
               value={changesFeedback}
               onChange={(e) => setChangesFeedback(e.target.value)}
               rows={5}
               className="resize-none"
             />
-
-            <div className="flex items-center justify-end gap-3">
-              <Button
-                variant="outline"
-                size="md"
+            <div className="flex items-center justify-end gap-2" style={{ marginTop: 14 }}>
+              <button
                 onClick={() => setShowChangesDialog(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="gradient-primary"
-                size="md"
-                onClick={() => {
-                  setShowChangesDialog(false);
-                  setChangesFeedback("");
-                }}
+                className="rounded-md transition-all"
+                style={{ padding: '7px 14px', fontSize: 12, fontWeight: 500, color: 'var(--ink-mid)', background: 'transparent', border: '1px solid var(--border-soft)', cursor: 'pointer' }}
+              >Cancel</button>
+              <button
+                onClick={() => { setShowChangesDialog(false); setChangesFeedback(""); }}
                 disabled={!changesFeedback.trim()}
-              >
-                <Send className="w-4 h-4" />
-                Submit Feedback
-              </Button>
+                className="flex items-center gap-1.5 rounded-md transition-all"
+                style={{
+                  padding: '7px 14px', fontSize: 12, fontWeight: 500, cursor: changesFeedback.trim() ? 'pointer' : 'not-allowed',
+                  background: changesFeedback.trim() ? 'linear-gradient(135deg, #A67763, #886151)' : 'rgba(166,119,99,0.10)',
+                  color: changesFeedback.trim() ? '#FFFFFF' : 'var(--ink-faint)',
+                  border: '1px solid rgba(166,119,99,0.30)',
+                  opacity: changesFeedback.trim() ? 1 : 0.5,
+                }}
+              ><Send style={{ width: 11, height: 11 }} /> Submit</button>
             </div>
           </motion.div>
         </div>
       )}
 
-      {/* ───── Reject & Re-generate Dialog ───── */}
+      {/* ═══ REJECT DIALOG ═══ */}
       {showRejectDialog && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-brown-950/40 backdrop-blur-sm"
-            onClick={() => setShowRejectDialog(false)}
-          />
+        <div className="fixed inset-0" style={{ zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(4px)' }} onClick={() => setShowRejectDialog(false)} />
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="relative z-10 w-full max-w-md mx-4 rounded-2xl border border-beige-200/60 bg-white/90 backdrop-blur-xl shadow-2xl p-6 space-y-5"
+            style={{
+              position: 'relative', zIndex: 10, width: '100%', maxWidth: 420, margin: '0 16px',
+              borderRadius: 12, background: '#FFFFFF', border: '1px solid var(--border-soft)',
+              boxShadow: '0 16px 40px rgba(0,0,0,0.12)', padding: 24,
+            }}
           >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-brown-900">Reject & Re-generate</h3>
-                <p className="text-xs text-beige-500">This action cannot be undone</p>
-              </div>
-            </div>
-
-            <p className="text-sm text-brown-700 leading-relaxed">
-              Are you sure? This will <span className="font-semibold text-red-600">discard the current draft</span> and start a new AI generation. All review progress and annotations will be lost.
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', fontFamily: 'var(--font-heading)', marginBottom: 8 }}>Reject & Re-generate</div>
+            <p style={{ fontSize: 13, color: 'var(--ink-muted)', lineHeight: 1.6, marginBottom: 16 }}>
+              This will <span style={{ fontWeight: 600, color: '#c44' }}>discard the current draft</span> and start a new AI generation. All review progress will be lost.
             </p>
-
-            <div className="flex items-center justify-end gap-3">
-              <Button
-                variant="outline"
-                size="md"
+            <div className="flex items-center justify-end gap-2">
+              <button
                 onClick={() => setShowRejectDialog(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="gradient-primary"
-                size="md"
-                className="!from-red-500 !to-red-600 hover:!from-red-600 hover:!to-red-700"
-                onClick={() => {
-                  setShowRejectDialog(false);
-                  router.push("/enterprise/sow/generate");
-                }}
-              >
-                <RefreshCcw className="w-4 h-4" />
-                Confirm & Re-generate
-              </Button>
+                className="rounded-md"
+                style={{ padding: '7px 14px', fontSize: 12, fontWeight: 500, color: 'var(--ink-mid)', background: 'transparent', border: '1px solid var(--border-soft)', cursor: 'pointer' }}
+              >Cancel</button>
+              <button
+                onClick={() => { setShowRejectDialog(false); router.push("/enterprise/sow/generate"); }}
+                className="flex items-center gap-1.5 rounded-md"
+                style={{ padding: '7px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer', background: '#c44', color: '#FFFFFF', border: '1px solid rgba(192,68,68,0.40)' }}
+              ><RefreshCcw style={{ width: 11, height: 11 }} /> Re-generate</button>
             </div>
           </motion.div>
         </div>
       )}
 
-      {/* ───── Bottom Action Bar ───── */}
-      <div className="fixed bottom-0 left-0 right-0 z-50">
-        <div className="border-t border-beige-200/60 bg-white/80 backdrop-blur-xl shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
-          <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="md"
-                onClick={() => setShowRejectDialog(true)}
-              >
-                <RefreshCcw className="w-4 h-4" />
-                Reject & Re-generate
-              </Button>
-              <Button
-                variant="outline"
-                size="md"
-                onClick={() => setShowChangesDialog(true)}
-              >
-                <PenLine className="w-4 h-4" />
-                Request Changes
-              </Button>
-            </div>
+      {/* ═══ BOTTOM ACTION BAR (fixed) ═══ */}
+      <motion.div variants={fadeUp} className="card-parchment" style={{ position: 'fixed', bottom: 0, left: isCollapsed ? 68 : 228, right: 0, zIndex: 40, borderRadius: '12px 12px 0 0', background: '#FFFFFF', backdropFilter: 'none' }}>
+        <div className="flex items-center justify-between" style={{ padding: '14px 20px', maxWidth: 1400 - 88 }}>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowRejectDialog(true)}
+              className="flex items-center gap-1.5 rounded-lg transition-all duration-200"
+              style={{ padding: '7px 14px', fontSize: 12, fontWeight: 500, color: 'var(--ink-mid)', background: 'transparent', border: '1px solid var(--border-soft)', cursor: 'pointer' }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(166,119,99,0.25)'; e.currentTarget.style.background = 'rgba(166,119,99,0.03)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-soft)'; e.currentTarget.style.background = 'transparent'; }}
+            ><RefreshCcw style={{ width: 12, height: 12 }} /> Reject</button>
+            <button
+              onClick={() => setShowChangesDialog(true)}
+              className="flex items-center gap-1.5 rounded-lg transition-all duration-200"
+              style={{ padding: '7px 14px', fontSize: 12, fontWeight: 500, color: 'var(--ink-mid)', background: 'transparent', border: '1px solid var(--border-soft)', cursor: 'pointer' }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(166,119,99,0.25)'; e.currentTarget.style.background = 'rgba(166,119,99,0.03)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-soft)'; e.currentTarget.style.background = 'transparent'; }}
+            ><PenLine style={{ width: 12, height: 12 }} /> Request Changes</button>
+          </div>
 
-            <div className="flex items-center gap-4">
-              <p className="text-[11px] text-beige-500 max-w-xs text-right hidden md:block">
-                Submitting will route to 4-stage approval:
-                <span className="font-semibold text-brown-600">
-                  {" "}Business &rarr; Legal &rarr; Security &rarr; Final
-                </span>
-              </p>
-              <Button
-                variant="gradient-primary"
-                size="md"
-                disabled={submitted}
-                onClick={() => {
-                  setSubmitted(true);
-                  setTimeout(() => {
-                    router.push("/enterprise/sow/sow-004/approve");
-                  }, 1500);
-                }}
-              >
-                {submitted ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    Submitted
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    Submit for Approval
-                  </>
-                )}
-              </Button>
-            </div>
+          <div className="flex items-center gap-3">
+            <p className="hidden md:block" style={{ fontSize: 11, color: 'var(--ink-faint)', maxWidth: 260, textAlign: 'right' as const }}>
+              Routes to 4-stage approval: Business → Legal → Security → Final
+            </p>
+            <button
+              disabled={submitted}
+              onClick={() => {
+                setSubmitted(true);
+                setTimeout(() => router.push("/enterprise/sow/sow-004/approve"), 1500);
+              }}
+              className="flex items-center gap-1.5 rounded-lg transition-all duration-200"
+              style={{
+                padding: '8px 18px', fontSize: 12, fontWeight: 600, cursor: submitted ? 'default' : 'pointer',
+                background: submitted ? 'rgba(77,87,65,0.12)' : 'linear-gradient(135deg, #A67763, #886151)',
+                color: submitted ? '#344028' : '#FFFFFF',
+                border: `1px solid ${submitted ? 'rgba(77,87,65,0.22)' : 'rgba(166,119,99,0.30)'}`,
+                boxShadow: submitted ? 'none' : '0 1px 6px rgba(166,119,99,0.20), inset 0 1px 0 rgba(255,255,255,0.15)',
+              }}
+              onMouseEnter={(e) => { if (!submitted) { e.currentTarget.style.boxShadow = '0 3px 12px rgba(166,119,99,0.30), inset 0 1px 0 rgba(255,255,255,0.2)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+              onMouseLeave={(e) => { if (!submitted) { e.currentTarget.style.boxShadow = '0 1px 6px rgba(166,119,99,0.20), inset 0 1px 0 rgba(255,255,255,0.15)'; e.currentTarget.style.transform = ''; } }}
+            >
+              {submitted
+                ? <><CheckCircle2 style={{ width: 13, height: 13 }} /> Submitted</>
+                : <><Send style={{ width: 12, height: 12 }} /> Submit for Approval</>
+              }
+            </button>
           </div>
         </div>
-      </div>
+      </motion.div>
+
     </motion.div>
   );
 }
