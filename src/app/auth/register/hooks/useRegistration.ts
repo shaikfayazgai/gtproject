@@ -4,10 +4,13 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { COUNTRIES_DATA } from "../data";
 import { getPasswordStrength, getAgeFromDob } from "../helpers";
-import type { RegistrationRole, ContributorType } from "../types";
+import type { RegistrationRole, ContributorType, SSOData } from "../types";
 
-export function useRegistration() {
+export function useRegistration(ssoData?: SSOData | null) {
   const router = useRouter();
+
+  const [isSsoUser] = useState(() => !!ssoData);
+  const [ssoProvider] = useState(() => ssoData?.provider ?? null);
 
   const [registrationRole, setRegistrationRole] = useState<RegistrationRole>("");
   const [step, setStep]                         = useState(1);
@@ -15,9 +18,9 @@ export function useRegistration() {
   const [isLoading, setIsLoading]               = useState(false);
   const [previewOpen, setPreviewOpen]           = useState(false);
 
-  const [firstName,   setFirstName]   = useState("");
-  const [lastName,    setLastName]    = useState("");
-  const [email,       setEmail]       = useState("");
+  const [firstName,   setFirstName]   = useState(ssoData?.firstName ?? "");
+  const [lastName,    setLastName]    = useState(ssoData?.lastName ?? "");
+  const [email,       setEmail]       = useState(ssoData?.email ?? "");
   const [password,    setPassword]    = useState("");
   const [confirm,     setConfirm]     = useState("");
   const [showPw,      setShowPw]      = useState(false);
@@ -179,8 +182,10 @@ export function useRegistration() {
     if (!firstName.trim())    { setError("Please enter your first name"); return; }
     if (!lastName.trim())     { setError("Please enter your last name"); return; }
     if (!email)               { setError("Please enter a valid email address"); return; }
-    if (password.length < 8)  { setError("Password must be at least 8 characters with a number and mixed case"); return; }
-    if (password !== confirm) { setError("Passwords do not match - please re-enter"); return; }
+    if (!isSsoUser) {
+      if (password.length < 8)  { setError("Password must be at least 8 characters with a number and mixed case"); return; }
+      if (password !== confirm) { setError("Passwords do not match - please re-enter"); return; }
+    }
     if (!contribType)         { setError("Please select your contributor type"); return; }
     if (!country)             { setError("Please select your country of residence"); return; }
     setError("");
@@ -229,6 +234,7 @@ export function useRegistration() {
   const passwordStrength = getPasswordStrength(password);
 
   return {
+    isSsoUser, ssoProvider,
     registrationRole, setRegistrationRole,
     step, setStep,
     error, setError,

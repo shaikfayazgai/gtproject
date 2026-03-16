@@ -1,7 +1,8 @@
 "use client";
 
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, Briefcase, Shield, ArrowLeft, CheckCircle, Mail } from "lucide-react";
 import { GlassCard, GlassCardContent } from "@/components/ui";
 
@@ -12,7 +13,7 @@ import { Step2Verification } from "./components/Step2Verification";
 import { Step3Profile } from "./components/Step3Profile";
 import { Step4Consent } from "./components/Step4Consent";
 import { ReviewPreviewModal } from "./components/ReviewPreviewModal";
-import type { RegistrationRole } from "./types";
+import type { RegistrationRole, SSOData } from "./types";
 
 function RoleBar({
   role,
@@ -88,9 +89,32 @@ function InviteOnlyCard({ role }: { role: "enterprise" | "reviewer" }) {
   );
 }
 
+function getSsoDataFromStorage(): SSOData | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem("sso_data");
+    if (!raw) return null;
+    return JSON.parse(raw) as SSOData;
+  } catch {
+    return null;
+  }
+}
+
 export default function ContributorRegisterPage() {
+  return (
+    <Suspense>
+      <ContributorRegisterContent />
+    </Suspense>
+  );
+}
+
+function ContributorRegisterContent() {
   const router = useRouter();
-  const reg = useRegistration();
+  const searchParams = useSearchParams();
+  const ssoParam = searchParams.get("sso");
+
+  const [ssoData] = useState<SSOData | null>(() => ssoParam ? getSsoDataFromStorage() : null);
+  const reg = useRegistration(ssoData);
 
   const resetToRolePicker = () => {
     reg.setRegistrationRole("");
@@ -112,6 +136,20 @@ export default function ContributorRegisterPage() {
         <h1 className="font-heading text-2xl font-bold text-brown-950">Create Your Account</h1>
         <p className="text-sm text-beige-500 mt-1">Join the Global Workforce Intelligence Platform</p>
       </div>
+
+      {reg.isSsoUser && ssoData && (
+        <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 flex items-start gap-3 mb-4">
+          <CheckCircle className="w-5 h-5 text-teal-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-teal-800">
+              Signed in with {ssoData.provider === "google" ? "Google" : "Microsoft"}
+            </p>
+            <p className="text-xs text-teal-700 mt-0.5 leading-relaxed">
+              Welcome, {ssoData.firstName}! Select your account type and complete your profile to get started.
+            </p>
+          </div>
+        </div>
+      )}
 
       {!reg.registrationRole && (
         <>
@@ -190,6 +228,8 @@ export default function ContributorRegisterPage() {
               passwordStrength={reg.passwordStrength}
               error={reg.error}
               onContinue={reg.goToStep2}
+              isSsoUser={reg.isSsoUser}
+              ssoProvider={reg.ssoProvider}
             />
           )}
 

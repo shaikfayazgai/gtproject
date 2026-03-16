@@ -19,6 +19,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { GlassCard, GlassCardContent, Button, Input, Label, Badge } from "@/components/ui";
+import type { SSOData, SSOProvider } from "../register/types";
 
 type Step = "credentials" | "mfa";
 
@@ -44,6 +45,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [mfaCode, setMfaCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [ssoLoading, setSsoLoading] = useState<SSOProvider | null>(null);
   const [error, setError] = useState("");
 
   const handleCredentials = async (e: React.FormEvent) => {
@@ -74,6 +76,19 @@ export default function LoginPage() {
     await new Promise((r) => setTimeout(r, 800));
     setIsLoading(false);
     router.push("/enterprise/dashboard");
+  };
+
+  const MOCK_SSO_DATA: Record<SSOProvider, SSOData> = {
+    google: { firstName: "John", lastName: "Doe", email: "john.doe@gmail.com", provider: "google" },
+    microsoft: { firstName: "Jane", lastName: "Smith", email: "jane.smith@outlook.com", provider: "microsoft" },
+  };
+
+  const handleSSO = async (provider: SSOProvider) => {
+    setError("");
+    setSsoLoading(provider);
+    await new Promise((r) => setTimeout(r, 1200));
+    sessionStorage.setItem("sso_data", JSON.stringify(MOCK_SSO_DATA[provider]));
+    router.push(`/auth/register?sso=${provider}`);
   };
 
   return (
@@ -202,6 +217,51 @@ export default function LoginPage() {
                     </>
                   )}
                 </Button>
+
+                <div className="relative flex items-center gap-3 my-1">
+                  <div className="flex-1 h-px bg-beige-200" />
+                  <span className="text-xs text-beige-400 font-medium">or continue with</span>
+                  <div className="flex-1 h-px bg-beige-200" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleSSO("google")}
+                    disabled={!!ssoLoading}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border-2 border-beige-200 bg-white hover:border-beige-300 hover:bg-beige-50 transition-all text-sm font-medium text-brown-800 disabled:opacity-50"
+                  >
+                    {ssoLoading === "google" ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z" />
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                      </svg>
+                    )}
+                    Google
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSSO("microsoft")}
+                    disabled={!!ssoLoading}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border-2 border-beige-200 bg-white hover:border-beige-300 hover:bg-beige-50 transition-all text-sm font-medium text-brown-800 disabled:opacity-50"
+                  >
+                    {ssoLoading === "microsoft" ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24">
+                        <rect fill="#F25022" x="1" y="1" width="10" height="10" />
+                        <rect fill="#7FBA00" x="13" y="1" width="10" height="10" />
+                        <rect fill="#00A4EF" x="1" y="13" width="10" height="10" />
+                        <rect fill="#FFB900" x="13" y="13" width="10" height="10" />
+                      </svg>
+                    )}
+                    Microsoft
+                  </button>
+                </div>
 
                 <p className="text-center text-sm text-beige-600">
                   Don&apos;t have an account?{" "}
