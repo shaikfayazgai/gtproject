@@ -31,7 +31,11 @@ const segmentLabels: Record<string, string> = {
   "sow-forms": "SOW Intake Forms",
   "clause-library": "Clause Library",
   "review-rubrics": "Review Rubrics",
-  sow: "SOW",
+  sow: "SOW Repository",
+  intake: "Create New SOW",
+  upload: "Upload SOW",
+  generate: "Generate SOW",
+  review: "Review Draft",
   users: "Contributors",
 };
 

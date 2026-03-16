@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft,
   CheckCircle2,
   AlertTriangle,
   FileText,
@@ -15,67 +14,71 @@ import {
   Clock,
   Users,
   Sparkles,
-  BookOpen,
-  Layers,
-  Pen,
-  User,
   Lock,
   ScrollText,
   GitBranch,
   Target,
   Scale,
-  ChevronDown,
-  ChevronRight,
   XCircle,
   Send,
-  AlertOctagon,
   Gauge,
+  ChevronRight,
   type LucideIcon,
 } from "lucide-react";
-import { cn } from "@/lib/utils/cn";
-import { stagger, fadeUp, slideInRight, scaleIn } from "@/lib/utils/motion-variants";
-import { Badge, Button, Checkbox, Textarea } from "@/components/ui";
-import { MetricRing } from "@/components/enterprise/metric-ring";
-import { mockSOWs, mockSOWSections } from "@/mocks/data/enterprise-sow";
+import { stagger, fadeUp } from "@/lib/utils/motion-variants";
+import { Checkbox, Textarea } from "@/components/ui";
+import { mockSOWs } from "@/mocks/data/enterprise-sow";
 import type { ApprovalStage } from "@/types/enterprise";
 
-/* ═══════════════════════════════════════════════════════════════
-   Constants
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ Theme helpers ═══ */
 
-const statusVariantMap: Record<string, "beige" | "gold" | "teal" | "forest" | "brown"> = {
-  draft: "beige",
-  parsing: "teal",
-  review: "teal",
-  approval: "gold",
-  approved: "forest",
-  archived: "beige",
+const R: Record<string, string> = { forest: "77,87,65", teal: "91,155,162", gold: "208,176,96", brown: "166,119,99", beige: "201,176,157" };
+const C: Record<string, string> = { forest: "#4D5741", teal: "#5B9BA2", gold: "#86713D", brown: "#A67763", beige: "var(--ink-faint)" };
+
+function bx(v: string, sz = 36): React.CSSProperties {
+  const r = R[v] || R.beige;
+  return { width: sz, height: sz, borderRadius: sz > 30 ? 10 : 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: `linear-gradient(135deg, rgba(${r},0.14), rgba(${r},0.06))`, border: `1px solid rgba(${r},0.20)` };
+}
+
+function bg(v: string): React.CSSProperties {
+  const r = R[v] || R.beige; const c = C[v] || "var(--ink-muted)";
+  return { background: `rgba(${r},${v === "gold" ? "0.12" : "0.10"})`, color: c, border: `1px solid rgba(${r},${v === "gold" ? "0.25" : "0.20"})`, display: "inline-flex", alignItems: "center", gap: 4 };
+}
+
+const btnPrimary: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7,
+  padding: "10px 22px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+  background: "linear-gradient(135deg, #A67763, #886151)",
+  border: "1px solid rgba(166,119,99,0.30)", color: "#FFFFFF",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px rgba(166,119,99,0.20)",
+  cursor: "pointer", transition: "all 0.15s",
 };
+
+const btnOutline: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+  padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+  background: "transparent", border: "1px solid var(--border-soft)",
+  color: "var(--ink-mid)", cursor: "pointer", transition: "all 0.15s",
+};
+
+/* ═══ Stage data ═══ */
 
 const stageLabels: Record<string, string> = {
-  business: "Business Owner",
-  legal: "Legal / Compliance",
-  security: "Security Review",
-  final: "Final Sign-off",
+  business: "Business Owner", legal: "Legal / Compliance", security: "Security Review", final: "Final Sign-off",
 };
-
-const stageDescriptions: Record<string, string> = {
+const stageDesc: Record<string, string> = {
   business: "Verify budget, scope, and business alignment with strategic goals",
   legal: "Review contractual terms, IP rights, and regulatory compliance",
   security: "Assess data sensitivity classification and security requirements",
-  final: "Executive sign-off with digital signature for project initiation",
+  final: "Executive sign-off for project initiation",
+};
+const stageIcons: Record<string, LucideIcon> = {
+  business: DollarSign, legal: Scale, security: Shield, final: ShieldCheck,
 };
 
-/* ── Stage-Specific Checklists (per UX Flow B7) ── */
+interface CLI { id: string; label: string; description: string; icon: LucideIcon; }
 
-interface ChecklistItem {
-  id: string;
-  label: string;
-  description: string;
-  icon: LucideIcon;
-}
-
-const stageChecklists: Record<ApprovalStage, ChecklistItem[]> = {
+const stageChecklists: Record<ApprovalStage, CLI[]> = {
   business: [
     { id: "scope-align", label: "Scope aligns with business objectives", description: "SOW deliverables match the strategic goals for this quarter", icon: Target },
     { id: "budget-ok", label: "Budget within procurement limits", description: "Estimated cost falls within approved spending authority", icon: DollarSign },
@@ -101,1062 +104,368 @@ const stageChecklists: Record<ApprovalStage, ChecklistItem[]> = {
   ],
 };
 
-/* ── Risk-Based Routing Tiers (SOW V2.1 Table 4) ── */
-
-interface RiskTier {
-  label: string;
-  range: string;
-  color: string;
-  bgColor: string;
-  borderColor: string;
-  ringColor: string;
-  iconColor: string;
-  stages: ApprovalStage[];
-  description: string;
-}
-
-const riskTiers: RiskTier[] = [
-  {
-    label: "Low Risk",
-    range: "0–25",
-    color: "text-forest-700",
-    bgColor: "bg-forest-50",
-    borderColor: "border-forest-200/60",
-    ringColor: "ring-forest-200",
-    iconColor: "text-forest-500",
-    stages: ["business", "final"],
-    description: "Standard review — Business + Final only",
-  },
-  {
-    label: "Medium Risk",
-    range: "26–50",
-    color: "text-gold-800",
-    bgColor: "bg-gold-50",
-    borderColor: "border-gold-200/60",
-    ringColor: "ring-gold-200",
-    iconColor: "text-gold-600",
-    stages: ["business", "legal", "final"],
-    description: "Enhanced review — Business + Legal + Final",
-  },
-  {
-    label: "High Risk",
-    range: "51–75",
-    color: "text-brown-700",
-    bgColor: "bg-brown-50",
-    borderColor: "border-brown-200/60",
-    ringColor: "ring-brown-200",
-    iconColor: "text-brown-500",
-    stages: ["business", "legal", "security", "final"],
-    description: "Full review — all 4 stages mandatory",
-  },
-  {
-    label: "Critical",
-    range: "76–100",
-    color: "text-red-700",
-    bgColor: "bg-red-50",
-    borderColor: "border-red-200/60",
-    ringColor: "ring-red-200",
-    iconColor: "text-red-500",
-    stages: ["business", "legal", "security", "final"],
-    description: "Auto-reject recommended — manual override required",
-  },
-];
-
-function getRiskTier(score: number): RiskTier {
-  if (score <= 25) return riskTiers[0];
-  if (score <= 50) return riskTiers[1];
-  if (score <= 75) return riskTiers[2];
-  return riskTiers[3];
-}
-
-/* ── Rejection flow types ── */
+function riskLabel(s: number) { return s <= 25 ? "Low" : s <= 50 ? "Medium" : s <= 75 ? "High" : "Critical"; }
 type RejectionType = "changes" | "reject";
 
-/* ═══════════════════════════════════════════════════════════════
-   Page Component
-   ═══════════════════════════════════════════════════════════════ */
+const sCfg: Record<string, { v: string; l: string }> = {
+  draft: { v: "beige", l: "Draft" }, parsing: { v: "teal", l: "Parsing" }, review: { v: "teal", l: "In Review" },
+  approval: { v: "gold", l: "In Approval" }, approved: { v: "forest", l: "Approved" }, archived: { v: "beige", l: "Archived" },
+  rejected: { v: "brown", l: "Rejected" }, changes_requested: { v: "gold", l: "Changes Requested" },
+};
+
+/* ═══════════════════════════════════════════════════════════════ */
 
 export default function SOWApprovePage() {
   const params = useParams();
   const sowId = params.sowId as string;
   const sow = mockSOWs.find((s) => s.id === sowId) || mockSOWs[0];
-  const sections = mockSOWSections.filter((s) => s.sowId === sow.id);
 
-  /* ── Active stage detection ── */
-  const activeStageIndex = sow.approvalStages.findIndex(
-    (s) => s.status === "in_review" || s.status === "pending"
-  );
+  const activeStageIndex = sow.approvalStages.findIndex((s) => s.status === "in_review" || s.status === "pending");
   const activeStage = activeStageIndex >= 0 ? sow.approvalStages[activeStageIndex] : null;
   const activeChecklist = activeStage ? stageChecklists[activeStage.stage] : [];
 
-  /* ── Checklist state ── */
   const [checked, setChecked] = React.useState<Record<string, boolean>>({});
   const [comments, setComments] = React.useState("");
-
   const allChecked = activeChecklist.every((item) => checked[item.id]);
   const checkedCount = activeChecklist.filter((item) => checked[item.id]).length;
 
-  /* ── Rejection flow state ── */
   const [showRejectForm, setShowRejectForm] = React.useState(false);
   const [rejectionType, setRejectionType] = React.useState<RejectionType>("changes");
   const [rejectionReason, setRejectionReason] = React.useState("");
   const [rejectionSubmitted, setRejectionSubmitted] = React.useState(false);
-
-  /* ── Approval submitted state ── */
   const [approvalSubmitted, setApprovalSubmitted] = React.useState(false);
 
-  /* ── Collapsed stage toggle for completed stages ── */
-  const [expandedCompleted, setExpandedCompleted] = React.useState<Record<string, boolean>>({});
-
-  /* ── Risk routing ── */
   const riskScore = sow.riskScore.overall;
-  const tier = getRiskTier(riskScore);
-
-  const handleRejectSubmit = () => {
-    if (!rejectionReason.trim()) return;
-    setRejectionSubmitted(true);
-    setShowRejectForm(false);
-  };
-
-  const handleApproveSubmit = () => {
-    setApprovalSubmitted(true);
-  };
-
+  const rv = riskScore <= 25 ? "forest" : riskScore <= 50 ? "gold" : "brown";
   const allStagesApproved = sow.approvalStages.every((s) => s.status === "approved");
+  const st = sCfg[sow.status] || sCfg.draft;
+
+  const handleRejectSubmit = () => { if (!rejectionReason.trim()) return; setRejectionSubmitted(true); setShowRejectForm(false); };
+  const handleApproveSubmit = () => { setApprovalSubmitted(true); };
+
+  const showMain = activeStage && !approvalSubmitted && !rejectionSubmitted;
 
   return (
-    <motion.div
-      variants={stagger}
-      initial="hidden"
-      animate="show"
-      className="max-w-[1200px] mx-auto space-y-5"
-    >
-      {/* Back Link */}
-      <motion.div variants={fadeUp}>
-        <Link
-          href={`/enterprise/sow/${sow.id}`}
-          className="inline-flex items-center gap-2 text-sm text-beige-600 hover:text-brown-700 transition-colors group"
-        >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back to {sow.title}
-        </Link>
-      </motion.div>
+    <motion.div variants={stagger} initial="hidden" animate="show">
 
-      {/* Header */}
-      <motion.div variants={fadeUp}>
-        <div className="flex items-center gap-2 mb-1">
-          <h1 className="text-xl font-bold text-brown-900 tracking-tight font-heading">
-            Approve SOW
-          </h1>
-          <Badge variant={statusVariantMap[sow.status]} size="md" dot>
-            {sow.status.charAt(0).toUpperCase() + sow.status.slice(1)}
-          </Badge>
-        </div>
-        <p className="text-sm text-beige-600">
-          {sow.title} — {sow.client}
-        </p>
-      </motion.div>
-
-      {/* ═══ Risk-Based Routing Indicator (SOW V2.1 Table 4) ═══ */}
-      <motion.div variants={fadeUp}>
-        <div
-          className={cn(
-            "rounded-2xl border p-4 backdrop-blur-sm",
-            tier.bgColor,
-            tier.borderColor
-          )}
-        >
-          <div className="flex items-start gap-4">
-            <div
-              className={cn(
-                "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
-                "bg-white/60 ring-1",
-                tier.ringColor
-              )}
-            >
-              <Gauge className={cn("w-5 h-5", tier.iconColor)} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className={cn("text-[13px] font-bold", tier.color)}>
-                  {tier.label}
-                </span>
-                <span className="text-[11px] text-beige-500 font-mono">
-                  Score: {riskScore}/100
-                </span>
-              </div>
-              <p className={cn("text-[12px]", tier.color, "opacity-80")}>
-                {tier.description}
-              </p>
-              <div className="flex items-center gap-1.5 mt-2">
-                <span className="text-[10px] text-beige-500 uppercase tracking-wider font-semibold mr-1">
-                  Required stages:
-                </span>
-                {tier.stages.map((stageKey) => (
-                  <Badge
-                    key={stageKey}
-                    variant={
-                      sow.approvalStages.find((s) => s.stage === stageKey)?.status === "approved"
-                        ? "forest"
-                        : "beige"
-                    }
-                    size="sm"
-                  >
-                    {stageLabels[stageKey]}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-            <div className="shrink-0">
-              <MetricRing
-                value={riskScore}
-                size={56}
-                strokeWidth={5}
-                color={
-                  riskScore <= 25
-                    ? "forest"
-                    : riskScore <= 50
-                    ? "gold"
-                    : "brown"
-                }
-              />
-            </div>
-          </div>
+      {/* ── Hero ── */}
+      <motion.div variants={fadeUp} style={{ marginBottom: 24 }}>
+        <h1 className="font-heading" style={{ fontSize: "1.5rem", fontWeight: 600, color: "var(--ink)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>
+          {sow.title}
+        </h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+          {[sow.client, `v${sow.version}`, `${sow.pages} pg`].map((t, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--border-soft)" }} />}
+              <span style={{ fontSize: 12, color: "var(--ink-muted)" }}>{t}</span>
+            </React.Fragment>
+          ))}
+          <span style={{ ...bg(st.v), fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 5 }}>{st.l}</span>
+          <span style={{ ...bg(rv), fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 5 }}>
+            <Gauge style={{ width: 9, height: 9 }} /> {riskLabel(riskScore)} {riskScore}
+          </span>
         </div>
       </motion.div>
 
-      {/* ═══ Multi-Stage Approval Pipeline ═══ */}
-      <motion.div
-        variants={fadeUp}
-        className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5"
-      >
-        <h2 className="text-[14px] font-semibold text-brown-900 mb-4">
-          4-Stage Approval Pipeline
-        </h2>
-        <div className="flex items-start gap-0">
-          {sow.approvalStages.map((stage, idx) => {
-            const isLast = idx === sow.approvalStages.length - 1;
-            const isActive = activeStage?.stage === stage.stage;
-            return (
-              <div key={stage.stage} className="flex-1 flex items-start">
-                <div className="flex flex-col items-center text-center w-full">
-                  <div
-                    className={cn(
-                      "w-10 h-10 rounded-full flex items-center justify-center shrink-0 mb-2 transition-all duration-300",
-                      stage.status === "approved"
-                        ? "bg-forest-100 ring-2 ring-forest-200"
-                        : stage.status === "in_review"
-                        ? "bg-gold-100 ring-2 ring-gold-200 animate-pulse"
-                        : stage.status === "rejected"
-                        ? "bg-red-100 ring-2 ring-red-200"
-                        : "bg-beige-100"
-                    )}
-                  >
-                    {stage.status === "approved" ? (
-                      <CheckCircle2 className="w-5 h-5 text-forest-600" />
-                    ) : stage.status === "in_review" ? (
-                      <Clock className="w-5 h-5 text-gold-600" />
-                    ) : stage.status === "rejected" ? (
-                      <XCircle className="w-5 h-5 text-red-600" />
-                    ) : (
-                      <span className="text-[12px] font-bold text-beige-500">
-                        {idx + 1}
-                      </span>
-                    )}
-                  </div>
-                  <p
-                    className={cn(
-                      "text-[12px] font-semibold",
-                      isActive ? "text-gold-800" : "text-brown-800"
-                    )}
-                  >
-                    {stageLabels[stage.stage]}
-                  </p>
-                  <p className="text-[10px] text-beige-500 mt-0.5 max-w-[140px]">
-                    {stageDescriptions[stage.stage]}
-                  </p>
-                  {stage.reviewer && (
-                    <p className="text-[10px] text-teal-600 mt-1 font-medium">
-                      {stage.reviewer}
-                    </p>
-                  )}
-                  <Badge
-                    variant={
-                      stage.status === "approved"
-                        ? "forest"
-                        : stage.status === "in_review"
-                        ? "gold"
-                        : stage.status === "rejected"
-                        ? "danger"
-                        : "beige"
-                    }
-                    size="sm"
-                    className="mt-1.5"
-                  >
-                    {stage.status === "approved"
-                      ? "Approved"
-                      : stage.status === "in_review"
-                      ? "In Review"
-                      : stage.status === "rejected"
-                      ? "Rejected"
-                      : "Pending"}
-                  </Badge>
-                </div>
-                {!isLast && (
-                  <div
-                    className={cn(
-                      "h-0.5 flex-1 mt-5 mx-1 rounded-full transition-all duration-500",
-                      stage.status === "approved" ? "bg-forest-300" : "bg-beige-200"
-                    )}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </motion.div>
+      {showMain && (
+        <>
+          {/* ═══ HORIZONTAL TIMELINE ═══ */}
+          <motion.div variants={fadeUp} className="card-parchment" style={{ padding: "24px 32px", marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {sow.approvalStages.map((stage, idx) => {
+                const isActive = activeStage?.stage === stage.stage;
+                const done = stage.status === "approved";
+                const rejected = stage.status === "rejected";
+                const isLast = idx === sow.approvalStages.length - 1;
+                const StageIcon = stageIcons[stage.stage] || FileText;
+                const d = stage.reviewedAt ? new Date(stage.reviewedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : null;
 
-      {/* ═══ Two Column Layout ═══ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* LEFT — Approval Form (2/3) */}
-        <motion.div variants={stagger} className="lg:col-span-2 space-y-5">
-          {/* ── Completed Stages (collapsed green cards) ── */}
-          {sow.approvalStages
-            .filter((s) => s.status === "approved")
-            .map((stage) => {
-              const isExpanded = !!expandedCompleted[stage.stage];
-              const stageItems = stageChecklists[stage.stage];
-              const reviewDate = stage.reviewedAt
-                ? new Date(stage.reviewedAt).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : null;
+                return (
+                  <React.Fragment key={stage.stage}>
+                    {/* Stage node */}
+                    <div style={{
+                      flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+                      position: "relative",
+                    }}>
+                      {/* Circle */}
+                      <div style={{
+                        width: 40, height: 40, borderRadius: "50%",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        background: done
+                          ? `linear-gradient(135deg, rgba(${R.forest},0.18), rgba(${R.forest},0.08))`
+                          : isActive
+                            ? `linear-gradient(135deg, rgba(${R.gold},0.18), rgba(${R.gold},0.08))`
+                            : "rgba(255,255,255,0.8)",
+                        border: `2px solid ${done ? `rgba(${R.forest},0.40)` : isActive ? `rgba(${R.gold},0.50)` : "var(--border-soft)"}`,
+                        boxShadow: isActive
+                          ? `0 0 0 5px rgba(${R.gold},0.10), 0 2px 8px rgba(${R.gold},0.12)`
+                          : done
+                            ? `0 2px 6px rgba(${R.forest},0.10)`
+                            : "none",
+                        transition: "all 0.3s",
+                      }}>
+                        {done ? <CheckCircle2 style={{ width: 18, height: 18, color: C.forest }} />
+                          : rejected ? <XCircle style={{ width: 18, height: 18, color: C.brown }} />
+                          : <StageIcon style={{ width: 17, height: 17, color: isActive ? C.gold : "var(--ink-faint)" }} />}
+                      </div>
 
-              return (
-                <motion.div
-                  key={stage.stage}
-                  variants={fadeUp}
-                  className="rounded-2xl border border-forest-200/50 bg-forest-50/40 backdrop-blur-sm overflow-hidden"
-                >
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setExpandedCompleted((prev) => ({
-                        ...prev,
-                        [stage.stage]: !prev[stage.stage],
-                      }))
-                    }
-                    className="w-full flex items-center gap-3 p-4 text-left hover:bg-forest-50/60 transition-colors"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-forest-100 ring-1 ring-forest-200 flex items-center justify-center shrink-0">
-                      <CheckCircle2 className="w-4 h-4 text-forest-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[13px] font-semibold text-forest-800">
+                      {/* Label block */}
+                      <div style={{ textAlign: "center" }}>
+                        <p style={{
+                          fontSize: 11.5, fontWeight: 600, lineHeight: 1.25,
+                          color: isActive ? C.gold : done ? C.forest : "var(--ink-muted)",
+                        }}>
                           {stageLabels[stage.stage]}
-                        </span>
-                        <Badge variant="forest" size="sm">
-                          Approved
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-3 mt-0.5">
+                        </p>
                         {stage.reviewer && (
-                          <span className="text-[11px] text-forest-600">
-                            by {stage.reviewer}
-                          </span>
+                          <p style={{ fontSize: 10, color: "var(--ink-faint)", marginTop: 2 }}>{stage.reviewer}</p>
                         )}
-                        {reviewDate && (
-                          <span className="text-[11px] text-beige-500">
-                            {reviewDate}
-                          </span>
+                        {done && d && (
+                          <p style={{ fontSize: 9, color: "var(--ink-faint)", marginTop: 1, fontFamily: "var(--font-mono, monospace)" }}>{d}</p>
+                        )}
+                        {isActive && (
+                          <span style={{
+                            display: "inline-block", marginTop: 5,
+                            fontSize: 9, fontWeight: 600, padding: "1px 6px", borderRadius: 4,
+                            background: `rgba(${R.gold},0.12)`, color: C.gold, border: `1px solid rgba(${R.gold},0.25)`,
+                          }}>IN REVIEW</span>
                         )}
                       </div>
                     </div>
-                    {isExpanded ? (
-                      <ChevronDown className="w-4 h-4 text-forest-400 shrink-0" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 text-forest-400 shrink-0" />
+
+                    {/* Connector line */}
+                    {!isLast && (
+                      <div style={{
+                        width: 48, height: 2, flexShrink: 0, borderRadius: 1, alignSelf: "flex-start", marginTop: 19,
+                        background: done ? `rgba(${R.forest},0.30)` : "var(--border-hair)",
+                        transition: "background 0.3s",
+                      }} />
                     )}
-                  </button>
-
-                  <AnimatePresence>
-                    {isExpanded && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.25, ease: "easeOut" }}
-                        className="overflow-hidden"
-                      >
-                        <div className="px-4 pb-4 space-y-3">
-                          {/* Stage comments */}
-                          {stage.comments && (
-                            <div className="rounded-xl bg-white/60 border border-forest-100 p-3">
-                              <p className="text-[10px] font-semibold text-beige-500 uppercase tracking-wider mb-1">
-                                Reviewer Notes
-                              </p>
-                              <p className="text-[12px] text-brown-700 leading-relaxed">
-                                {stage.comments}
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Completed checklist items */}
-                          <div className="space-y-1">
-                            {stageItems.map((item) => {
-                              const Icon = item.icon;
-                              return (
-                                <div
-                                  key={item.id}
-                                  className="flex items-center gap-2.5 rounded-lg p-2 bg-white/40"
-                                >
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-forest-500 shrink-0" />
-                                  <Icon className="w-3.5 h-3.5 text-forest-400 shrink-0" />
-                                  <span className="text-[12px] text-forest-700 font-medium">
-                                    {item.label}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              );
-            })}
-
-          {/* ── Active Stage Section ── */}
-          {activeStage && !approvalSubmitted && !rejectionSubmitted && (
-            <>
-              {/* Progress Indicator */}
-              <motion.div
-                variants={fadeUp}
-                className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5"
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-gold-400 animate-pulse" />
-                    <h2 className="text-[14px] font-semibold text-brown-900">
-                      {stageLabels[activeStage.stage]} — Review Checklist
-                    </h2>
-                  </div>
-                  <span className="text-[12px] font-semibold text-beige-500">
-                    {checkedCount}/{activeChecklist.length} completed
-                  </span>
-                </div>
-                <p className="text-[11px] text-beige-500 mb-3">
-                  {stageDescriptions[activeStage.stage]}
-                </p>
-                <div className="h-2 rounded-full bg-beige-100 overflow-hidden">
-                  <motion.div
-                    className={cn(
-                      "h-full rounded-full",
-                      allChecked
-                        ? "bg-gradient-to-r from-forest-500 to-teal-500"
-                        : "bg-gradient-to-r from-brown-400 to-brown-500"
-                    )}
-                    initial={{ width: 0 }}
-                    animate={{
-                      width: `${
-                        activeChecklist.length > 0
-                          ? (checkedCount / activeChecklist.length) * 100
-                          : 0
-                      }%`,
-                    }}
-                    transition={{ duration: 0.5, ease: "easeOut" }}
-                  />
-                </div>
-              </motion.div>
-
-              {/* Active Stage Checklist */}
-              <motion.div
-                variants={fadeUp}
-                className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5"
-              >
-                <h2 className="text-[14px] font-semibold text-brown-900 mb-4">
-                  {stageLabels[activeStage.stage]} Criteria
-                </h2>
-                <div className="space-y-1">
-                  {activeChecklist.map((item) => {
-                    const Icon = item.icon;
-                    const isChecked = !!checked[item.id];
-
-                    return (
-                      <label
-                        key={item.id}
-                        className={cn(
-                          "flex items-start gap-3.5 rounded-xl p-3.5 cursor-pointer transition-all duration-200",
-                          isChecked
-                            ? "bg-forest-50/50 border border-forest-200/50"
-                            : "hover:bg-beige-50/60 border border-transparent"
-                        )}
-                      >
-                        <Checkbox
-                          checked={isChecked}
-                          onCheckedChange={(val) =>
-                            setChecked((prev) => ({
-                              ...prev,
-                              [item.id]: !!val,
-                            }))
-                          }
-                          className="mt-0.5"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <Icon
-                              className={cn(
-                                "w-3.5 h-3.5",
-                                isChecked ? "text-forest-600" : "text-beige-400"
-                              )}
-                            />
-                            <span
-                              className={cn(
-                                "text-[13px] font-semibold transition-colors",
-                                isChecked ? "text-forest-800" : "text-brown-800"
-                              )}
-                            >
-                              {item.label}
-                            </span>
-                          </div>
-                          <p
-                            className={cn(
-                              "text-[11px] mt-0.5 ml-5.5",
-                              isChecked ? "text-forest-600" : "text-beige-500"
-                            )}
-                          >
-                            {item.description}
-                          </p>
-                        </div>
-                        {isChecked && (
-                          <CheckCircle2 className="w-4 h-4 text-forest-500 shrink-0 mt-0.5" />
-                        )}
-                      </label>
-                    );
-                  })}
-                </div>
-              </motion.div>
-
-              {/* Comments */}
-              <motion.div
-                variants={fadeUp}
-                className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5"
-              >
-                <h2 className="text-[14px] font-semibold text-brown-900 mb-3">
-                  Comments & Notes
-                </h2>
-                <Textarea
-                  value={comments}
-                  onChange={(e) => setComments(e.target.value)}
-                  placeholder="Add any approval notes, conditions, or comments..."
-                  className="min-h-[120px]"
-                />
-              </motion.div>
-
-              {/* Sign-off Section */}
-              <motion.div
-                variants={fadeUp}
-                className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5"
-              >
-                <h2 className="text-[14px] font-semibold text-brown-900 mb-4">
-                  Sign-off
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="text-[12px] font-semibold text-beige-600 uppercase tracking-wider block mb-1.5">
-                      Approver Name
-                    </label>
-                    <div className="flex items-center gap-2 rounded-xl border border-beige-200 bg-beige-50/60 px-4 py-2.5">
-                      <User className="w-4 h-4 text-beige-400" />
-                      <span className="text-sm text-brown-800 font-medium">
-                        Priya Nair
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-[12px] font-semibold text-beige-600 uppercase tracking-wider block mb-1.5">
-                      Role
-                    </label>
-                    <div className="flex items-center gap-2 rounded-xl border border-beige-200 bg-beige-50/60 px-4 py-2.5">
-                      <Shield className="w-4 h-4 text-beige-400" />
-                      <span className="text-sm text-brown-800 font-medium">
-                        {stageLabels[activeStage.stage]}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Digital Signature Placeholder */}
-                <div>
-                  <label className="text-[12px] font-semibold text-beige-600 uppercase tracking-wider block mb-1.5">
-                    Digital Signature
-                  </label>
-                  <div className="rounded-xl border-2 border-dashed border-beige-200 bg-beige-50/30 h-24 flex items-center justify-center">
-                    <div className="flex items-center gap-2 text-beige-400">
-                      <Pen className="w-4 h-4" />
-                      <span className="text-sm">Click to add digital signature</span>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Action Buttons */}
-              <motion.div variants={fadeUp} className="space-y-3">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                  <Button
-                    variant="gradient-primary"
-                    size="lg"
-                    className="flex-1"
-                    disabled={!allChecked}
-                    onClick={handleApproveSubmit}
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    {allChecked
-                      ? `Approve — ${stageLabels[activeStage.stage]}`
-                      : `Complete checklist (${checkedCount}/${activeChecklist.length})`}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="flex-1"
-                    onClick={() => {
-                      setShowRejectForm((prev) => !prev);
-                      setRejectionSubmitted(false);
-                    }}
-                  >
-                    <AlertTriangle className="w-4 h-4" />
-                    Request Changes
-                  </Button>
-                </div>
-
-                {/* ═══ Inline Rejection Form ═══ */}
-                <AnimatePresence>
-                  {showRejectForm && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.25, ease: "easeOut" }}
-                      className="overflow-hidden"
-                    >
-                      <div className="rounded-2xl border border-brown-200/50 bg-white/70 backdrop-blur-sm p-5 space-y-4">
-                        <div className="flex items-center gap-2 mb-1">
-                          <AlertOctagon className="w-4 h-4 text-brown-500" />
-                          <h3 className="text-[14px] font-semibold text-brown-900">
-                            Rejection / Change Request
-                          </h3>
-                        </div>
-
-                        {/* Toggle: Request Changes vs Reject */}
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setRejectionType("changes")}
-                            className={cn(
-                              "flex-1 rounded-xl border px-4 py-3 text-left transition-all duration-200",
-                              rejectionType === "changes"
-                                ? "border-gold-300 bg-gold-50/60 ring-1 ring-gold-200"
-                                : "border-beige-200 bg-white hover:border-beige-300"
-                            )}
-                          >
-                            <div className="flex items-center gap-2 mb-1">
-                              <div
-                                className={cn(
-                                  "w-4 h-4 rounded-full border-2 flex items-center justify-center",
-                                  rejectionType === "changes"
-                                    ? "border-gold-500"
-                                    : "border-beige-300"
-                                )}
-                              >
-                                {rejectionType === "changes" && (
-                                  <div className="w-2 h-2 rounded-full bg-gold-500" />
-                                )}
-                              </div>
-                              <span
-                                className={cn(
-                                  "text-[13px] font-semibold",
-                                  rejectionType === "changes"
-                                    ? "text-gold-800"
-                                    : "text-brown-700"
-                                )}
-                              >
-                                Request Changes
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-beige-500 ml-6">
-                              Sends SOW back to the owner for modifications
-                            </p>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setRejectionType("reject")}
-                            className={cn(
-                              "flex-1 rounded-xl border px-4 py-3 text-left transition-all duration-200",
-                              rejectionType === "reject"
-                                ? "border-red-300 bg-red-50/60 ring-1 ring-red-200"
-                                : "border-beige-200 bg-white hover:border-beige-300"
-                            )}
-                          >
-                            <div className="flex items-center gap-2 mb-1">
-                              <div
-                                className={cn(
-                                  "w-4 h-4 rounded-full border-2 flex items-center justify-center",
-                                  rejectionType === "reject"
-                                    ? "border-red-500"
-                                    : "border-beige-300"
-                                )}
-                              >
-                                {rejectionType === "reject" && (
-                                  <div className="w-2 h-2 rounded-full bg-red-500" />
-                                )}
-                              </div>
-                              <span
-                                className={cn(
-                                  "text-[13px] font-semibold",
-                                  rejectionType === "reject"
-                                    ? "text-red-700"
-                                    : "text-brown-700"
-                                )}
-                              >
-                                Reject SOW
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-beige-500 ml-6">
-                              Terminates this SOW — cannot be resumed
-                            </p>
-                          </button>
-                        </div>
-
-                        {/* Reason textarea */}
-                        <div>
-                          <label className="text-[12px] font-semibold text-beige-600 uppercase tracking-wider block mb-1.5">
-                            Reason{" "}
-                            <span className="text-red-400 normal-case">*</span>
-                          </label>
-                          <Textarea
-                            value={rejectionReason}
-                            onChange={(e) => setRejectionReason(e.target.value)}
-                            placeholder={
-                              rejectionType === "changes"
-                                ? "Describe what needs to be changed and why..."
-                                : "Explain why this SOW is being rejected..."
-                            }
-                            className="min-h-[100px]"
-                          />
-                        </div>
-
-                        {/* Submit */}
-                        <div className="flex items-center gap-3">
-                          <Button
-                            variant={rejectionType === "reject" ? "danger" : "gold"}
-                            size="md"
-                            disabled={!rejectionReason.trim()}
-                            onClick={handleRejectSubmit}
-                          >
-                            <Send className="w-3.5 h-3.5" />
-                            {rejectionType === "changes"
-                              ? "Send Change Request"
-                              : "Reject SOW"}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="md"
-                            onClick={() => setShowRejectForm(false)}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            </>
-          )}
-
-          {/* ═══ Approval Success State ═══ */}
-          {approvalSubmitted && (
-            <motion.div
-              variants={scaleIn}
-              initial="hidden"
-              animate="show"
-              className="rounded-2xl border border-forest-200/50 bg-forest-50/40 backdrop-blur-sm p-8 text-center"
-            >
-              <div className="w-16 h-16 rounded-full bg-forest-100 ring-2 ring-forest-200 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="w-8 h-8 text-forest-600" />
-              </div>
-              <h2 className="text-lg font-bold text-forest-800 font-heading mb-1">
-                Stage Approved Successfully
-              </h2>
-              <p className="text-sm text-forest-600 mb-1">
-                <span className="font-semibold">{activeStage ? stageLabels[activeStage.stage] : ""}</span> review
-                has been completed and approved.
-              </p>
-              {comments && (
-                <p className="text-[12px] text-beige-500 mt-2 italic">
-                  &ldquo;{comments}&rdquo;
-                </p>
-              )}
-              <div className="mt-5">
-                <Link href={`/enterprise/sow/${sow.id}`}>
-                  <Button variant="outline" size="md">
-                    <ArrowLeft className="w-4 h-4" />
-                    Return to SOW
-                  </Button>
-                </Link>
-              </div>
-            </motion.div>
-          )}
-
-          {/* ═══ Rejection Success State ═══ */}
-          {rejectionSubmitted && (
-            <motion.div
-              variants={scaleIn}
-              initial="hidden"
-              animate="show"
-              className={cn(
-                "rounded-2xl border backdrop-blur-sm p-8 text-center",
-                rejectionType === "changes"
-                  ? "border-gold-200/50 bg-gold-50/40"
-                  : "border-red-200/50 bg-red-50/40"
-              )}
-            >
-              <div
-                className={cn(
-                  "w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4",
-                  rejectionType === "changes"
-                    ? "bg-gold-100 ring-2 ring-gold-200"
-                    : "bg-red-100 ring-2 ring-red-200"
-                )}
-              >
-                {rejectionType === "changes" ? (
-                  <AlertTriangle className="w-8 h-8 text-gold-600" />
-                ) : (
-                  <XCircle className="w-8 h-8 text-red-600" />
-                )}
-              </div>
-              <h2
-                className={cn(
-                  "text-lg font-bold font-heading mb-1",
-                  rejectionType === "changes" ? "text-gold-800" : "text-red-800"
-                )}
-              >
-                {rejectionType === "changes"
-                  ? "Changes Requested"
-                  : "SOW Rejected"}
-              </h2>
-              <p
-                className={cn(
-                  "text-sm mb-1",
-                  rejectionType === "changes" ? "text-gold-700" : "text-red-600"
-                )}
-              >
-                {rejectionType === "changes"
-                  ? "The SOW has been sent back to the owner for modifications."
-                  : "This SOW has been terminated and cannot be resumed."}
-              </p>
-              <p className="text-[12px] text-beige-500 mt-2 italic max-w-md mx-auto">
-                &ldquo;{rejectionReason}&rdquo;
-              </p>
-              <div className="mt-5">
-                <Link href={`/enterprise/sow/${sow.id}`}>
-                  <Button variant="outline" size="md">
-                    <ArrowLeft className="w-4 h-4" />
-                    Return to SOW
-                  </Button>
-                </Link>
-              </div>
-            </motion.div>
-          )}
-
-          {/* ═══ All Stages Complete — No Active Stage ═══ */}
-          {allStagesApproved && !activeStage && !approvalSubmitted && !rejectionSubmitted && (
-            <motion.div
-              variants={fadeUp}
-              className="rounded-2xl border border-forest-200/50 bg-forest-50/40 backdrop-blur-sm p-8 text-center"
-            >
-              <div className="w-16 h-16 rounded-full bg-forest-100 ring-2 ring-forest-200 flex items-center justify-center mx-auto mb-4">
-                <Sparkles className="w-8 h-8 text-forest-600" />
-              </div>
-              <h2 className="text-lg font-bold text-forest-800 font-heading mb-1">
-                All Stages Approved
-              </h2>
-              <p className="text-sm text-forest-600 max-w-sm mx-auto">
-                This SOW has passed all approval stages and is ready for
-                decomposition into tasks.
-              </p>
-              <div className="mt-5">
-                <Link href={`/enterprise/sow/${sow.id}`}>
-                  <Button variant="gradient-forest" size="md">
-                    <GitBranch className="w-4 h-4" />
-                    Proceed to Decomposition
-                  </Button>
-                </Link>
-              </div>
-            </motion.div>
-          )}
-        </motion.div>
-
-        {/* RIGHT — SOW Summary Sidebar (1/3) */}
-        <motion.div variants={slideInRight} className="space-y-4">
-          {/* SOW Quick Summary */}
-          <div className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5">
-            <h3 className="text-[12px] font-bold text-beige-500 uppercase tracking-wider mb-4">
-              SOW Summary
-            </h3>
-            <div className="space-y-3">
-              {[
-                { label: "Title", value: sow.title },
-                { label: "Client", value: sow.client },
-                { label: "Version", value: `v${sow.version}` },
-                { label: "Pages", value: `${sow.pages} pages` },
-                {
-                  label: "Budget",
-                  value:
-                    sow.estimatedBudget > 0
-                      ? `$${sow.estimatedBudget.toLocaleString()}`
-                      : "TBD",
-                },
-                { label: "Duration", value: sow.estimatedDuration },
-                { label: "Industry", value: sow.industry || "—" },
-                { label: "Sensitivity", value: sow.dataSensitivity },
-              ].map(({ label, value }) => (
-                <div
-                  key={label}
-                  className="flex items-center justify-between py-1"
-                >
-                  <span className="text-[12px] text-beige-600">{label}</span>
-                  <span className="text-[12px] font-semibold text-brown-800 text-right max-w-[60%] truncate">
-                    {value}
-                  </span>
-                </div>
-              ))}
+                  </React.Fragment>
+                );
+              })}
             </div>
-          </div>
+          </motion.div>
 
-          {/* AI Confidence */}
-          <div className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5 text-center">
-            <h3 className="text-[12px] font-bold text-beige-500 uppercase tracking-wider mb-3">
-              AI Confidence
-            </h3>
-            <div className="flex justify-center mb-2">
-              <MetricRing
-                value={sow.aiConfidence}
-                size={80}
-                strokeWidth={6}
-                color={
-                  sow.aiConfidence >= 90
-                    ? "forest"
-                    : sow.aiConfidence >= 70
-                    ? "teal"
-                    : "gold"
-                }
-                label="Overall"
+          {/* ═══ REVIEW CARD — Linear flow: checklist → notes → action ═══ */}
+          <motion.div variants={fadeUp} className="card-parchment" style={{ padding: 0, overflow: "hidden" }}>
+            {/* Card header */}
+            <div className="section-header-parchment">
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", lineHeight: 1.2 }}>
+                  {stageLabels[activeStage.stage]}
+                </p>
+                <p style={{ fontSize: 11, color: "var(--ink-faint)", marginTop: 2 }}>
+                  {stageDesc[activeStage.stage]}
+                </p>
+              </div>
+              <span style={{ ...bg(checkedCount === activeChecklist.length ? "forest" : "gold"), fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 5 }}>
+                {checkedCount}/{activeChecklist.length}
+              </span>
+            </div>
+
+            {/* Progress bar */}
+            <div style={{ padding: "0 28px" }}>
+              <div className="prog-track" style={{ marginTop: 20, marginBottom: 4 }}>
+                <div className="prog-fill" style={{
+                  width: `${activeChecklist.length > 0 ? (checkedCount / activeChecklist.length) * 100 : 0}%`,
+                  transition: "width 0.4s ease-out",
+                  background: allChecked
+                    ? `linear-gradient(90deg, ${C.forest}, rgba(${R.teal},0.8))`
+                    : `linear-gradient(90deg, ${C.brown}, rgba(${R.gold},0.7))`,
+                }} />
+              </div>
+            </div>
+
+            {/* Checklist — single column, linear flow */}
+            <div style={{ padding: "16px 28px 0" }}>
+              {activeChecklist.map((item, idx) => {
+                const isChecked = !!checked[item.id];
+                return (
+                  <label
+                    key={item.id}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 14,
+                      padding: "16px 0", cursor: "pointer",
+                      borderBottom: idx < activeChecklist.length - 1 ? "1px solid var(--border-hair)" : "none",
+                      transition: "all 0.18s",
+                    }}
+                  >
+                    <Checkbox
+                      checked={isChecked}
+                      onCheckedChange={(val) => setChecked((prev) => ({ ...prev, [item.id]: !!val }))}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{
+                        fontSize: 13.5, fontWeight: 600, lineHeight: 1.3,
+                        color: isChecked ? C.forest : "var(--ink)",
+                        transition: "color 0.15s",
+                      }}>
+                        {item.label}
+                      </p>
+                      <p style={{ fontSize: 11.5, color: "var(--ink-faint)", marginTop: 2, lineHeight: 1.4 }}>
+                        {item.description}
+                      </p>
+                    </div>
+                    {isChecked && <CheckCircle2 style={{ width: 16, height: 16, color: C.forest, flexShrink: 0 }} />}
+                  </label>
+                );
+              })}
+            </div>
+
+            {/* Notes — full width */}
+            <div style={{ padding: "24px 28px", borderTop: "1px solid var(--border-hair)" }}>
+              <p className="label-caps" style={{ marginBottom: 10, fontSize: 9 }}>Approval Notes</p>
+              <Textarea
+                value={comments}
+                onChange={(e) => setComments(e.target.value)}
+                placeholder="Optional notes or conditions for this stage..."
+                className="min-h-[100px]"
+                style={{ fontSize: 13 }}
               />
             </div>
-            <p className="text-[11px] text-beige-500">
-              {sow.aiConfidence >= 90
-                ? "High confidence analysis"
-                : "Review flagged sections"}
-            </p>
-          </div>
 
-          {/* Risk Breakdown */}
-          <div className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5">
-            <h3 className="text-[12px] font-bold text-beige-500 uppercase tracking-wider mb-3">
-              Risk Breakdown
-            </h3>
-            <div className="space-y-2.5">
-              {[
-                { label: "Completeness", value: sow.riskScore.completeness, max: 30 },
-                { label: "Confidence", value: sow.riskScore.confidence, max: 25 },
-                { label: "Compliance", value: sow.riskScore.compliance, max: 25 },
-                { label: "Pattern Match", value: sow.riskScore.patternMatch, max: 20 },
-              ].map(({ label, value, max }) => (
-                <div key={label}>
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-[11px] text-beige-600">{label}</span>
-                    <span className="text-[10px] font-mono text-beige-500">
-                      {value}/{max}
-                    </span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-beige-100 overflow-hidden">
-                    <div
-                      className={cn(
-                        "h-full rounded-full transition-all duration-500",
-                        value / max <= 0.5
-                          ? "bg-forest-400"
-                          : value / max <= 0.75
-                          ? "bg-gold-400"
-                          : "bg-brown-400"
-                      )}
-                      style={{ width: `${(value / max) * 100}%` }}
-                    />
-                  </div>
+            {/* Action footer — approver left, buttons right */}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "18px 28px",
+              borderTop: "1px solid var(--border-hair)",
+              background: "rgba(255,255,255,0.4)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{
+                  width: 34, height: 34, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "linear-gradient(145deg, #4D5741, #A67763)", border: "1.5px solid rgba(208,176,96,0.25)",
+                  fontSize: 11, fontWeight: 600, color: "#F4EFEB",
+                }}>PN</div>
+                <div>
+                  <p style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink)", lineHeight: 1.2 }}>Priya Nair</p>
+                  <p style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>{stageLabels[activeStage.stage]} Reviewer</p>
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
 
-          {/* Sections Parsed */}
-          <div className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5">
-            <h3 className="text-[12px] font-bold text-beige-500 uppercase tracking-wider mb-3">
-              Parsed Sections
-            </h3>
-            <div className="space-y-2">
-              {sections.slice(0, 6).map((section) => (
-                <div
-                  key={section.id}
-                  className="flex items-center gap-2 py-1"
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowRejectForm((p) => !p); setRejectionSubmitted(false); }}
+                  style={btnOutline}
                 >
-                  <CheckCircle2
-                    className={cn(
-                      "w-3.5 h-3.5 shrink-0",
-                      section.confidence >= 90
-                        ? "text-forest-500"
-                        : section.confidence >= 75
-                        ? "text-teal-500"
-                        : "text-gold-500"
-                    )}
-                  />
-                  <span className="text-[12px] text-brown-700 truncate flex-1">
-                    {section.title}
-                  </span>
-                  <span className="text-[10px] font-mono text-beige-500 shrink-0">
-                    {section.confidence}%
-                  </span>
-                </div>
-              ))}
-              {sections.length > 6 && (
-                <p className="text-[11px] text-beige-400 text-center pt-1">
-                  +{sections.length - 6} more sections
-                </p>
-              )}
+                  <AlertTriangle style={{ width: 13, height: 13 }} /> Request Changes
+                </button>
+                <button
+                  type="button" disabled={!allChecked} onClick={handleApproveSubmit}
+                  style={{
+                    ...btnPrimary,
+                    opacity: allChecked ? 1 : 0.45, cursor: allChecked ? "pointer" : "not-allowed",
+                  }}
+                >
+                  <CheckCircle2 style={{ width: 14, height: 14 }} />
+                  {allChecked ? "Approve Stage" : `${checkedCount}/${activeChecklist.length} Verified`}
+                </button>
+              </div>
             </div>
-          </div>
 
-          {/* Tags */}
-          <div className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5">
-            <h3 className="text-[12px] font-bold text-beige-500 uppercase tracking-wider mb-3">
-              Tags
-            </h3>
-            <div className="flex flex-wrap gap-1.5">
-              {sow.tags.map((tag) => (
-                <Badge key={tag} variant="beige" size="sm">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          </div>
+            {/* Rejection form — expands below footer */}
+            <AnimatePresence>
+              {showRejectForm && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.22 }}
+                  style={{ overflow: "hidden" }}
+                >
+                  <div style={{ padding: "24px 28px", borderTop: "1px solid var(--border-hair)", background: "rgba(255,255,255,0.3)" }}>
+                    <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+                      {(["changes", "reject"] as RejectionType[]).map((type) => {
+                        const active = rejectionType === type;
+                        const isReject = type === "reject";
+                        const v = isReject ? "brown" : "gold";
+                        return (
+                          <button key={type} type="button" onClick={() => setRejectionType(type)} style={{
+                            flex: 1, padding: "12px 16px", borderRadius: 10, textAlign: "left" as const, cursor: "pointer",
+                            border: active ? `1px solid rgba(${R[v]},0.40)` : "1px solid var(--border-hair)",
+                            background: active ? `rgba(${R[v]},0.06)` : "transparent", transition: "all 0.15s",
+                          }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <div style={{
+                                width: 14, height: 14, borderRadius: "50%", border: `2px solid ${active ? C[v] : "var(--border-soft)"}`,
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                              }}>
+                                {active && <div style={{ width: 6, height: 6, borderRadius: "50%", background: C[v] }} />}
+                              </div>
+                              <span style={{ fontSize: 13, fontWeight: 600, color: active ? C[v] : "var(--ink)" }}>
+                                {isReject ? "Reject SOW" : "Request Changes"}
+                              </span>
+                            </div>
+                            <p style={{ fontSize: 11, color: "var(--ink-faint)", marginTop: 3, marginLeft: 22 }}>
+                              {isReject ? "SOW will be terminated and cannot be resumed" : "Send back to the author for modifications"}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <Textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)}
+                      placeholder={rejectionType === "changes" ? "Describe what needs to change..." : "Reason for rejection..."}
+                      className="min-h-[100px]" style={{ marginBottom: 16, fontSize: 13 }} />
+                    <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                      <button type="button" onClick={() => setShowRejectForm(false)} style={btnOutline}>Cancel</button>
+                      <button type="button" disabled={!rejectionReason.trim()} onClick={handleRejectSubmit} style={{
+                        ...btnPrimary,
+                        opacity: rejectionReason.trim() ? 1 : 0.4, cursor: rejectionReason.trim() ? "pointer" : "not-allowed",
+                        background: rejectionReason.trim() && rejectionType === "reject"
+                          ? "linear-gradient(135deg, #A67763, #886151)"
+                          : rejectionReason.trim() ? `rgba(${R.gold},0.18)` : `rgba(${R.beige},0.3)`,
+                        color: rejectionReason.trim() ? (rejectionType === "reject" ? "#FFFFFF" : C.gold) : "var(--ink-faint)",
+                        border: rejectionReason.trim()
+                          ? (rejectionType === "reject" ? "1px solid rgba(166,119,99,0.30)" : `1px solid rgba(${R.gold},0.30)`)
+                          : "1px solid var(--border-hair)",
+                        boxShadow: rejectionReason.trim() && rejectionType === "reject" ? "inset 0 1px 0 rgba(255,255,255,0.12)" : "none",
+                      }}>
+                        <Send style={{ width: 12, height: 12 }} />
+                        {rejectionType === "changes" ? "Submit Changes" : "Reject SOW"}
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </>
+      )}
+
+      {/* ── Success states ── */}
+      {approvalSubmitted && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card-parchment" style={{ textAlign: "center", padding: "56px 40px" }}>
+          <div style={{ ...bx("forest", 64), borderRadius: 20, margin: "0 auto 20px" }}><CheckCircle2 style={{ width: 28, height: 28, color: C.forest }} /></div>
+          <h2 className="font-heading" style={{ fontSize: "1.3rem", fontWeight: 600, color: "var(--ink)", marginBottom: 6 }}>Stage Approved</h2>
+          <p style={{ fontSize: 13, color: "var(--ink-muted)" }}><span style={{ fontWeight: 600, color: "var(--ink)" }}>{activeStage ? stageLabels[activeStage.stage] : ""}</span> review completed.</p>
+          {comments && <p style={{ fontSize: 12, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 8 }}>&ldquo;{comments}&rdquo;</p>}
+          <Link href={`/enterprise/sow/${sow.id}`} style={{ ...btnOutline, marginTop: 24, textDecoration: "none" }}>Return to SOW</Link>
         </motion.div>
-      </div>
+      )}
+
+      {rejectionSubmitted && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card-parchment" style={{ textAlign: "center", padding: "56px 40px" }}>
+          <div style={{ ...bx(rejectionType === "changes" ? "gold" : "brown", 64), borderRadius: 20, margin: "0 auto 20px" }}>
+            {rejectionType === "changes" ? <AlertTriangle style={{ width: 28, height: 28, color: C.gold }} /> : <XCircle style={{ width: 28, height: 28, color: C.brown }} />}
+          </div>
+          <h2 className="font-heading" style={{ fontSize: "1.3rem", fontWeight: 600, color: "var(--ink)", marginBottom: 6 }}>{rejectionType === "changes" ? "Changes Requested" : "SOW Rejected"}</h2>
+          <p style={{ fontSize: 13, color: "var(--ink-muted)" }}>{rejectionType === "changes" ? "Sent back for modifications." : "This SOW has been terminated."}</p>
+          <p style={{ fontSize: 12, color: "var(--ink-faint)", fontStyle: "italic", maxWidth: 380, margin: "8px auto 0" }}>&ldquo;{rejectionReason}&rdquo;</p>
+          <Link href={`/enterprise/sow/${sow.id}`} style={{ ...btnOutline, marginTop: 24, textDecoration: "none" }}>Return to SOW</Link>
+        </motion.div>
+      )}
+
+      {allStagesApproved && !activeStage && !approvalSubmitted && !rejectionSubmitted && (
+        <motion.div variants={fadeUp} className="card-parchment" style={{ textAlign: "center", padding: "56px 40px" }}>
+          <div style={{ ...bx("forest", 64), borderRadius: 20, margin: "0 auto 20px" }}><Sparkles style={{ width: 28, height: 28, color: C.forest }} /></div>
+          <h2 className="font-heading" style={{ fontSize: "1.3rem", fontWeight: 600, color: "var(--ink)", marginBottom: 6 }}>All Stages Approved</h2>
+          <p style={{ fontSize: 13, color: "var(--ink-muted)", maxWidth: 340, margin: "0 auto 24px" }}>Ready for decomposition into tasks.</p>
+          <Link href={`/enterprise/sow/${sow.id}`} style={{
+            ...btnPrimary, textDecoration: "none", background: "linear-gradient(135deg, #4D5741, #3a4230)", border: "1px solid rgba(77,87,65,0.30)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 8px rgba(77,87,65,0.20)",
+          }}><GitBranch style={{ width: 14, height: 14 }} /> Proceed to Decomposition</Link>
+        </motion.div>
+      )}
     </motion.div>
   );
 }
