@@ -114,7 +114,7 @@
 
 :root {
   /* Clean neutral surface system */
-  --page-bg:       #F5F5F7;
+  --page-bg:       #FFFFFF;
   --sidebar-bg:    #FEFEFE;
   --card-bg:       #FEFEFE;
   --card-bg-alt:   #F3F2F0;
@@ -291,7 +291,7 @@ body::after {
   background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(16px) saturate(160%);
   -webkit-backdrop-filter: blur(16px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 20px;
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.03),
@@ -311,12 +311,6 @@ body::after {
 }
 
 .card-parchment:hover {
-  box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.05),
-    0 16px 48px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255,255,255,0.8);
-  border-color: rgba(255, 255, 255, 0.6);
-  transform: translateY(-2px);
 }
 
 /* Gold horizontal rule */
@@ -438,21 +432,22 @@ textarea::placeholder,
   font-size: 13px;
   font-weight: 400;
   color: var(--ink-muted);
-  background: #FFFFFF !important;
+  background: rgba(255,255,255,0.6) !important;
   border: 1px solid var(--border-soft) !important;
-  border-radius: 8px !important;
+  border-radius: 10px !important;
   padding: 0 10px;
-  box-shadow: none !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.5) !important;
   transition: all 0.15s ease;
 }
 .filter-trigger:hover {
-  border-color: rgba(166,119,99,0.22) !important;
+  border-color: var(--border-mid) !important;
+  background: rgba(255,255,255,0.8) !important;
 }
 .filter-trigger:focus,
 .filter-trigger[data-state="open"] {
-  background: #FFFFFF !important;
-  border-color: rgba(166,119,99,0.30) !important;
-  box-shadow: 0 0 0 2px rgba(166,119,99,0.06) !important;
+  background: rgba(255,255,255,0.9) !important;
+  border-color: var(--border-strong) !important;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.04) !important;
 }
 
 /* ── Filter pill (floating filter dropdowns) ── */
@@ -462,21 +457,21 @@ textarea::placeholder,
   font-size: 13px;
   font-weight: 450;
   color: var(--ink-mid);
-  background: #FFFFFF;
+  background: rgba(255,255,255,0.6);
   border: 1px solid var(--border-soft);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 0 14px;
-  box-shadow: 0 1px 3px rgba(77,55,46,0.03);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
   transition: all 0.15s ease;
 }
 .filter-pill:hover {
-  border-color: rgba(166,119,99,0.22);
-  box-shadow: 0 2px 6px rgba(77,55,46,0.05);
+  border-color: var(--border-mid);
+  background: rgba(255,255,255,0.8);
 }
 .filter-pill:focus,
 .filter-pill[data-state="open"] {
-  border-color: rgba(166,119,99,0.30);
-  box-shadow: 0 0 0 3px rgba(166,119,99,0.06), 0 2px 6px rgba(77,55,46,0.04);
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.5);
 }
 
 /* ══════════════════════════════════════════════════════════════

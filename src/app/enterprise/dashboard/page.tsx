@@ -217,7 +217,7 @@ export default function EnterpriseDashboardPage() {
             </div>
             {mockSOWs.slice(0, 5).map((sow, i) => (
               <Link key={sow.id} href={`/enterprise/sow/${sow.id}`}>
-                <div className="flex items-center justify-between py-3 -mx-2 px-2 rounded-xl transition-all hover:bg-white/50"
+                <div className="flex items-center justify-between py-3 -mx-2 px-2 rounded-xl transition-all "
                   style={{ borderBottom: i < 4 ? "1px solid rgba(0,0,0,0.04)" : undefined }}>
                   <div className="min-w-0 flex-1">
                     <div className="text-[13px] font-medium truncate text-gray-700">{sow.title}</div>
@@ -240,7 +240,7 @@ export default function EnterpriseDashboardPage() {
               const Icon = typeIcon[item.type] || ClipboardCheck;
               return (
                 <Link key={item.id} href={item.href}>
-                  <div className="flex items-start gap-3 py-3 px-6 rounded-xl transition-all hover:bg-white/50"
+                  <div className="flex items-start gap-3 py-3 px-6 rounded-xl transition-all "
                     style={{ borderBottom: i < attentionItems.length - 1 ? "1px solid rgba(0,0,0,0.04)" : undefined }}>
                     <Icon className="w-4 h-4 shrink-0 mt-0.5 text-gray-400" />
                     <div className="flex-1 min-w-0">
@@ -272,7 +272,7 @@ export default function EnterpriseDashboardPage() {
           const h = healthCfg[project.health];
           return (
             <Link key={project.id} href={`/enterprise/projects/${project.id}`}>
-              <div className="flex lg:grid items-center px-6 py-3.5 rounded-xl transition-all hover:bg-white/50"
+              <div className="flex lg:grid items-center px-6 py-3.5 rounded-xl transition-all "
                 style={{ gridTemplateColumns: "1fr 140px 110px 200px 80px", borderBottom: i < mockProjects.length - 1 ? "1px solid rgba(0,0,0,0.04)" : undefined }}>
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] font-medium text-gray-700">{project.title}</div>
@@ -310,7 +310,7 @@ export default function EnterpriseDashboardPage() {
             </div>
             {mockPlans.slice(0, 4).map((plan, i) => (
               <Link key={plan.id} href={`/enterprise/decomposition/${plan.id}`}>
-                <div className="flex items-center gap-2.5 px-6 py-2.5 rounded-xl transition-all hover:bg-white/50"
+                <div className="flex items-center gap-2.5 px-6 py-2.5 rounded-xl transition-all "
                   style={{ borderBottom: i < 3 ? "1px solid rgba(0,0,0,0.04)" : undefined }}>
                   <GitBranch className="w-3.5 h-3.5 shrink-0 text-gray-400" />
                   <div className="flex-1 min-w-0">
@@ -343,7 +343,7 @@ export default function EnterpriseDashboardPage() {
               ))}
             </div>
             {mockTeams.map((team, i) => (
-              <div key={team.id} className="flex items-center gap-2.5 px-6 py-2.5 rounded-xl transition-all hover:bg-white/50"
+              <div key={team.id} className="flex items-center gap-2.5 px-6 py-2.5 rounded-xl transition-all "
                 style={{ borderBottom: i < mockTeams.length - 1 ? "1px solid rgba(0,0,0,0.04)" : undefined }}>
                 <Users className="w-3.5 h-3.5 shrink-0 text-gray-400" />
                 <div className="flex-1 min-w-0">
@@ -424,7 +424,7 @@ export default function EnterpriseDashboardPage() {
               {events.map((event, i) => {
                 const isAI = event.actor === "APG System" || event.actor === "Finance Team";
                 return (
-                  <div key={event.id} className="flex items-start gap-3 px-6 py-3 rounded-xl transition-all hover:bg-white/50"
+                  <div key={event.id} className="flex items-start gap-3 px-6 py-3 rounded-xl transition-all "
                     style={{ borderBottom: i < 2 ? "1px solid rgba(0,0,0,0.04)" : undefined }}>
                     <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${isAI ? "bg-teal-500" : "bg-gray-300"}`} />
                     <div className="flex-1">
