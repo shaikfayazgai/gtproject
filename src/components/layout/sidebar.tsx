@@ -72,7 +72,7 @@ export function Sidebar({ config }: SidebarProps) {
           "flex items-center shrink-0",
           isCollapsed ? "px-3 justify-center" : "px-5"
         )}
-        style={{ height: 52, borderBottom: "1px solid rgba(0,0,0,0.05)" }}
+        style={{ height: 52 }}
       >
         <div className="flex items-center justify-between w-full">
           <Link href="/" className="flex items-center gap-2.5 min-w-0">
@@ -162,10 +162,7 @@ export function Sidebar({ config }: SidebarProps) {
                 )}
 
                 {hasSectionTitle && isCollapsed && sIdx > 0 && (
-                  <div
-                    className="mx-2 my-3"
-                    style={{ height: 1, background: "rgba(0,0,0,0.05)" }}
-                  />
+                  <div className="my-2" />
                 )}
 
                 <AnimatePresence initial={false}>
@@ -195,19 +192,21 @@ export function Sidebar({ config }: SidebarProps) {
                               href={item.href}
                               onClick={() => closeMobile()}
                               className={cn(
-                                "group/item relative flex items-center gap-2.5 rounded-xl transition-all duration-200",
+                                "group/item relative flex items-center gap-2.5 rounded-xl transition-colors duration-150",
                                 isCollapsed
                                   ? "justify-center px-2 py-2.5"
                                   : "px-3 py-[8px]",
                                 active
-                                  ? "bg-white/60 border border-white/40 shadow-sm text-brown-600 font-medium"
-                                  : "text-gray-500 border border-transparent hover:bg-white/40 hover:text-gray-700"
+                                  ? "text-brown-700 font-medium"
+                                  : "text-gray-500 hover:text-gray-600 hover:bg-white/40"
                               )}
-                              style={{ fontSize: "12.5px" }}
+                              style={{
+                                fontSize: "12.5px",
+                                ...(active ? {
+                                  background: "linear-gradient(90deg, rgba(166,119,99,0.09) 0%, transparent 80%)",
+                                } : {}),
+                              }}
                             >
-                              {active && !isCollapsed && (
-                                <span className="absolute left-[-1px] top-[20%] bottom-[20%] w-[2px] rounded-r bg-brown-500" />
-                              )}
 
                               <Icon
                                 className={cn(
@@ -276,11 +275,8 @@ export function Sidebar({ config }: SidebarProps) {
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="hidden lg:flex flex-col fixed top-0 left-0 h-screen z-40 overflow-hidden"
         style={{
-          background: "rgba(255, 255, 255, 0.68)",
-          backdropFilter: "blur(20px) saturate(160%)",
-          WebkitBackdropFilter: "blur(20px) saturate(160%)",
-          borderRight: "1px solid rgba(255, 255, 255, 0.40)",
-          boxShadow: "1px 0 20px rgba(0,0,0,0.03)",
+          background: "linear-gradient(180deg, rgba(246,241,239,0.45) 0%, rgba(255,255,255,0.98) 100%)",
+          borderRight: "1px solid rgba(0,0,0,0.06)",
         }}
       >
         {sidebarContent}
@@ -304,11 +300,9 @@ export function Sidebar({ config }: SidebarProps) {
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               className="fixed top-0 left-0 h-screen w-[220px] z-50 lg:hidden overflow-hidden"
               style={{
-                background: "rgba(255, 255, 255, 0.80)",
-                backdropFilter: "blur(24px) saturate(180%)",
-                WebkitBackdropFilter: "blur(24px) saturate(180%)",
-                borderRight: "1px solid rgba(255, 255, 255, 0.40)",
-                boxShadow: "4px 0 40px rgba(0,0,0,0.06)",
+                background: "linear-gradient(180deg, rgba(246,241,239,0.5) 0%, rgba(255,255,255,1) 100%)",
+                borderRight: "1px solid rgba(0,0,0,0.06)",
+                boxShadow: "4px 0 30px rgba(0,0,0,0.04)",
               }}
             >
               <button

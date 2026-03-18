@@ -165,7 +165,7 @@ export default function EnterpriseDashboardPage() {
       </motion.div>
 
       {/* ═══ KPI CARDS ═══ */}
-      <motion.div variants={fadeUp} className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-7">
+      <motion.div variants={fadeUp} className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
         {[
           { label: "Active SOWs", value: mockSOWs.length, sub: `${sowsByStage.approval} in approval`, accent: 0, bar: true },
           { label: "Active Projects", value: activeProjects.length, sub: "+1 this month", accent: 1, trend: true },
@@ -198,7 +198,7 @@ export default function EnterpriseDashboardPage() {
       </motion.div>
 
       {/* ═══ SOW PIPELINE + ATTENTION ═══ */}
-      <motion.div variants={fadeUp} className="grid gap-5 mb-7" style={{ gridTemplateColumns: "1.4fr 1fr" }}>
+      <motion.div variants={fadeUp} className="grid gap-3 mb-5" style={{ gridTemplateColumns: "1.4fr 1fr" }}>
         <div className="card-parchment">
           <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
             <span className="text-sm font-semibold text-gray-800">SOW Pipeline</span>
@@ -260,7 +260,7 @@ export default function EnterpriseDashboardPage() {
       </motion.div>
 
       {/* ═══ ACTIVE PROJECTS ═══ */}
-      <motion.div variants={fadeUp} className="card-parchment mb-7">
+      <motion.div variants={fadeUp} className="card-parchment mb-5">
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
           <span className="text-sm font-semibold text-gray-800">Active Projects</span>
           <Link href="/enterprise/projects" className="flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700">View all <ArrowRight className="w-3 h-3" /></Link>
@@ -295,7 +295,7 @@ export default function EnterpriseDashboardPage() {
       </motion.div>
 
       {/* ═══ DECOMP + TEAMS + FINANCIAL ═══ */}
-      <motion.div variants={fadeUp} className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-7">
+      <motion.div variants={fadeUp} className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-5">
         {/* Decomposition */}
         <div className="card-parchment">
           <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
