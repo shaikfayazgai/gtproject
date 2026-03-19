@@ -7,6 +7,7 @@ import {
   AlertTriangle, ClipboardCheck, ArrowRight, Users, Clock,
   TrendingUp, TrendingDown, CheckCircle2, XCircle, RotateCcw,
   ShieldCheck, Banknote, Target, GitBranch, Timer, CircleCheck, Bot,
+  FileText, FolderKanban, Wallet, ChevronRight,
 } from "lucide-react";
 import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
 import { mockProjects, mockDeliverables, mockPlans, mockTeams, mockAssignments } from "@/mocks/data/enterprise-projects";
@@ -52,19 +53,19 @@ const firstPassRate = deliveryPerf?.metrics[2]?.value ?? 0;
 /* ══════════════════════════════════════════ Style configs ══════════════════════════════════════════ */
 
 const badge: Record<string, { bg: string; color: string }> = {
-  forest: { bg: "rgba(77,87,65,0.08)", color: "#3F4735" },
-  teal: { bg: "rgba(91,155,162,0.10)", color: "#3A6368" },
-  gold: { bg: "rgba(208,176,96,0.10)", color: "#86713D" },
-  danger: { bg: "rgba(196,87,74,0.08)", color: "#8B2C2C" },
-  beige: { bg: "rgba(0,0,0,0.05)", color: "#706B66" },
-  brown: { bg: "rgba(166,119,99,0.08)", color: "#6A4C3F" },
+  forest: { bg: "var(--color-forest-50)", color: "var(--color-forest-700)" },
+  teal: { bg: "var(--color-teal-50)", color: "var(--color-teal-700)" },
+  gold: { bg: "var(--color-gold-50)", color: "var(--color-gold-700)" },
+  danger: { bg: "var(--danger-light)", color: "var(--danger)" },
+  beige: { bg: "var(--color-gray-100)", color: "var(--color-gray-600)" },
+  brown: { bg: "var(--color-brown-50)", color: "var(--color-brown-700)" },
 };
 
 const healthCfg: Record<ProjectHealth, { label: string; dot: string; badge: string; progress: string }> = {
-  on_track: { label: "On Track", dot: "#4D5741", badge: "forest", progress: "#4D5741" },
-  at_risk: { label: "At Risk", dot: "#D0B060", badge: "gold", progress: "#D0B060" },
-  behind: { label: "Behind", dot: "#C4574A", badge: "danger", progress: "#C4574A" },
-  completed: { label: "Completed", dot: "#5B9BA2", badge: "teal", progress: "#5B9BA2" },
+  on_track: { label: "On Track", dot: "var(--color-forest-500)", badge: "forest", progress: "var(--color-forest-500)" },
+  at_risk: { label: "At Risk", dot: "var(--color-gold-500)", badge: "gold", progress: "var(--color-gold-500)" },
+  behind: { label: "Behind", dot: "var(--danger)", badge: "danger", progress: "var(--danger)" },
+  completed: { label: "Completed", dot: "var(--color-teal-500)", badge: "teal", progress: "var(--color-teal-500)" },
 };
 
 const sowBadge: Record<string, string> = { draft: "beige", parsing: "teal", review: "gold", approval: "gold", approved: "forest", archived: "beige" };
@@ -72,6 +73,7 @@ const teamBadge: Record<string, string> = { forming: "gold", ready: "teal", acti
 const planBadge: Record<string, string> = { draft: "beige", in_progress: "gold", pending_review: "teal", approved: "forest", completed: "teal" };
 const planLabel: Record<string, string> = { draft: "Draft", in_progress: "Progress", pending_review: "Review", approved: "Approved", completed: "Done" };
 const typeBadge: Record<string, string> = { overdue: "danger", escalation: "gold", rework: "teal", approval: "brown", sow: "forest" };
+const urgencyDot: Record<string, string> = { overdue: "var(--danger)", escalation: "var(--danger)", rework: "var(--color-gold-500)", approval: "var(--color-gold-500)", sow: "var(--color-gray-400)" };
 const typeIcon: Record<string, React.ElementType> = { approval: ClipboardCheck, escalation: AlertTriangle, overdue: XCircle, rework: RotateCcw, sow: Clock };
 
 /* ══════════════════════════════════════════ Inline badge helper ══════════════════════════════════════════ */
@@ -89,13 +91,13 @@ function Pill({ variant, dot, children, className }: { variant: string; dot?: bo
 
 /* ══════════════════════════════════════════ ProgressRing ══════════════════════════════════════════ */
 
-function ProgressRing({ value, size = 56, stroke = 5, color = "#5B9BA2" }: { value: number; size?: number; stroke?: number; color?: string }) {
+function ProgressRing({ value, size = 56, stroke = 5, color = "var(--color-brown-500)" }: { value: number; size?: number; stroke?: number; color?: string }) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="transform -rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border-soft)" strokeWidth={stroke} />
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
           strokeDasharray={c} strokeDashoffset={c - (value / 100) * c} strokeLinecap="round" style={{ transition: "stroke-dashoffset 1.5s ease" }} />
       </svg>
@@ -116,10 +118,10 @@ function SpendSparkline({ compact }: { compact?: boolean }) {
   const d = pts.map((p, i) => { if (i === 0) return `M${p.x},${p.y}`; const prev = pts[i - 1]; const cx = (prev.x + p.x) / 2; return `C${cx},${prev.y} ${cx},${p.y} ${p.x},${p.y}`; }).join(" ");
   return (
     <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: compact ? 45 : 60, overflow: "visible" }} aria-hidden>
-      <defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#A67763" stopOpacity="0.15" /><stop offset="100%" stopColor="#A67763" stopOpacity="0" /></linearGradient></defs>
+      <defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--color-brown-500)" stopOpacity="0.15" /><stop offset="100%" stopColor="var(--color-brown-500)" stopOpacity="0" /></linearGradient></defs>
       <path d={`${d} L${w},${h} L0,${h} Z`} fill="url(#sg)" />
-      <path d={d} fill="none" stroke="#A67763" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.6" />
-      {pts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={i === pts.length - 1 ? 3 : 2} fill={i === pts.length - 1 ? "#A67763" : "rgba(166,119,99,0.4)"} stroke={i === pts.length - 1 ? "#FFF" : undefined} strokeWidth={i === pts.length - 1 ? 1.5 : undefined} />)}
+      <path d={d} fill="none" stroke="var(--color-brown-400)" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.6" />
+      {pts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={i === pts.length - 1 ? 3 : 2} fill={i === pts.length - 1 ? "var(--color-brown-500)" : "var(--color-brown-300)"} stroke={i === pts.length - 1 ? "white" : undefined} strokeWidth={i === pts.length - 1 ? 1.5 : undefined} />)}
       {!compact && data.map((m, i) => <text key={m.month} x={i * stepX} y={h} fill="var(--ink-faint)" fontSize="8" fontFamily="var(--font-mono)">{m.month}</text>)}
     </svg>
   );
@@ -165,27 +167,33 @@ export default function EnterpriseDashboardPage() {
       </motion.div>
 
       {/* ═══ KPI CARDS ═══ */}
-      <motion.div variants={fadeUp} className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
+      <motion.div variants={fadeUp} className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
         {[
-          { label: "Active SOWs", value: mockSOWs.length, sub: `${sowsByStage.approval} in approval`, accent: 0, bar: true },
-          { label: "Active Projects", value: activeProjects.length, sub: "+1 this month", accent: 1, trend: true },
-          { label: "APG Escalations", value: totalEscalations, sub: `Across ${activeProjects.filter(p => p.escalations > 0).length} projects`, accent: 2 },
-          { label: "Pending Reviews", value: pendingApprovals, link: "/enterprise/review", linkText: "Review now", accent: 3 },
-        ].map((kpi) => (
+          { label: "Active SOWs", value: mockSOWs.length, sub: `${sowsByStage.approval} in approval`, icon: FileText, bar: true },
+          { label: "Active Projects", value: activeProjects.length, sub: "+1 this month", icon: FolderKanban, trend: true },
+          { label: "APG Escalations", value: totalEscalations, sub: `Across ${activeProjects.filter(p => p.escalations > 0).length} projects`, icon: AlertTriangle },
+          { label: "Pending Reviews", value: pendingApprovals, link: "/enterprise/review", linkText: "Review now", icon: ClipboardCheck },
+        ].map((kpi) => {
+          const KpiIcon = kpi.icon;
+          return (
           <motion.div key={kpi.label} variants={scaleIn} className="card-parchment p-6">
-            <div className="label-caps mb-3">{kpi.label}</div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="label-caps">{kpi.label}</div>
+              <KpiIcon className="w-4 h-4 text-brown-400" />
+            </div>
             <div className="num-display text-[34px] text-gray-900">{kpi.value}</div>
-            {kpi.sub && <div className="text-xs mt-2 text-gray-500">{kpi.trend && <TrendingUp className="w-3 h-3 inline mr-1 text-forest-600" />}{kpi.sub}</div>}
-            {kpi.link && <Link href={kpi.link} className="flex items-center gap-1 mt-2 text-xs font-medium text-teal-600 hover:text-teal-700">{kpi.linkText} <ArrowRight className="w-3 h-3" /></Link>}
+            {kpi.sub && <div className="text-xs mt-2 text-gray-500">{kpi.trend && <TrendingUp className="w-3 h-3 inline mr-1 text-brown-400" />}{kpi.sub}</div>}
+            {kpi.link && <Link href={kpi.link} className="flex items-center gap-1 mt-2 text-xs font-medium text-brown-500 hover:text-brown-600">{kpi.linkText} <ArrowRight className="w-3 h-3" /></Link>}
             {kpi.bar && (
               <div className="flex rounded-full overflow-hidden mt-3 h-[3px]">
-                <div style={{ width: `${(sowsByStage.draft / mockSOWs.length) * 100}%`, background: "#A67763", opacity: 0.5 }} />
-                <div style={{ width: `${(sowsByStage.approval / mockSOWs.length) * 100}%`, background: "#D0B060", opacity: 0.5 }} />
-                <div style={{ width: `${(sowsByStage.approved / mockSOWs.length) * 100}%`, background: "#4D5741", opacity: 0.5 }} />
+                <div style={{ width: `${(sowsByStage.draft / mockSOWs.length) * 100}%`, background: "var(--color-brown-500)", opacity: 0.5 }} />
+                <div style={{ width: `${(sowsByStage.approval / mockSOWs.length) * 100}%`, background: "var(--color-gold-500)", opacity: 0.5 }} />
+                <div style={{ width: `${(sowsByStage.approved / mockSOWs.length) * 100}%`, background: "var(--color-forest-500)", opacity: 0.5 }} />
               </div>
             )}
           </motion.div>
-        ))}
+          );
+        })}
         {/* Budget — progress ring */}
         <motion.div variants={scaleIn} className="card-parchment p-6 flex items-center gap-4">
           <ProgressRing value={budgetUtilization} />
@@ -198,56 +206,61 @@ export default function EnterpriseDashboardPage() {
       </motion.div>
 
       {/* ═══ SOW PIPELINE + ATTENTION ═══ */}
-      <motion.div variants={fadeUp} className="grid gap-3 mb-5" style={{ gridTemplateColumns: "1.4fr 1fr" }}>
+      <motion.div variants={fadeUp} className="grid gap-3 mb-6" style={{ gridTemplateColumns: "1.4fr 1fr" }}>
         <div className="card-parchment">
-          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
+          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
             <span className="text-sm font-semibold text-gray-800">SOW Pipeline</span>
-            <Link href="/enterprise/sow" className="flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700">Manage <ArrowRight className="w-3 h-3" /></Link>
+            <Link href="/enterprise/sow" className="flex items-center gap-1 text-xs font-medium text-brown-500 hover:text-brown-600">Manage <ArrowRight className="w-3 h-3" /></Link>
           </div>
-          <div className="px-6 py-5">
-            <div className="flex rounded-full overflow-hidden h-1.5 bg-black/[0.04]">
-              <div style={{ width: `${(sowsByStage.draft / mockSOWs.length) * 100}%` }} className="bg-gradient-to-r from-brown-400 to-brown-300" />
-              <div style={{ width: `${(sowsByStage.approval / mockSOWs.length) * 100}%` }} className="bg-gradient-to-r from-gold-500 to-gold-400" />
-              <div style={{ width: `${(sowsByStage.approved / mockSOWs.length) * 100}%` }} className="bg-gradient-to-r from-forest-500 to-forest-400" />
-            </div>
-            <div className="flex gap-5 mt-2.5 mb-5">
-              {[{ l: "Draft", c: sowsByStage.draft, cls: "bg-brown-400" }, { l: "Approval", c: sowsByStage.approval, cls: "bg-gold-500" }, { l: "Approved", c: sowsByStage.approved, cls: "bg-forest-500" }].map((s) => (
-                <span key={s.l} className="flex items-center gap-1.5 text-[11px] text-gray-500"><span className={`w-1.5 h-1.5 rounded-full ${s.cls}`} /> {s.l} ({s.c})</span>
-              ))}
-            </div>
-            {mockSOWs.slice(0, 5).map((sow, i) => (
-              <Link key={sow.id} href={`/enterprise/sow/${sow.id}`}>
-                <div className="flex items-center justify-between py-3 -mx-2 px-2 rounded-xl transition-all "
-                  style={{ borderBottom: i < 4 ? "1px solid rgba(0,0,0,0.04)" : undefined }}>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-medium truncate text-gray-700">{sow.title}</div>
-                    <div className="text-[11px] mt-0.5 text-gray-400">{sow.client}</div>
+          <div className="py-2">
+            {mockSOWs.slice(0, 5).map((sow, i) => {
+              const dotColor: Record<string, string> = { draft: "bg-brown-400", parsing: "bg-teal-500", review: "bg-gold-500", approval: "bg-gold-500", approved: "bg-forest-500", archived: "bg-gray-300" };
+              return (
+                <Link key={sow.id} href={`/enterprise/sow/${sow.id}`}>
+                  <div className="flex items-center gap-3 py-3.5 px-6 transition-colors hover:bg-black/[0.02]"
+                    style={{ borderBottom: i < 4 ? "1px solid var(--border-hair)" : undefined }}>
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor[sow.status] || "bg-gray-300"}`} />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-medium truncate text-gray-700">{sow.title}</div>
+                      <div className="text-[11px] mt-0.5 text-gray-400">{sow.client}</div>
+                    </div>
+                    {sow.riskScore.overall > 0 && (
+                      <span className="text-[10px] font-mono text-gray-400 shrink-0">Risk {sow.riskScore.overall}</span>
+                    )}
+                    <Pill variant={sowBadge[sow.status] || "beige"} className="ml-2 shrink-0">{sow.status}</Pill>
                   </div>
-                  <Pill variant={sowBadge[sow.status] || "beige"} className="ml-3 shrink-0">{sow.status}</Pill>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </div>
 
         <div className="card-parchment">
-          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
+          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
             <span className="text-sm font-semibold text-gray-800">Needs Attention</span>
             <Pill variant="danger">{attentionItems.length}</Pill>
           </div>
           <div className="py-1">
             {attentionItems.map((item, i) => {
               const Icon = typeIcon[item.type] || ClipboardCheck;
+              const isCritical = item.type === "overdue" || item.type === "escalation";
               return (
                 <Link key={item.id} href={item.href}>
-                  <div className="flex items-start gap-3 py-3 px-6 rounded-xl transition-all "
-                    style={{ borderBottom: i < attentionItems.length - 1 ? "1px solid rgba(0,0,0,0.04)" : undefined }}>
-                    <Icon className="w-4 h-4 shrink-0 mt-0.5 text-gray-400" />
+                  <div className="group flex items-center gap-3 py-3.5 px-6 transition-colors hover:bg-black/[0.02]"
+                    style={{
+                      borderBottom: i < attentionItems.length - 1 ? "1px solid var(--border-hair)" : undefined,
+                      background: isCritical ? "color-mix(in srgb, var(--danger) 3%, transparent)" : undefined,
+                    }}>
+                    <div className="relative shrink-0">
+                      <Icon className="w-4 h-4" style={{ color: urgencyDot[item.type] || "var(--color-gray-400)" }} />
+                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-white" style={{ background: urgencyDot[item.type] || "var(--color-gray-400)" }} />
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-medium text-gray-700">{item.title}</div>
-                      <div className="text-[11px] mt-0.5 text-gray-400 truncate">{item.desc}</div>
+                      <div className={`text-[13px] font-medium ${isCritical ? "text-gray-800" : "text-gray-700"}`}>{item.title}</div>
+                      <div className={`text-[11px] mt-0.5 truncate ${isCritical ? "text-gray-500" : "text-gray-400"}`}>{item.desc}</div>
                     </div>
                     <Pill variant={typeBadge[item.type] || "beige"} className="shrink-0">{item.time}</Pill>
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                   </div>
                 </Link>
               );
@@ -260,33 +273,42 @@ export default function EnterpriseDashboardPage() {
       </motion.div>
 
       {/* ═══ ACTIVE PROJECTS ═══ */}
-      <motion.div variants={fadeUp} className="card-parchment mb-5">
-        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
+      <motion.div variants={fadeUp} className="card-parchment mb-6">
+        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
           <span className="text-sm font-semibold text-gray-800">Active Projects</span>
-          <Link href="/enterprise/projects" className="flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700">View all <ArrowRight className="w-3 h-3" /></Link>
+          <Link href="/enterprise/projects" className="flex items-center gap-1 text-xs font-medium text-brown-500 hover:text-brown-600">View all <ArrowRight className="w-3 h-3" /></Link>
         </div>
-        <div className="hidden lg:grid items-center px-6 py-2.5" style={{ gridTemplateColumns: "1fr 140px 110px 200px 80px", borderBottom: "1px solid rgba(0,0,0,0.03)", fontSize: 10, color: "var(--ink-faint)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>
-          <span>Project</span><span>Client</span><span>Health</span><span>Progress</span><span className="text-right">Spend</span>
+        <div className="hidden lg:grid items-center px-6 py-2.5" style={{ gridTemplateColumns: "1fr 130px 100px 190px 80px 20px", borderBottom: "1px solid var(--border-soft)", background: "var(--border-hair)", fontSize: 10, color: "var(--ink-faint)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+          <span>Project</span><span>Client</span><span>Health</span><span>Progress</span><span className="text-right">Spend</span><span />
         </div>
         {mockProjects.map((project, i) => {
           const h = healthCfg[project.health];
           return (
             <Link key={project.id} href={`/enterprise/projects/${project.id}`}>
-              <div className="flex lg:grid items-center px-6 py-3.5 rounded-xl transition-all "
-                style={{ gridTemplateColumns: "1fr 140px 110px 200px 80px", borderBottom: i < mockProjects.length - 1 ? "1px solid rgba(0,0,0,0.04)" : undefined }}>
+              <div className="group flex lg:grid items-center px-6 py-4 transition-colors hover:bg-black/[0.02]"
+                style={{ gridTemplateColumns: "1fr 130px 100px 190px 80px 20px", borderBottom: i < mockProjects.length - 1 ? "1px solid var(--border-hair)" : undefined }}>
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] font-medium text-gray-700">{project.title}</div>
-                  <div className="lg:hidden text-[11px] mt-0.5 text-gray-400">{project.client}</div>
+                  <div className="flex items-center gap-2.5 mt-1">
+                    <span className="lg:hidden text-[11px] text-gray-400">{project.client}</span>
+                    <span className="flex items-center gap-1 text-[10px] text-gray-400"><Users className="w-3 h-3" />{project.teamSize}</span>
+                    {project.escalations > 0 && (
+                      <span className="flex items-center gap-1 text-[10px] text-gold-600"><AlertTriangle className="w-3 h-3" />{project.escalations}</span>
+                    )}
+                  </div>
                 </div>
                 <div className="hidden lg:block text-[12px] text-gray-400">{project.client}</div>
                 <div className="hidden lg:block"><Pill variant={h.badge} dot>{h.label}</Pill></div>
                 <div className="hidden lg:flex items-center gap-3">
-                  <div className="flex-1 prog-track"><div className="prog-fill" style={{ width: `${project.progress}%`, background: h.progress }} /></div>
+                  <div className="flex-1 h-[5px] rounded-full bg-black/[0.06] overflow-hidden"><div className="h-full rounded-full transition-all duration-700" style={{ width: `${project.progress}%`, background: h.progress }} /></div>
                   <span className="text-[11px] font-mono font-medium w-8 text-right text-gray-600">{project.progress}%</span>
                 </div>
                 <div className="text-right ml-4 lg:ml-0 shrink-0">
                   <div className="text-[12px] font-medium text-gray-700">${Math.round(project.spent / 1000)}k</div>
-                  <div className="text-[10px] text-gray-400">/{Math.round(project.budget / 1000)}k</div>
+                  <div className="text-[10px] text-gray-400">of ${Math.round(project.budget / 1000)}k</div>
+                </div>
+                <div className="hidden lg:flex justify-end">
+                  <ChevronRight className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </div>
             </Link>
@@ -295,142 +317,160 @@ export default function EnterpriseDashboardPage() {
       </motion.div>
 
       {/* ═══ DECOMP + TEAMS + FINANCIAL ═══ */}
-      <motion.div variants={fadeUp} className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-5">
+      <motion.div variants={fadeUp} className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-6">
         {/* Decomposition */}
         <div className="card-parchment">
-          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
+          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
             <span className="text-sm font-semibold text-gray-800">Decomposition</span>
-            <Link href="/enterprise/decomposition" className="flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700">All <ArrowRight className="w-3 h-3" /></Link>
+            <Link href="/enterprise/decomposition" className="flex items-center gap-1 text-xs font-medium text-brown-500 hover:text-brown-600">All <ArrowRight className="w-3 h-3" /></Link>
           </div>
-          <div className="py-3">
-            <div className="flex flex-wrap gap-1.5 px-6 mb-3">
-              {[{ l: "Draft", c: plansByStatus.draft, v: "beige" }, { l: "Progress", c: plansByStatus.in_progress, v: "gold" }, { l: "Review", c: plansByStatus.pending_review, v: "teal" }, { l: "OK", c: plansByStatus.approved, v: "forest" }].map((s) => (
-                <Pill key={s.l} variant={s.v}>{s.c} {s.l}</Pill>
-              ))}
-            </div>
-            {mockPlans.slice(0, 4).map((plan, i) => (
-              <Link key={plan.id} href={`/enterprise/decomposition/${plan.id}`}>
-                <div className="flex items-center gap-2.5 px-6 py-2.5 rounded-xl transition-all "
-                  style={{ borderBottom: i < 3 ? "1px solid rgba(0,0,0,0.04)" : undefined }}>
-                  <GitBranch className="w-3.5 h-3.5 shrink-0 text-gray-400" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[12px] font-medium truncate text-gray-700">{plan.title}</div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] text-gray-400">{plan.totalTasks} tasks</span>
-                      <span className="font-mono text-[9px] text-teal-600">{plan.aiConfidence}% AI</span>
+          <div className="py-2">
+            {mockPlans.slice(0, 4).map((plan, i) => {
+              const iconColor: Record<string, string> = { draft: "text-gray-400", in_progress: "text-gold-600", pending_review: "text-teal-600", approved: "text-forest-600", completed: "text-teal-500" };
+              return (
+                <Link key={plan.id} href={`/enterprise/decomposition/${plan.id}`}>
+                  <div className="group flex items-center gap-3 px-6 py-3 transition-colors hover:bg-black/[0.02]"
+                    style={{ borderBottom: i < 3 ? "1px solid var(--border-hair)" : undefined }}>
+                    <GitBranch className={`w-4 h-4 shrink-0 ${iconColor[plan.status] || "text-gray-400"}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12.5px] font-medium truncate text-gray-700">{plan.title}</div>
+                      <div className="flex items-center gap-2.5 mt-1">
+                        <span className="text-[10px] text-gray-400">{plan.totalTasks} tasks</span>
+                        <span className="text-[10px] text-gray-400">{plan.totalMilestones} milestones</span>
+                        <span className="font-mono text-[9px] text-brown-500">{plan.aiConfidence}% AI</span>
+                      </div>
                     </div>
+                    <Pill variant={planBadge[plan.status] || "beige"}>{planLabel[plan.status] || plan.status}</Pill>
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                   </div>
-                  <Pill variant={planBadge[plan.status] || "beige"}>{planLabel[plan.status] || plan.status}</Pill>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </div>
 
         {/* Teams */}
         <div className="card-parchment">
-          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
+          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
             <span className="text-sm font-semibold text-gray-800">Teams</span>
-            <Link href="/enterprise/team" className="flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700">All <ArrowRight className="w-3 h-3" /></Link>
+            <Link href="/enterprise/team" className="flex items-center gap-1 text-xs font-medium text-brown-500 hover:text-brown-600">All <ArrowRight className="w-3 h-3" /></Link>
           </div>
-          <div className="py-3">
-            <div className="grid grid-cols-3 gap-2 px-6 mb-3">
-              {[{ v: totalContributors, l: "People", cls: "text-teal-600" }, { v: mockTeams.length, l: "Teams", cls: "text-forest-600" }, { v: assignmentsByStatus.pending, l: "Pending", cls: "text-gold-600" }].map((m) => (
-                <div key={m.l} className="text-center rounded-xl py-2.5 bg-white/50 border border-white/30">
-                  <div className={`num-display text-[18px] ${m.cls}`}>{m.v}</div>
-                  <div className="text-[9px] mt-0.5 text-gray-400">{m.l}</div>
+          <div className="py-2">
+            {/* Summary strip */}
+            <div className="flex items-center gap-4 px-6 py-3 mb-1" style={{ borderBottom: "1px solid var(--border-hair)" }}>
+              {[{ v: totalContributors, l: "People" }, { v: mockTeams.length, l: "Teams" }, { v: assignmentsByStatus.pending, l: "Pending" }].map((m) => (
+                <div key={m.l} className="flex items-baseline gap-1.5">
+                  <span className="num-display text-[18px] text-gray-900">{m.v}</span>
+                  <span className="text-[9px] text-gray-400 uppercase tracking-wider">{m.l}</span>
                 </div>
               ))}
             </div>
-            {mockTeams.map((team, i) => (
-              <div key={team.id} className="flex items-center gap-2.5 px-6 py-2.5 rounded-xl transition-all "
-                style={{ borderBottom: i < mockTeams.length - 1 ? "1px solid rgba(0,0,0,0.04)" : undefined }}>
-                <Users className="w-3.5 h-3.5 shrink-0 text-gray-400" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[12px] font-medium truncate text-gray-700">{team.name}</div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] text-gray-400">{team.totalMembers} members</span>
-                    <span className="font-mono text-[9px] text-teal-600">{team.matchScore}%</span>
+            {/* Team rows */}
+            {mockTeams.map((team, i) => {
+              const iconColor: Record<string, string> = { forming: "text-gold-600", ready: "text-teal-600", active: "text-forest-600", disbanded: "text-gray-400" };
+              return (
+                <Link key={team.id} href={`/enterprise/team/${team.id}`}>
+                  <div className="group flex items-center gap-3 px-6 py-3 transition-colors hover:bg-black/[0.02]"
+                    style={{ borderBottom: i < mockTeams.length - 1 ? "1px solid var(--border-hair)" : undefined }}>
+                    <Users className={`w-4 h-4 shrink-0 ${iconColor[team.status] || "text-gray-400"}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12.5px] font-medium truncate text-gray-700">{team.name}</div>
+                      <div className="flex items-center gap-2.5 mt-1">
+                        <span className="text-[10px] text-gray-400">{team.totalMembers} members</span>
+                        <span className="font-mono text-[9px] text-brown-500">{team.matchScore}% match</span>
+                      </div>
+                    </div>
+                    <Pill variant={teamBadge[team.status] || "beige"} className="capitalize">{team.status}</Pill>
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                   </div>
-                </div>
-                <Pill variant={teamBadge[team.status] || "beige"} className="capitalize">{team.status}</Pill>
-              </div>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </div>
 
         {/* Financial */}
         <div className="card-parchment">
-          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
+          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
             <span className="text-sm font-semibold text-gray-800">Financial</span>
-            <Link href="/enterprise/billing" className="flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700">Details <ArrowRight className="w-3 h-3" /></Link>
+            <Link href="/enterprise/billing" className="flex items-center gap-1 text-xs font-medium text-brown-500 hover:text-brown-600">Details <ArrowRight className="w-3 h-3" /></Link>
           </div>
-          <div className="px-6 py-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] text-gray-400">Monthly Spend</span>
-              <span className="flex items-center gap-1 text-[11px] text-brown-500"><TrendingDown className="w-2.5 h-2.5" /> −48%</span>
+          <div className="py-2">
+            {/* Total spend hero number */}
+            <div className="px-6 py-4" style={{ borderBottom: "1px solid var(--border-hair)" }}>
+              <div className="label-caps mb-1">Total Spent</div>
+              <div className="flex items-baseline gap-2">
+                <span className="num-display text-[28px] text-gray-900">${Math.round(billingStats.totalSpent / 1000)}k</span>
+                <span className="flex items-center gap-1 text-[11px] text-brown-500"><TrendingDown className="w-2.5 h-2.5" /> −48% this month</span>
+              </div>
+              <div className="mt-3">
+                <SpendSparkline compact />
+              </div>
             </div>
-            <SpendSparkline compact />
-            <div className="grid grid-cols-2 gap-2.5 mt-4">
-              {[
-                { label: "Escrow", value: `$${Math.round(mockEscrowAccounts.reduce((s, e) => s + e.totalHeld, 0) / 1000)}k`, icon: ShieldCheck, cls: "text-teal-500" },
-                { label: "Pending", value: `$${Math.round(pendingInvoicesList.reduce((s, inv) => s + inv.amount, 0) / 1000)}k`, icon: Clock, cls: "text-gold-500" },
-                { label: "Paid", value: `$${Math.round(billingStats.totalSpent / 1000)}k`, icon: Banknote, cls: "text-forest-500" },
-                { label: "Overdue", value: overdueInvoices.length > 0 ? `$${Math.round(overdueInvoices.reduce((s, inv) => s + inv.amount, 0) / 1000)}k` : "$0", icon: XCircle, cls: overdueInvoices.length > 0 ? "text-red-500" : "text-gray-300" },
-              ].map((m) => { const MI = m.icon; return (
-                <div key={m.label} className="rounded-xl py-3 px-3 bg-white/50 border border-white/30">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="label-caps">{m.label}</span>
-                    <MI className={`w-3 h-3 ${m.cls} opacity-50`} />
-                  </div>
-                  <div className="num-display text-[18px] text-gray-900">{m.value}</div>
+            {/* Financial breakdown rows */}
+            {[
+              { label: "Escrow Held", value: `$${Math.round(mockEscrowAccounts.reduce((s, e) => s + e.totalHeld, 0) / 1000)}k`, icon: ShieldCheck, danger: false },
+              { label: "Pending Pay", value: `$${Math.round(pendingInvoicesList.reduce((s, inv) => s + inv.amount, 0) / 1000)}k`, icon: Clock, danger: false },
+              { label: "Overdue", value: overdueInvoices.length > 0 ? `$${Math.round(overdueInvoices.reduce((s, inv) => s + inv.amount, 0) / 1000)}k` : "$0", icon: XCircle, danger: overdueInvoices.length > 0 },
+            ].map((m, i, arr) => {
+              const MI = m.icon;
+              return (
+                <div key={m.label} className="flex items-center gap-3 px-6 py-3"
+                  style={{ borderBottom: i < arr.length - 1 ? "1px solid var(--border-hair)" : undefined, background: m.danger ? "color-mix(in srgb, var(--danger) 3%, transparent)" : undefined }}>
+                  <MI className={`w-4 h-4 shrink-0 ${m.danger ? "text-red-500" : "text-brown-400"}`} />
+                  <span className="text-[12.5px] text-gray-600 flex-1">{m.label}</span>
+                  <span className={`num-display text-[15px] ${m.danger ? "text-red-500" : "text-gray-900"}`}>{m.value}</span>
                 </div>
-              ); })}
-            </div>
+              );
+            })}
           </div>
         </div>
       </motion.div>
 
       {/* ═══ AI & GOVERNANCE ═══ */}
       <motion.div variants={fadeUp} className="card-parchment">
-        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
+        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold text-gray-800">AI & Governance</span>
-            <Pill variant="forest"><ShieldCheck className="w-2.5 h-2.5" /> {apgRulesEnabled}/{mockAPGRules.length} rules</Pill>
+            <Pill variant="brown"><ShieldCheck className="w-2.5 h-2.5" /> {apgRulesEnabled}/{mockAPGRules.length} rules</Pill>
           </div>
-          <Link href="/enterprise/audit" className="flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700">Audit log <ArrowRight className="w-3 h-3" /></Link>
+          <Link href="/enterprise/audit" className="flex items-center gap-1 text-xs font-medium text-brown-500 hover:text-brown-600">Audit log <ArrowRight className="w-3 h-3" /></Link>
         </div>
 
-        <div className="flex items-center gap-6 px-6 py-3" style={{ borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
+        {/* Metrics strip */}
+        <div className="grid grid-cols-3 px-6 py-4" style={{ borderBottom: "1px solid var(--border-hair)" }}>
           {[
-            { icon: Timer, label: "On-Time", value: `${onTimeDelivery}%`, cls: "text-teal-600" },
-            { icon: CircleCheck, label: "First-Pass", value: `${firstPassRate}%`, cls: "text-forest-600" },
-            { icon: Target, label: "APG Score", value: `${avgApgScore}`, cls: "text-gold-600" },
-          ].map((m, i, arr) => (
-            <React.Fragment key={m.label}>
-              <div className="flex items-center gap-2">
-                <m.icon className={`w-3.5 h-3.5 ${m.cls}`} />
-                <span className="text-[11px] text-gray-400">{m.label}</span>
-                <span className={`font-mono text-[12px] font-semibold ${m.cls}`}>{m.value}</span>
+            { icon: Timer, label: "On-Time Delivery", value: `${onTimeDelivery}%` },
+            { icon: CircleCheck, label: "First-Pass Rate", value: `${firstPassRate}%` },
+            { icon: Target, label: "APG Score", value: `${avgApgScore}` },
+          ].map((m, i) => (
+            <div key={m.label} className="flex items-center gap-3" style={{ borderRight: i < 2 ? "1px solid var(--border-soft)" : undefined, paddingRight: i < 2 ? 16 : 0 }}>
+              <m.icon className="w-4 h-4 text-brown-400 shrink-0" />
+              <div>
+                <div className="num-display text-[16px] text-gray-900">{m.value}</div>
+                <div className="text-[9px] text-gray-400 mt-0.5">{m.label}</div>
               </div>
-              {i < arr.length - 1 && <div style={{ width: 1, height: 16, background: "rgba(0,0,0,0.06)" }} />}
-            </React.Fragment>
+            </div>
           ))}
         </div>
 
+        {/* Activity feed */}
         <div className="grid grid-cols-1 lg:grid-cols-2">
           {[mockActivityFeed.slice(0, 3), mockActivityFeed.slice(3, 6)].map((events, colIdx) => (
-            <div key={colIdx} className="py-1" style={{ borderRight: colIdx === 0 ? "1px solid rgba(0,0,0,0.04)" : undefined }}>
+            <div key={colIdx} className="py-1" style={{ borderRight: colIdx === 0 ? "1px solid var(--border-hair)" : undefined }}>
               {events.map((event, i) => {
                 const isAI = event.actor === "APG System" || event.actor === "Finance Team";
+                const initials = event.actor.split(" ").map((w: string) => w[0]).join("").slice(0, 2);
                 return (
-                  <div key={event.id} className="flex items-start gap-3 px-6 py-3 rounded-xl transition-all "
-                    style={{ borderBottom: i < 2 ? "1px solid rgba(0,0,0,0.04)" : undefined }}>
-                    <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${isAI ? "bg-teal-500" : "bg-gray-300"}`} />
+                  <div key={event.id} className="flex items-start gap-3 px-6 py-3 transition-colors hover:bg-black/[0.02]"
+                    style={{ borderBottom: i < 2 ? "1px solid var(--border-hair)" : undefined }}>
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[8px] font-bold ${isAI ? "bg-brown-100 text-brown-600" : "bg-gray-100 text-gray-500"}`}>
+                      {isAI ? <Bot className="w-3 h-3" /> : initials}
+                    </div>
                     <div className="flex-1">
                       <div className="text-[12px] text-gray-500 leading-relaxed">
-                        <span className={`font-medium ${isAI ? "text-teal-600" : "text-gray-700"}`}>
-                          {isAI && <Bot className="w-2.5 h-2.5 inline mr-1" style={{ verticalAlign: "-1px" }} />}{event.actor}
+                        <span className={`font-medium ${isAI ? "text-brown-600" : "text-gray-700"}`}>
+                          {event.actor}
                         </span>{" "}{event.action}{" "}
                         <span className="font-medium text-gray-800">{event.target}</span>
                       </div>
