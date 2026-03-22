@@ -7,7 +7,7 @@ import {
   AlertTriangle, ClipboardCheck, ArrowRight, Users, Clock,
   TrendingUp, TrendingDown, CheckCircle2, XCircle, RotateCcw,
   ShieldCheck, Banknote, Target, GitBranch, Timer, CircleCheck, Bot,
-  FileText, FolderKanban, Wallet, ChevronRight,
+  FileText, FolderKanban, Wallet, ChevronRight, Eye,
 } from "lucide-react";
 import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
 import { mockProjects, mockDeliverables, mockPlans, mockTeams, mockAssignments } from "@/mocks/data/enterprise-projects";
@@ -76,6 +76,19 @@ const typeBadge: Record<string, string> = { overdue: "danger", escalation: "gold
 const urgencyDot: Record<string, string> = { overdue: "var(--danger)", escalation: "var(--danger)", rework: "var(--color-gold-500)", approval: "var(--color-gold-500)", sow: "var(--color-gray-400)" };
 const typeIcon: Record<string, React.ElementType> = { approval: ClipboardCheck, escalation: AlertTriangle, overdue: XCircle, rework: RotateCcw, sow: Clock };
 
+/* ══════════════════════════════════════════ Risk helpers ══════════════════════════════════════════ */
+
+function riskColor(score: number): string {
+  if (score <= 25) return "var(--color-forest-700)";
+  if (score <= 50) return "var(--color-gold-700)";
+  return "var(--danger)";
+}
+function riskBg(score: number): string {
+  if (score <= 25) return "var(--color-forest-50)";
+  if (score <= 50) return "var(--color-gold-50)";
+  return "var(--danger-light)";
+}
+
 /* ══════════════════════════════════════════ Inline badge helper ══════════════════════════════════════════ */
 
 function Pill({ variant, dot, children, className }: { variant: string; dot?: boolean; children: React.ReactNode; className?: string }) {
@@ -91,18 +104,18 @@ function Pill({ variant, dot, children, className }: { variant: string; dot?: bo
 
 /* ══════════════════════════════════════════ ProgressRing ══════════════════════════════════════════ */
 
-function ProgressRing({ value, size = 56, stroke = 5, color = "var(--color-brown-500)" }: { value: number; size?: number; stroke?: number; color?: string }) {
+function ProgressRing({ value, size = 56, stroke = 5, color = "var(--color-brown-500)", dark = false }: { value: number; size?: number; stroke?: number; color?: string; dark?: boolean }) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="transform -rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border-soft)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={dark ? "rgba(255,255,255,0.2)" : "var(--border-soft)"} strokeWidth={stroke} />
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
           strokeDasharray={c} strokeDashoffset={c - (value / 100) * c} strokeLinecap="round" style={{ transition: "stroke-dashoffset 1.5s ease" }} />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="num-display text-[15px]" style={{ color: "var(--ink)" }}>{value}%</span>
+        <span className="num-display text-[15px]" style={{ color: dark ? "white" : "var(--ink)" }}>{value}%</span>
       </div>
     </div>
   );
@@ -169,36 +182,33 @@ export default function EnterpriseDashboardPage() {
       {/* ═══ KPI CARDS ═══ */}
       <motion.div variants={fadeUp} className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
         {[
-          { label: "Active SOWs", value: mockSOWs.length, sub: `${sowsByStage.approval} in approval`, icon: FileText, bar: true },
-          { label: "Active Projects", value: activeProjects.length, sub: "+1 this month", icon: FolderKanban, trend: true },
-          { label: "APG Escalations", value: totalEscalations, sub: `Across ${activeProjects.filter(p => p.escalations > 0).length} projects`, icon: AlertTriangle },
-          { label: "Pending Reviews", value: pendingApprovals, link: "/enterprise/review", linkText: "Review now", icon: ClipboardCheck },
+          { label: "Active SOWs", value: mockSOWs.length, sub: `${sowsByStage.approval} in approval`, icon: FileText, iconBg: "bg-gradient-to-br from-brown-400 to-brown-600" },
+          { label: "Active Projects", value: activeProjects.length, sub: "+1 this month", icon: FolderKanban, iconBg: "bg-gradient-to-br from-gold-400 to-gold-600", trend: true },
+          { label: "APG Escalations", value: totalEscalations, sub: `Across ${activeProjects.filter(p => p.escalations > 0).length} projects`, icon: AlertTriangle, iconBg: "bg-gradient-to-br from-brown-500 to-brown-700" },
+          { label: "Pending Reviews", value: pendingApprovals, link: "/enterprise/review", linkText: "Review now", icon: ClipboardCheck, iconBg: "bg-gradient-to-br from-teal-400 to-teal-600" },
         ].map((kpi) => {
           const KpiIcon = kpi.icon;
           return (
-          <motion.div key={kpi.label} variants={scaleIn} className="card-parchment p-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="label-caps">{kpi.label}</div>
-              <KpiIcon className="w-4 h-4 text-brown-400" />
+          <motion.div key={kpi.label} variants={scaleIn} className="card-parchment flex items-center gap-5 px-5 py-5">
+            {/* Solid gradient icon */}
+            <div className={`w-12 h-12 rounded-2xl ${kpi.iconBg} flex items-center justify-center shrink-0`}>
+              <KpiIcon className="w-5 h-5 text-white" />
             </div>
-            <div className="num-display text-[34px] text-gray-900">{kpi.value}</div>
-            {kpi.sub && <div className="text-xs mt-2 text-gray-500">{kpi.trend && <TrendingUp className="w-3 h-3 inline mr-1 text-brown-400" />}{kpi.sub}</div>}
-            {kpi.link && <Link href={kpi.link} className="flex items-center gap-1 mt-2 text-xs font-medium text-brown-500 hover:text-brown-600">{kpi.linkText} <ArrowRight className="w-3 h-3" /></Link>}
-            {kpi.bar && (
-              <div className="flex rounded-full overflow-hidden mt-3 h-[3px]">
-                <div style={{ width: `${(sowsByStage.draft / mockSOWs.length) * 100}%`, background: "var(--color-brown-500)", opacity: 0.5 }} />
-                <div style={{ width: `${(sowsByStage.approval / mockSOWs.length) * 100}%`, background: "var(--color-gold-500)", opacity: 0.5 }} />
-                <div style={{ width: `${(sowsByStage.approved / mockSOWs.length) * 100}%`, background: "var(--color-forest-500)", opacity: 0.5 }} />
-              </div>
-            )}
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] font-medium text-gray-400">{kpi.label}</div>
+              <div className="num-display text-[28px] text-gray-900 leading-none mt-1">{kpi.value}</div>
+              {kpi.sub && <div className="text-[11px] mt-1.5 text-gray-400">{kpi.trend && <TrendingUp className="w-3 h-3 inline mr-1 text-forest-500" />}{kpi.sub}</div>}
+              {kpi.link && <Link href={kpi.link} className="flex items-center gap-1 mt-1.5 text-[11px] font-medium text-brown-500 hover:text-brown-600">{kpi.linkText} <ArrowRight className="w-3 h-3" /></Link>}
+            </div>
           </motion.div>
           );
         })}
         {/* Budget — progress ring */}
-        <motion.div variants={scaleIn} className="card-parchment p-6 flex items-center gap-4">
+        <motion.div variants={scaleIn} className="card-parchment flex items-center gap-4 px-5 py-5">
           <ProgressRing value={budgetUtilization} />
           <div>
-            <div className="label-caps mb-1">Budget</div>
+            <div className="text-[11px] font-medium text-gray-400 mb-1">Budget</div>
             <div className="num-display text-[22px] text-gray-900">${Math.round(totalSpent / 1000)}k</div>
             <div className="text-[10px] text-gray-400 mt-0.5">of ${Math.round(totalBudget / 1000)}k</div>
           </div>
@@ -214,20 +224,58 @@ export default function EnterpriseDashboardPage() {
           </div>
           <div className="py-2">
             {mockSOWs.slice(0, 5).map((sow, i) => {
-              const dotColor: Record<string, string> = { draft: "bg-brown-400", parsing: "bg-teal-500", review: "bg-gold-500", approval: "bg-gold-500", approved: "bg-forest-500", archived: "bg-gray-300" };
+              const statusIcon: Record<string, { icon: React.ElementType; color: string }> = {
+                draft: { icon: FileText, color: "text-brown-400" },
+                parsing: { icon: Bot, color: "text-teal-500" },
+                review: { icon: Eye, color: "text-gold-500" },
+                approval: { icon: ClipboardCheck, color: "text-gold-500" },
+                approved: { icon: CheckCircle2, color: "text-forest-500" },
+                archived: { icon: FileText, color: "text-gray-400" },
+              };
+              const si = statusIcon[sow.status] || statusIcon.draft;
+              const SowIcon = si.icon;
+              const completedStages = sow.approvalStages?.filter((s) => s.status === "approved").length ?? 0;
+              const currentStage = sow.approvalStages?.find((s) => s.status === "in_review");
+              const totalStages = sow.approvalStages?.length ?? 4;
+
               return (
                 <Link key={sow.id} href={`/enterprise/sow/${sow.id}`}>
-                  <div className="flex items-center gap-3 py-3.5 px-6 transition-colors hover:bg-black/[0.02]"
+                  <div className="group flex items-center gap-3 py-3.5 px-6 transition-colors hover:bg-black/[0.02]"
                     style={{ borderBottom: i < 4 ? "1px solid var(--border-hair)" : undefined }}>
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor[sow.status] || "bg-gray-300"}`} />
+                    <SowIcon className={`w-[18px] h-[18px] shrink-0 ${si.color}`} />
+                    {/* Content */}
                     <div className="min-w-0 flex-1">
                       <div className="text-[13px] font-medium truncate text-gray-700">{sow.title}</div>
-                      <div className="text-[11px] mt-0.5 text-gray-400">{sow.client}</div>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <span className="text-[11px] text-gray-400">{sow.client}</span>
+                        {/* Pipeline progress dots */}
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: totalStages }).map((_, si) => (
+                            <div key={si} className="rounded-full" style={{
+                              width: si < completedStages ? 12 : 6,
+                              height: 4,
+                              borderRadius: 100,
+                              background: si < completedStages
+                                ? "var(--color-forest-500)"
+                                : si === completedStages && currentStage
+                                  ? "var(--color-gold-500)"
+                                  : "var(--color-gray-200)",
+                              transition: "all 0.3s",
+                            }} />
+                          ))}
+                          <span className="text-[9px] font-mono text-gray-400 ml-1">{completedStages}/{totalStages}</span>
+                        </div>
+                      </div>
                     </div>
+                    {/* Risk pill */}
                     {sow.riskScore.overall > 0 && (
-                      <span className="text-[10px] font-mono text-gray-400 shrink-0">Risk {sow.riskScore.overall}</span>
+                      <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full shrink-0"
+                        style={{ color: riskColor(sow.riskScore.overall), background: riskBg(sow.riskScore.overall) }}>
+                        {sow.riskScore.overall}
+                      </span>
                     )}
-                    <Pill variant={sowBadge[sow.status] || "beige"} className="ml-2 shrink-0">{sow.status}</Pill>
+                    <Pill variant={sowBadge[sow.status] || "beige"} className="ml-1 shrink-0">{sow.status}</Pill>
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                   </div>
                 </Link>
               );
@@ -238,23 +286,26 @@ export default function EnterpriseDashboardPage() {
         <div className="card-parchment">
           <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
             <span className="text-sm font-semibold text-gray-800">Needs Attention</span>
-            <Pill variant="danger">{attentionItems.length}</Pill>
+            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-brown-400 to-brown-600 flex items-center justify-center">
+              <span className="text-[10px] font-bold text-white">{attentionItems.length}</span>
+            </div>
           </div>
-          <div className="py-1">
+          <div className="py-2">
             {attentionItems.map((item, i) => {
               const Icon = typeIcon[item.type] || ClipboardCheck;
               const isCritical = item.type === "overdue" || item.type === "escalation";
+              const iconColor: Record<string, string> = {
+                overdue: "text-brown-600",
+                escalation: "text-brown-600",
+                rework: "text-gold-500",
+                approval: "text-gold-500",
+                sow: "text-gray-400",
+              };
               return (
                 <Link key={item.id} href={item.href}>
                   <div className="group flex items-center gap-3 py-3.5 px-6 transition-colors hover:bg-black/[0.02]"
-                    style={{
-                      borderBottom: i < attentionItems.length - 1 ? "1px solid var(--border-hair)" : undefined,
-                      background: isCritical ? "color-mix(in srgb, var(--danger) 3%, transparent)" : undefined,
-                    }}>
-                    <div className="relative shrink-0">
-                      <Icon className="w-4 h-4" style={{ color: urgencyDot[item.type] || "var(--color-gray-400)" }} />
-                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-white" style={{ background: urgencyDot[item.type] || "var(--color-gray-400)" }} />
-                    </div>
+                    style={{ borderBottom: i < attentionItems.length - 1 ? "1px solid var(--border-hair)" : undefined }}>
+                    <Icon className={`w-[18px] h-[18px] shrink-0 ${iconColor[item.type] || "text-gray-400"}`} />
                     <div className="flex-1 min-w-0">
                       <div className={`text-[13px] font-medium ${isCritical ? "text-gray-800" : "text-gray-700"}`}>{item.title}</div>
                       <div className={`text-[11px] mt-0.5 truncate ${isCritical ? "text-gray-500" : "text-gray-400"}`}>{item.desc}</div>
@@ -278,15 +329,16 @@ export default function EnterpriseDashboardPage() {
           <span className="text-sm font-semibold text-gray-800">Active Projects</span>
           <Link href="/enterprise/projects" className="flex items-center gap-1 text-xs font-medium text-brown-500 hover:text-brown-600">View all <ArrowRight className="w-3 h-3" /></Link>
         </div>
-        <div className="hidden lg:grid items-center px-6 py-2.5" style={{ gridTemplateColumns: "1fr 130px 100px 190px 80px 20px", borderBottom: "1px solid var(--border-soft)", background: "var(--border-hair)", fontSize: 10, color: "var(--ink-faint)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+        <div className="hidden lg:grid items-center px-6 py-2.5" style={{ gridTemplateColumns: "1fr 130px 100px 190px 100px 20px", borderBottom: "1px solid var(--border-soft)", background: "color-mix(in srgb, var(--color-gray-100) 40%, white)", fontSize: 10, color: "var(--color-gray-400)", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em" }}>
           <span>Project</span><span>Client</span><span>Health</span><span>Progress</span><span className="text-right">Spend</span><span />
         </div>
         {mockProjects.map((project, i) => {
           const h = healthCfg[project.health];
+          const budgetPct = Math.round((project.spent / project.budget) * 100);
           return (
             <Link key={project.id} href={`/enterprise/projects/${project.id}`}>
               <div className="group flex lg:grid items-center px-6 py-4 transition-colors hover:bg-black/[0.02]"
-                style={{ gridTemplateColumns: "1fr 130px 100px 190px 80px 20px", borderBottom: i < mockProjects.length - 1 ? "1px solid var(--border-hair)" : undefined }}>
+                style={{ gridTemplateColumns: "1fr 130px 100px 190px 100px 20px", borderBottom: i < mockProjects.length - 1 ? "1px solid var(--border-hair)" : undefined }}>
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] font-medium text-gray-700">{project.title}</div>
                   <div className="flex items-center gap-2.5 mt-1">
@@ -300,12 +352,15 @@ export default function EnterpriseDashboardPage() {
                 <div className="hidden lg:block text-[12px] text-gray-400">{project.client}</div>
                 <div className="hidden lg:block"><Pill variant={h.badge} dot>{h.label}</Pill></div>
                 <div className="hidden lg:flex items-center gap-3">
-                  <div className="flex-1 h-[5px] rounded-full bg-black/[0.06] overflow-hidden"><div className="h-full rounded-full transition-all duration-700" style={{ width: `${project.progress}%`, background: h.progress }} /></div>
+                  <div className="flex-1 h-[6px] rounded-full bg-gray-100 overflow-hidden"><div className="h-full rounded-full transition-all duration-700" style={{ width: `${project.progress}%`, background: h.progress }} /></div>
                   <span className="text-[11px] font-mono font-medium w-8 text-right text-gray-600">{project.progress}%</span>
                 </div>
                 <div className="text-right ml-4 lg:ml-0 shrink-0">
                   <div className="text-[12px] font-medium text-gray-700">${Math.round(project.spent / 1000)}k</div>
-                  <div className="text-[10px] text-gray-400">of ${Math.round(project.budget / 1000)}k</div>
+                  <div className="text-[10px] text-gray-400 mb-1">of ${Math.round(project.budget / 1000)}k</div>
+                  <div className="h-[3px] rounded-full bg-gray-100 overflow-hidden w-16 ml-auto">
+                    <div className="h-full rounded-full" style={{ width: `${budgetPct}%`, background: budgetPct > 85 ? "var(--danger)" : "var(--color-brown-400)" }} />
+                  </div>
                 </div>
                 <div className="hidden lg:flex justify-end">
                   <ChevronRight className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -326,18 +381,24 @@ export default function EnterpriseDashboardPage() {
           </div>
           <div className="py-2">
             {mockPlans.slice(0, 4).map((plan, i) => {
-              const iconColor: Record<string, string> = { draft: "text-gray-400", in_progress: "text-gold-600", pending_review: "text-teal-600", approved: "text-forest-600", completed: "text-teal-500" };
+              const statusDot: Record<string, string> = { draft: "bg-gray-300", in_progress: "bg-gold-500", pending_review: "bg-teal-500", approved: "bg-forest-500", completed: "bg-teal-400" };
               return (
                 <Link key={plan.id} href={`/enterprise/decomposition/${plan.id}`}>
-                  <div className="group flex items-center gap-3 px-6 py-3 transition-colors hover:bg-black/[0.02]"
+                  <div className="group flex items-center gap-3 px-6 py-3.5 transition-colors hover:bg-black/[0.02]"
                     style={{ borderBottom: i < 3 ? "1px solid var(--border-hair)" : undefined }}>
-                    <GitBranch className={`w-4 h-4 shrink-0 ${iconColor[plan.status] || "text-gray-400"}`} />
+                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusDot[plan.status] || "bg-gray-300"}`} />
                     <div className="flex-1 min-w-0">
                       <div className="text-[12.5px] font-medium truncate text-gray-700">{plan.title}</div>
-                      <div className="flex items-center gap-2.5 mt-1">
+                      <div className="flex items-center gap-2.5 mt-1.5">
                         <span className="text-[10px] text-gray-400">{plan.totalTasks} tasks</span>
                         <span className="text-[10px] text-gray-400">{plan.totalMilestones} milestones</span>
-                        <span className="font-mono text-[9px] text-brown-500">{plan.aiConfidence}% AI</span>
+                        {/* AI confidence bar */}
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-12 h-[3px] rounded-full bg-gray-100 overflow-hidden">
+                            <div className="h-full rounded-full bg-brown-400" style={{ width: `${plan.aiConfidence}%` }} />
+                          </div>
+                          <span className="font-mono text-[9px] text-brown-500">{plan.aiConfidence}%</span>
+                        </div>
                       </div>
                     </div>
                     <Pill variant={planBadge[plan.status] || "beige"}>{planLabel[plan.status] || plan.status}</Pill>
@@ -356,27 +417,27 @@ export default function EnterpriseDashboardPage() {
             <Link href="/enterprise/team" className="flex items-center gap-1 text-xs font-medium text-brown-500 hover:text-brown-600">All <ArrowRight className="w-3 h-3" /></Link>
           </div>
           <div className="py-2">
-            {/* Summary strip */}
-            <div className="flex items-center gap-4 px-6 py-3 mb-1" style={{ borderBottom: "1px solid var(--border-hair)" }}>
-              {[{ v: totalContributors, l: "People" }, { v: mockTeams.length, l: "Teams" }, { v: assignmentsByStatus.pending, l: "Pending" }].map((m) => (
-                <div key={m.l} className="flex items-baseline gap-1.5">
-                  <span className="num-display text-[18px] text-gray-900">{m.v}</span>
-                  <span className="text-[9px] text-gray-400 uppercase tracking-wider">{m.l}</span>
+            {/* Summary strip — tinted pills */}
+            <div className="grid grid-cols-3 gap-2 px-6 py-3 mb-1" style={{ borderBottom: "1px solid var(--border-hair)" }}>
+              {[{ v: totalContributors, l: "People", bg: "bg-brown-50" }, { v: mockTeams.length, l: "Teams", bg: "bg-teal-50" }, { v: assignmentsByStatus.pending, l: "Pending", bg: "bg-gold-50" }].map((m) => (
+                <div key={m.l} className={`text-center rounded-xl py-2.5 ${m.bg}`}>
+                  <span className="num-display text-[20px] text-gray-900">{m.v}</span>
+                  <div className="text-[9px] text-gray-400 uppercase tracking-wider mt-0.5">{m.l}</div>
                 </div>
               ))}
             </div>
             {/* Team rows */}
             {mockTeams.map((team, i) => {
-              const iconColor: Record<string, string> = { forming: "text-gold-600", ready: "text-teal-600", active: "text-forest-600", disbanded: "text-gray-400" };
+              const statusDot: Record<string, string> = { forming: "bg-gold-500", ready: "bg-teal-500", active: "bg-forest-500", disbanded: "bg-gray-300" };
               return (
                 <Link key={team.id} href={`/enterprise/team/${team.id}`}>
                   <div className="group flex items-center gap-3 px-6 py-3 transition-colors hover:bg-black/[0.02]"
                     style={{ borderBottom: i < mockTeams.length - 1 ? "1px solid var(--border-hair)" : undefined }}>
-                    <Users className={`w-4 h-4 shrink-0 ${iconColor[team.status] || "text-gray-400"}`} />
+                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusDot[team.status] || "bg-gray-300"}`} />
                     <div className="flex-1 min-w-0">
                       <div className="text-[12.5px] font-medium truncate text-gray-700">{team.name}</div>
                       <div className="flex items-center gap-2.5 mt-1">
-                        <span className="text-[10px] text-gray-400">{team.totalMembers} members</span>
+                        <span className="flex items-center gap-1 text-[10px] text-gray-400"><Users className="w-3 h-3" />{team.totalMembers}</span>
                         <span className="font-mono text-[9px] text-brown-500">{team.matchScore}% match</span>
                       </div>
                     </div>
@@ -415,11 +476,12 @@ export default function EnterpriseDashboardPage() {
             ].map((m, i, arr) => {
               const MI = m.icon;
               return (
-                <div key={m.label} className="flex items-center gap-3 px-6 py-3"
+                <div key={m.label} className="flex items-center gap-3 px-6 py-3.5"
                   style={{ borderBottom: i < arr.length - 1 ? "1px solid var(--border-hair)" : undefined, background: m.danger ? "color-mix(in srgb, var(--danger) 3%, transparent)" : undefined }}>
-                  <MI className={`w-4 h-4 shrink-0 ${m.danger ? "text-red-500" : "text-brown-400"}`} />
+                  <MI className={`w-[18px] h-[18px] shrink-0 ${m.danger ? "text-red-500" : ""}`}
+                    style={m.danger ? undefined : { color: "var(--color-brown-400)" }} />
                   <span className="text-[12.5px] text-gray-600 flex-1">{m.label}</span>
-                  <span className={`num-display text-[15px] ${m.danger ? "text-red-500" : "text-gray-900"}`}>{m.value}</span>
+                  <span className={`num-display text-[16px] ${m.danger ? "text-red-500" : "text-gray-900"}`}>{m.value}</span>
                 </div>
               );
             })}
@@ -432,55 +494,63 @@ export default function EnterpriseDashboardPage() {
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold text-gray-800">AI & Governance</span>
-            <Pill variant="brown"><ShieldCheck className="w-2.5 h-2.5" /> {apgRulesEnabled}/{mockAPGRules.length} rules</Pill>
+            <Pill variant="brown">{apgRulesEnabled}/{mockAPGRules.length} rules</Pill>
           </div>
           <Link href="/enterprise/audit" className="flex items-center gap-1 text-xs font-medium text-brown-500 hover:text-brown-600">Audit log <ArrowRight className="w-3 h-3" /></Link>
         </div>
 
         {/* Metrics strip */}
-        <div className="grid grid-cols-3 px-6 py-4" style={{ borderBottom: "1px solid var(--border-hair)" }}>
+        <div className="grid grid-cols-3 gap-3 px-6 py-4" style={{ borderBottom: "1px solid var(--border-hair)" }}>
           {[
-            { icon: Timer, label: "On-Time Delivery", value: `${onTimeDelivery}%` },
-            { icon: CircleCheck, label: "First-Pass Rate", value: `${firstPassRate}%` },
-            { icon: Target, label: "APG Score", value: `${avgApgScore}` },
-          ].map((m, i) => (
-            <div key={m.label} className="flex items-center gap-3" style={{ borderRight: i < 2 ? "1px solid var(--border-soft)" : undefined, paddingRight: i < 2 ? 16 : 0 }}>
-              <m.icon className="w-4 h-4 text-brown-400 shrink-0" />
+            { icon: Timer, label: "On-Time Delivery", value: `${onTimeDelivery}%`, bg: "bg-brown-50", iconColor: "text-brown-500" },
+            { icon: CircleCheck, label: "First-Pass Rate", value: `${firstPassRate}%`, bg: "bg-teal-50", iconColor: "text-teal-500" },
+            { icon: Target, label: "APG Score", value: `${avgApgScore}`, bg: "bg-gold-50", iconColor: "text-gold-500" },
+          ].map((m) => (
+            <div key={m.label} className={`flex items-center gap-3 ${m.bg} rounded-xl px-4 py-3.5`}>
+              <m.icon className={`w-[18px] h-[18px] ${m.iconColor} shrink-0`} />
               <div>
-                <div className="num-display text-[16px] text-gray-900">{m.value}</div>
+                <div className="num-display text-[18px] text-gray-900">{m.value}</div>
                 <div className="text-[9px] text-gray-400 mt-0.5">{m.label}</div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Activity feed */}
-        <div className="grid grid-cols-1 lg:grid-cols-2">
-          {[mockActivityFeed.slice(0, 3), mockActivityFeed.slice(3, 6)].map((events, colIdx) => (
-            <div key={colIdx} className="py-1" style={{ borderRight: colIdx === 0 ? "1px solid var(--border-hair)" : undefined }}>
-              {events.map((event, i) => {
-                const isAI = event.actor === "APG System" || event.actor === "Finance Team";
-                const initials = event.actor.split(" ").map((w: string) => w[0]).join("").slice(0, 2);
-                return (
-                  <div key={event.id} className="flex items-start gap-3 px-6 py-3 transition-colors hover:bg-black/[0.02]"
-                    style={{ borderBottom: i < 2 ? "1px solid var(--border-hair)" : undefined }}>
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[8px] font-bold ${isAI ? "bg-brown-100 text-brown-600" : "bg-gray-100 text-gray-500"}`}>
-                      {isAI ? <Bot className="w-3 h-3" /> : initials}
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-[12px] text-gray-500 leading-relaxed">
-                        <span className={`font-medium ${isAI ? "text-brown-600" : "text-gray-700"}`}>
-                          {event.actor}
-                        </span>{" "}{event.action}{" "}
-                        <span className="font-medium text-gray-800">{event.target}</span>
-                      </div>
-                      <div className="text-[10px] mt-0.5 text-gray-400">{getTimeAgo(event.timestamp)}</div>
-                    </div>
+        {/* Activity sub-header */}
+        <div className="flex items-center justify-between px-6 pt-4 pb-2">
+          <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Recent Activity</span>
+          <div className="flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-forest-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-forest-500" />
+            </span>
+            <span className="text-[10px] text-gray-400">Live</span>
+          </div>
+        </div>
+
+        {/* Activity feed — single column */}
+        <div className="pb-2">
+          {mockActivityFeed.slice(0, 5).map((event, i) => {
+            const isAI = event.actor === "APG System" || event.actor === "Finance Team";
+            const initials = event.actor.split(" ").map((w: string) => w[0]).join("").slice(0, 2);
+            return (
+              <div key={event.id} className="flex items-start gap-3 px-6 py-3 transition-colors hover:bg-black/[0.02]"
+                style={{ borderBottom: i < 4 ? "1px solid var(--border-hair)" : undefined }}>
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[9px] font-bold ${isAI ? "bg-brown-100 text-brown-600" : "bg-gray-100 text-gray-500"}`}>
+                  {isAI ? <Bot className="w-3.5 h-3.5" /> : initials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] text-gray-500 leading-relaxed">
+                    <span className={`font-medium ${isAI ? "text-brown-600" : "text-gray-700"}`}>
+                      {event.actor}
+                    </span>{" "}{event.action}{" "}
+                    <span className="font-medium text-gray-800">{event.target}</span>
                   </div>
-                );
-              })}
-            </div>
-          ))}
+                  <div className="text-[10px] mt-0.5 text-gray-400">{getTimeAgo(event.timestamp)}</div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </motion.div>
 

@@ -5,115 +5,81 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  CheckCircle2,
-  AlertTriangle,
-  FileText,
-  Shield,
-  ShieldCheck,
-  DollarSign,
-  Clock,
-  Users,
-  Sparkles,
-  Lock,
-  ScrollText,
-  GitBranch,
-  Target,
-  Scale,
-  XCircle,
-  Send,
-  Gauge,
-  ChevronRight,
-  type LucideIcon,
+  CheckCircle2, AlertTriangle, FileText, Shield, ShieldCheck, DollarSign,
+  Clock, Users, Sparkles, Lock, ScrollText, GitBranch, Target, Scale,
+  XCircle, Send, ChevronRight, type LucideIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp } from "@/lib/utils/motion-variants";
 import { Checkbox, Textarea } from "@/components/ui";
 import { mockSOWs } from "@/mocks/data/enterprise-sow";
 import type { ApprovalStage } from "@/types/enterprise";
 
-/* ═══ Theme helpers ═══ */
+/* ═══ Badge component (matches detail page) ═══ */
 
-const R: Record<string, string> = { forest: "77,87,65", teal: "91,155,162", gold: "208,176,96", brown: "166,119,99", beige: "201,176,157" };
-const C: Record<string, string> = { forest: "#4D5741", teal: "#5B9BA2", gold: "#86713D", brown: "#A67763", beige: "var(--ink-faint)" };
+const badgeStyles: Record<string, { bg: string; text: string; dot: string }> = {
+  forest: { bg: "bg-forest-50", text: "text-forest-700", dot: "bg-forest-500" },
+  teal: { bg: "bg-teal-50", text: "text-teal-700", dot: "bg-teal-500" },
+  gold: { bg: "bg-gold-50", text: "text-gold-700", dot: "bg-gold-500" },
+  brown: { bg: "bg-brown-50", text: "text-brown-700", dot: "bg-brown-500" },
+  beige: { bg: "bg-gray-100", text: "text-gray-600", dot: "bg-gray-400" },
+  danger: { bg: "bg-red-50", text: "text-red-600", dot: "bg-red-500" },
+};
 
-function bx(v: string, sz = 36): React.CSSProperties {
-  const r = R[v] || R.beige;
-  return { width: sz, height: sz, borderRadius: sz > 30 ? 10 : 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: `linear-gradient(135deg, rgba(${r},0.14), rgba(${r},0.06))`, border: `1px solid rgba(${r},0.20)` };
+function Badge({ variant, dot, children }: { variant: string; dot?: boolean; children: React.ReactNode }) {
+  const s = badgeStyles[variant] || badgeStyles.beige;
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 text-[9px] font-medium tracking-wide uppercase px-2.5 py-0.5 rounded-full", s.bg, s.text)}>
+      {dot && <span className={cn("w-1.5 h-1.5 rounded-full", s.dot)} />}
+      {children}
+    </span>
+  );
 }
 
-function bg(v: string): React.CSSProperties {
-  const r = R[v] || R.beige; const c = C[v] || "var(--ink-muted)";
-  return { background: `rgba(${r},${v === "gold" ? "0.12" : "0.10"})`, color: c, border: `1px solid rgba(${r},${v === "gold" ? "0.25" : "0.20"})`, display: "inline-flex", alignItems: "center", gap: 4 };
-}
+/* ═══ Stage config ═══ */
 
-const btnPrimary: React.CSSProperties = {
-  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7,
-  padding: "10px 22px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-  background: "linear-gradient(135deg, #A67763, #886151)",
-  border: "1px solid rgba(166,119,99,0.30)", color: "#FFFFFF",
-  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px rgba(166,119,99,0.20)",
-  cursor: "pointer", transition: "all 0.15s",
-};
-
-const btnOutline: React.CSSProperties = {
-  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-  padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-  background: "transparent", border: "1px solid var(--border-soft)",
-  color: "var(--ink-mid)", cursor: "pointer", transition: "all 0.15s",
-};
-
-/* ═══ Stage data ═══ */
-
-const stageLabels: Record<string, string> = {
-  business: "Business Owner", legal: "Legal / Compliance", security: "Security Review", final: "Final Sign-off",
-};
+const stageLabels: Record<string, string> = { business: "Business Owner", legal: "Legal / Compliance", security: "Security Review", final: "Final Sign-off" };
 const stageDesc: Record<string, string> = {
-  business: "Verify budget, scope, and business alignment with strategic goals",
-  legal: "Review contractual terms, IP rights, and regulatory compliance",
-  security: "Assess data sensitivity classification and security requirements",
-  final: "Executive sign-off for project initiation",
+  business: "Verify budget, scope, and business alignment", legal: "Review contractual terms and compliance",
+  security: "Assess data sensitivity and security requirements", final: "Executive sign-off for project initiation",
 };
-const stageIcons: Record<string, LucideIcon> = {
-  business: DollarSign, legal: Scale, security: Shield, final: ShieldCheck,
-};
+const stageIcons: Record<string, LucideIcon> = { business: DollarSign, legal: Scale, security: Shield, final: ShieldCheck };
 
-interface CLI { id: string; label: string; description: string; icon: LucideIcon; }
-
+interface CLI { id: string; label: string; description: string; }
 const stageChecklists: Record<ApprovalStage, CLI[]> = {
   business: [
-    { id: "scope-align", label: "Scope aligns with business objectives", description: "SOW deliverables match the strategic goals for this quarter", icon: Target },
-    { id: "budget-ok", label: "Budget within procurement limits", description: "Estimated cost falls within approved spending authority", icon: DollarSign },
-    { id: "timeline-ok", label: "Timeline is feasible", description: "Milestone dates are realistic given resource availability", icon: Clock },
-    { id: "stakeholders", label: "Stakeholders identified and notified", description: "All key decision-makers are listed and aware", icon: Users },
+    { id: "scope-align", label: "Scope aligns with business objectives", description: "SOW deliverables match strategic goals" },
+    { id: "budget-ok", label: "Budget within procurement limits", description: "Cost falls within approved spending authority" },
+    { id: "timeline-ok", label: "Timeline is feasible", description: "Milestone dates are realistic" },
+    { id: "stakeholders", label: "Stakeholders identified and notified", description: "All decision-makers are listed and aware" },
   ],
   legal: [
-    { id: "ip-rights", label: "IP rights and ownership clauses reviewed", description: "Intellectual property terms are clear and acceptable", icon: Shield },
-    { id: "liability", label: "Liability and indemnification verified", description: "Risk allocation between parties is balanced", icon: Scale },
-    { id: "compliance", label: "Regulatory compliance confirmed", description: "SOW meets all applicable industry regulations", icon: ShieldCheck },
-    { id: "terms", label: "Standard terms applied", description: "Contractual terms match approved templates", icon: FileText },
+    { id: "ip-rights", label: "IP rights and ownership clauses reviewed", description: "Intellectual property terms are acceptable" },
+    { id: "liability", label: "Liability and indemnification verified", description: "Risk allocation is balanced" },
+    { id: "compliance", label: "Regulatory compliance confirmed", description: "Meets all applicable regulations" },
+    { id: "terms", label: "Standard terms applied", description: "Terms match approved templates" },
   ],
   security: [
-    { id: "data-class", label: "Data classification appropriate", description: "Sensitivity level matches the data types involved", icon: Shield },
-    { id: "access-ctrl", label: "Access controls specified", description: "Authentication and authorization requirements are defined", icon: Lock },
-    { id: "encryption", label: "Encryption requirements met", description: "Data at rest and in transit protection standards", icon: ShieldCheck },
-    { id: "audit-trail", label: "Audit logging requirements defined", description: "Compliance monitoring and traceability mechanisms", icon: ScrollText },
+    { id: "data-class", label: "Data classification appropriate", description: "Sensitivity level matches data types" },
+    { id: "access-ctrl", label: "Access controls specified", description: "Auth requirements are defined" },
+    { id: "encryption", label: "Encryption requirements met", description: "Data protection standards met" },
+    { id: "audit-trail", label: "Audit logging requirements defined", description: "Traceability mechanisms in place" },
   ],
   final: [
-    { id: "all-stages", label: "All prior stages approved", description: "Business, Legal, and Security reviews are complete", icon: CheckCircle2 },
-    { id: "risk-accept", label: "Residual risks accepted", description: "Outstanding risks documented with mitigation plans", icon: AlertTriangle },
-    { id: "decomp-ready", label: "Ready for decomposition", description: "SOW is complete and can be broken into tasks", icon: GitBranch },
+    { id: "all-stages", label: "All prior stages approved", description: "Business, Legal, and Security reviews complete" },
+    { id: "risk-accept", label: "Residual risks accepted", description: "Outstanding risks documented" },
+    { id: "decomp-ready", label: "Ready for decomposition", description: "SOW can be broken into tasks" },
   ],
 };
 
-function riskLabel(s: number) { return s <= 25 ? "Low" : s <= 50 ? "Medium" : s <= 75 ? "High" : "Critical"; }
-type RejectionType = "changes" | "reject";
+function riskVariant(s: number) { return s <= 25 ? "forest" : s <= 50 ? "gold" : "danger"; }
 
-const sCfg: Record<string, { v: string; l: string }> = {
-  draft: { v: "beige", l: "Draft" }, parsing: { v: "teal", l: "Parsing" }, review: { v: "teal", l: "In Review" },
-  approval: { v: "gold", l: "In Approval" }, approved: { v: "forest", l: "Approved" }, archived: { v: "beige", l: "Archived" },
-  rejected: { v: "brown", l: "Rejected" }, changes_requested: { v: "gold", l: "Changes Requested" },
+const statusVariant: Record<string, string> = {
+  draft: "beige", parsing: "teal", review: "teal", approval: "gold",
+  approved: "forest", archived: "beige", rejected: "danger", changes_requested: "gold",
 };
 
-/* ═══════════════════════════════════════════════════════════════ */
+/* ═══ PAGE ═══ */
 
 export default function SOWApprovePage() {
   const params = useParams();
@@ -130,340 +96,189 @@ export default function SOWApprovePage() {
   const checkedCount = activeChecklist.filter((item) => checked[item.id]).length;
 
   const [showRejectForm, setShowRejectForm] = React.useState(false);
-  const [rejectionType, setRejectionType] = React.useState<RejectionType>("changes");
   const [rejectionReason, setRejectionReason] = React.useState("");
   const [rejectionSubmitted, setRejectionSubmitted] = React.useState(false);
   const [approvalSubmitted, setApprovalSubmitted] = React.useState(false);
 
-  const riskScore = sow.riskScore.overall;
-  const rv = riskScore <= 25 ? "forest" : riskScore <= 50 ? "gold" : "brown";
   const allStagesApproved = sow.approvalStages.every((s) => s.status === "approved");
-  const st = sCfg[sow.status] || sCfg.draft;
-
-  const handleRejectSubmit = () => { if (!rejectionReason.trim()) return; setRejectionSubmitted(true); setShowRejectForm(false); };
-  const handleApproveSubmit = () => { setApprovalSubmitted(true); };
-
   const showMain = activeStage && !approvalSubmitted && !rejectionSubmitted;
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="show">
 
-      {/* ── Hero ── */}
-      <motion.div variants={fadeUp} style={{ marginBottom: 24 }}>
-        <h1 className="font-heading" style={{ fontSize: "1.5rem", fontWeight: 600, color: "var(--ink)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>
-          {sow.title}
-        </h1>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-          {[sow.client, `v${sow.version}`, `${sow.pages} pg`].map((t, i) => (
-            <React.Fragment key={i}>
-              {i > 0 && <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--border-soft)" }} />}
-              <span style={{ fontSize: 12, color: "var(--ink-muted)" }}>{t}</span>
-            </React.Fragment>
-          ))}
-          <span style={{ ...bg(st.v), fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 5 }}>{st.l}</span>
-          <span style={{ ...bg(rv), fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 5 }}>
-            <Gauge style={{ width: 9, height: 9 }} /> {riskLabel(riskScore)} {riskScore}
-          </span>
+      {/* ═══ HEADER ═══ */}
+      <motion.div variants={fadeUp} className="mb-8">
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          <Badge variant={statusVariant[sow.status] || "beige"} dot>{sow.status === "approval" ? "In Approval" : sow.status}</Badge>
+          {sow.riskScore.overall > 0 && <Badge variant={riskVariant(sow.riskScore.overall)}>Risk {sow.riskScore.overall}/100</Badge>}
+        </div>
+        <h1 className="font-heading text-[28px] font-semibold text-gray-900 tracking-tight leading-tight">{sow.title}</h1>
+        <div className="flex items-center gap-2 mt-2 text-[12px] text-gray-400">
+          <span>{sow.client}</span>
+          <span className="w-1 h-1 rounded-full bg-gray-300" />
+          <span>v{sow.version}</span>
+          <span className="w-1 h-1 rounded-full bg-gray-300" />
+          <span>{sow.pages} pages</span>
         </div>
       </motion.div>
 
       {showMain && (
         <>
-          {/* ═══ HORIZONTAL TIMELINE ═══ */}
-          <motion.div variants={fadeUp} className="card-parchment" style={{ padding: "24px 32px", marginBottom: 20 }}>
-            <div style={{ display: "flex", alignItems: "center" }}>
-              {sow.approvalStages.map((stage, idx) => {
+          {/* ═══ PIPELINE — Vertical list ═══ */}
+          <motion.div variants={fadeUp} className="mb-6">
+            <h2 className="text-sm font-semibold text-gray-800 mb-3">Approval Pipeline</h2>
+            <div className="card-parchment">
+              {sow.approvalStages.map((stage, i) => {
                 const isActive = activeStage?.stage === stage.stage;
                 const done = stage.status === "approved";
                 const rejected = stage.status === "rejected";
-                const isLast = idx === sow.approvalStages.length - 1;
-                const StageIcon = stageIcons[stage.stage] || FileText;
-                const d = stage.reviewedAt ? new Date(stage.reviewedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : null;
+                const variant = done ? "forest" : isActive ? "gold" : rejected ? "danger" : "beige";
+                const StageIcon = done ? CheckCircle2 : rejected ? XCircle : isActive ? Clock : stageIcons[stage.stage] || FileText;
 
                 return (
-                  <React.Fragment key={stage.stage}>
-                    {/* Stage node */}
-                    <div style={{
-                      flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-                      position: "relative",
-                    }}>
-                      {/* Circle */}
-                      <div style={{
-                        width: 40, height: 40, borderRadius: "50%",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        background: done
-                          ? `linear-gradient(135deg, rgba(${R.forest},0.18), rgba(${R.forest},0.08))`
-                          : isActive
-                            ? `linear-gradient(135deg, rgba(${R.gold},0.18), rgba(${R.gold},0.08))`
-                            : "rgba(255,255,255,0.8)",
-                        border: `2px solid ${done ? `rgba(${R.forest},0.40)` : isActive ? `rgba(${R.gold},0.50)` : "var(--border-soft)"}`,
-                        boxShadow: isActive
-                          ? `0 0 0 5px rgba(${R.gold},0.10), 0 2px 8px rgba(${R.gold},0.12)`
-                          : done
-                            ? `0 2px 6px rgba(${R.forest},0.10)`
-                            : "none",
-                        transition: "all 0.3s",
-                      }}>
-                        {done ? <CheckCircle2 style={{ width: 18, height: 18, color: C.forest }} />
-                          : rejected ? <XCircle style={{ width: 18, height: 18, color: C.brown }} />
-                          : <StageIcon style={{ width: 17, height: 17, color: isActive ? C.gold : "var(--ink-faint)" }} />}
-                      </div>
-
-                      {/* Label block */}
-                      <div style={{ textAlign: "center" }}>
-                        <p style={{
-                          fontSize: 11.5, fontWeight: 600, lineHeight: 1.25,
-                          color: isActive ? C.gold : done ? C.forest : "var(--ink-muted)",
-                        }}>
-                          {stageLabels[stage.stage]}
-                        </p>
-                        {stage.reviewer && (
-                          <p style={{ fontSize: 10, color: "var(--ink-faint)", marginTop: 2 }}>{stage.reviewer}</p>
-                        )}
-                        {done && d && (
-                          <p style={{ fontSize: 9, color: "var(--ink-faint)", marginTop: 1, fontFamily: "var(--font-mono, monospace)" }}>{d}</p>
-                        )}
-                        {isActive && (
-                          <span style={{
-                            display: "inline-block", marginTop: 5,
-                            fontSize: 9, fontWeight: 600, padding: "1px 6px", borderRadius: 4,
-                            background: `rgba(${R.gold},0.12)`, color: C.gold, border: `1px solid rgba(${R.gold},0.25)`,
-                          }}>IN REVIEW</span>
-                        )}
-                      </div>
+                  <div key={stage.stage} className={cn("flex items-center gap-4 px-5 py-4",
+                    isActive && "bg-gold-50/50"
+                  )} style={{ borderBottom: i < sow.approvalStages.length - 1 ? "1px solid var(--border-hair)" : undefined }}>
+                    <StageIcon className={cn("w-[18px] h-[18px] shrink-0",
+                      done ? "text-forest-500" : isActive ? "text-gold-600" : rejected ? "text-red-500" : "text-gray-400"
+                    )} />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[13px] font-medium text-gray-800">{stageLabels[stage.stage]}</span>
+                      {stage.reviewer && <span className="text-[11px] text-gray-400 ml-2">— {stage.reviewer}</span>}
                     </div>
-
-                    {/* Connector line */}
-                    {!isLast && (
-                      <div style={{
-                        width: 48, height: 2, flexShrink: 0, borderRadius: 1, alignSelf: "flex-start", marginTop: 19,
-                        background: done ? `rgba(${R.forest},0.30)` : "var(--border-hair)",
-                        transition: "background 0.3s",
-                      }} />
-                    )}
-                  </React.Fragment>
+                    <Badge variant={variant}>{done ? "Approved" : isActive ? "In Review" : rejected ? "Rejected" : "Pending"}</Badge>
+                  </div>
                 );
               })}
             </div>
           </motion.div>
 
-          {/* ═══ REVIEW CARD — Linear flow: checklist → notes → action ═══ */}
-          <motion.div variants={fadeUp} className="card-parchment" style={{ padding: 0, overflow: "hidden" }}>
-            {/* Card header */}
-            <div className="section-header-parchment">
+          {/* ═══ REVIEW CHECKLIST ═══ */}
+          <motion.div variants={fadeUp} className="mb-6">
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", lineHeight: 1.2 }}>
-                  {stageLabels[activeStage.stage]}
-                </p>
-                <p style={{ fontSize: 11, color: "var(--ink-faint)", marginTop: 2 }}>
-                  {stageDesc[activeStage.stage]}
-                </p>
+                <h2 className="text-sm font-semibold text-gray-800">{stageLabels[activeStage.stage]}</h2>
+                <p className="text-[12px] text-gray-400 mt-0.5">{stageDesc[activeStage.stage]}</p>
               </div>
-              <span style={{ ...bg(checkedCount === activeChecklist.length ? "forest" : "gold"), fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 5 }}>
-                {checkedCount}/{activeChecklist.length}
-              </span>
+              <Badge variant={allChecked ? "forest" : "gold"}>{checkedCount}/{activeChecklist.length}</Badge>
             </div>
 
-            {/* Progress bar */}
-            <div style={{ padding: "0 28px" }}>
-              <div className="prog-track" style={{ marginTop: 20, marginBottom: 4 }}>
-                <div className="prog-fill" style={{
-                  width: `${activeChecklist.length > 0 ? (checkedCount / activeChecklist.length) * 100 : 0}%`,
-                  transition: "width 0.4s ease-out",
-                  background: allChecked
-                    ? `linear-gradient(90deg, ${C.forest}, rgba(${R.teal},0.8))`
-                    : `linear-gradient(90deg, ${C.brown}, rgba(${R.gold},0.7))`,
-                }} />
-              </div>
-            </div>
-
-            {/* Checklist — single column, linear flow */}
-            <div style={{ padding: "16px 28px 0" }}>
-              {activeChecklist.map((item, idx) => {
-                const isChecked = !!checked[item.id];
-                return (
-                  <label
-                    key={item.id}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 14,
-                      padding: "16px 0", cursor: "pointer",
-                      borderBottom: idx < activeChecklist.length - 1 ? "1px solid var(--border-hair)" : "none",
-                      transition: "all 0.18s",
-                    }}
-                  >
-                    <Checkbox
-                      checked={isChecked}
-                      onCheckedChange={(val) => setChecked((prev) => ({ ...prev, [item.id]: !!val }))}
-                    />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{
-                        fontSize: 13.5, fontWeight: 600, lineHeight: 1.3,
-                        color: isChecked ? C.forest : "var(--ink)",
-                        transition: "color 0.15s",
-                      }}>
-                        {item.label}
-                      </p>
-                      <p style={{ fontSize: 11.5, color: "var(--ink-faint)", marginTop: 2, lineHeight: 1.4 }}>
-                        {item.description}
-                      </p>
-                    </div>
-                    {isChecked && <CheckCircle2 style={{ width: 16, height: 16, color: C.forest, flexShrink: 0 }} />}
-                  </label>
-                );
-              })}
-            </div>
-
-            {/* Notes — full width */}
-            <div style={{ padding: "24px 28px", borderTop: "1px solid var(--border-hair)" }}>
-              <p className="label-caps" style={{ marginBottom: 10, fontSize: 9 }}>Approval Notes</p>
-              <Textarea
-                value={comments}
-                onChange={(e) => setComments(e.target.value)}
-                placeholder="Optional notes or conditions for this stage..."
-                className="min-h-[100px]"
-                style={{ fontSize: 13 }}
-              />
-            </div>
-
-            {/* Action footer — approver left, buttons right */}
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "18px 28px",
-              borderTop: "1px solid var(--border-hair)",
-              background: "rgba(255,255,255,0.4)",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{
-                  width: 34, height: 34, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                  background: "linear-gradient(145deg, #4D5741, #A67763)", border: "1.5px solid rgba(208,176,96,0.25)",
-                  fontSize: 11, fontWeight: 600, color: "#F4EFEB",
-                }}>PN</div>
-                <div>
-                  <p style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink)", lineHeight: 1.2 }}>Priya Nair</p>
-                  <p style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>{stageLabels[activeStage.stage]} Reviewer</p>
+            <div className="card-parchment">
+              {/* Progress bar */}
+              <div className="px-5 pt-4 pb-2">
+                <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                  <div className={cn("h-full rounded-full transition-all duration-500", allChecked ? "bg-forest-500" : "bg-gradient-to-r from-brown-400 to-brown-500")}
+                    style={{ width: `${activeChecklist.length > 0 ? (checkedCount / activeChecklist.length) * 100 : 0}%` }} />
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 10 }}>
-                <button
-                  type="button"
-                  onClick={() => { setShowRejectForm((p) => !p); setRejectionSubmitted(false); }}
-                  style={btnOutline}
-                >
-                  <AlertTriangle style={{ width: 13, height: 13 }} /> Request Changes
-                </button>
-                <button
-                  type="button" disabled={!allChecked} onClick={handleApproveSubmit}
-                  style={{
-                    ...btnPrimary,
-                    opacity: allChecked ? 1 : 0.45, cursor: allChecked ? "pointer" : "not-allowed",
-                  }}
-                >
-                  <CheckCircle2 style={{ width: 14, height: 14 }} />
-                  {allChecked ? "Approve Stage" : `${checkedCount}/${activeChecklist.length} Verified`}
-                </button>
+              {/* Checklist items */}
+              {activeChecklist.map((item, idx) => {
+                const isChecked = !!checked[item.id];
+                return (
+                  <label key={item.id} className="flex items-center gap-4 px-5 py-4 cursor-pointer transition-colors hover:bg-black/[0.02]"
+                    style={{ borderBottom: idx < activeChecklist.length - 1 ? "1px solid var(--border-hair)" : undefined }}>
+                    <Checkbox checked={isChecked} onCheckedChange={(val) => setChecked((prev) => ({ ...prev, [item.id]: !!val }))} />
+                    <div className="flex-1 min-w-0">
+                      <p className={cn("text-[13px] font-medium transition-colors", isChecked ? "text-forest-700" : "text-gray-800")}>{item.label}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">{item.description}</p>
+                    </div>
+                    {isChecked && <CheckCircle2 className="w-4 h-4 text-forest-500 shrink-0" />}
+                  </label>
+                );
+              })}
+
+              {/* Notes */}
+              <div className="px-5 py-4" style={{ borderTop: "1px solid var(--border-hair)" }}>
+                <div className="label-caps mb-2">Approval Notes</div>
+                <Textarea value={comments} onChange={(e) => setComments(e.target.value)}
+                  placeholder="Optional notes or conditions..." className="min-h-[80px]" />
               </div>
             </div>
-
-            {/* Rejection form — expands below footer */}
-            <AnimatePresence>
-              {showRejectForm && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.22 }}
-                  style={{ overflow: "hidden" }}
-                >
-                  <div style={{ padding: "24px 28px", borderTop: "1px solid var(--border-hair)", background: "rgba(255,255,255,0.3)" }}>
-                    <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-                      {(["changes", "reject"] as RejectionType[]).map((type) => {
-                        const active = rejectionType === type;
-                        const isReject = type === "reject";
-                        const v = isReject ? "brown" : "gold";
-                        return (
-                          <button key={type} type="button" onClick={() => setRejectionType(type)} style={{
-                            flex: 1, padding: "12px 16px", borderRadius: 10, textAlign: "left" as const, cursor: "pointer",
-                            border: active ? `1px solid rgba(${R[v]},0.40)` : "1px solid var(--border-hair)",
-                            background: active ? `rgba(${R[v]},0.06)` : "transparent", transition: "all 0.15s",
-                          }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <div style={{
-                                width: 14, height: 14, borderRadius: "50%", border: `2px solid ${active ? C[v] : "var(--border-soft)"}`,
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                              }}>
-                                {active && <div style={{ width: 6, height: 6, borderRadius: "50%", background: C[v] }} />}
-                              </div>
-                              <span style={{ fontSize: 13, fontWeight: 600, color: active ? C[v] : "var(--ink)" }}>
-                                {isReject ? "Reject SOW" : "Request Changes"}
-                              </span>
-                            </div>
-                            <p style={{ fontSize: 11, color: "var(--ink-faint)", marginTop: 3, marginLeft: 22 }}>
-                              {isReject ? "SOW will be terminated and cannot be resumed" : "Send back to the author for modifications"}
-                            </p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <Textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)}
-                      placeholder={rejectionType === "changes" ? "Describe what needs to change..." : "Reason for rejection..."}
-                      className="min-h-[100px]" style={{ marginBottom: 16, fontSize: 13 }} />
-                    <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                      <button type="button" onClick={() => setShowRejectForm(false)} style={btnOutline}>Cancel</button>
-                      <button type="button" disabled={!rejectionReason.trim()} onClick={handleRejectSubmit} style={{
-                        ...btnPrimary,
-                        opacity: rejectionReason.trim() ? 1 : 0.4, cursor: rejectionReason.trim() ? "pointer" : "not-allowed",
-                        background: rejectionReason.trim() && rejectionType === "reject"
-                          ? "linear-gradient(135deg, #A67763, #886151)"
-                          : rejectionReason.trim() ? `rgba(${R.gold},0.18)` : `rgba(${R.beige},0.3)`,
-                        color: rejectionReason.trim() ? (rejectionType === "reject" ? "#FFFFFF" : C.gold) : "var(--ink-faint)",
-                        border: rejectionReason.trim()
-                          ? (rejectionType === "reject" ? "1px solid rgba(166,119,99,0.30)" : `1px solid rgba(${R.gold},0.30)`)
-                          : "1px solid var(--border-hair)",
-                        boxShadow: rejectionReason.trim() && rejectionType === "reject" ? "inset 0 1px 0 rgba(255,255,255,0.12)" : "none",
-                      }}>
-                        <Send style={{ width: 12, height: 12 }} />
-                        {rejectionType === "changes" ? "Submit Changes" : "Reject SOW"}
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </motion.div>
+
+          {/* ═══ ACTIONS — Outside the card ═══ */}
+          <motion.div variants={fadeUp} className="flex items-center justify-end gap-2 mb-6">
+            <button onClick={() => setShowRejectForm((p) => !p)}
+              className="flex items-center gap-1.5 text-[12px] font-medium text-gray-500 px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-all">
+              <AlertTriangle className="w-3.5 h-3.5" /> Request Changes
+            </button>
+            <button disabled={!allChecked} onClick={() => setApprovalSubmitted(true)}
+              className={cn("flex items-center gap-1.5 text-[13px] font-semibold px-6 py-2.5 rounded-xl transition-all",
+                allChecked ? "text-white bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700" : "text-gray-400 bg-gray-100 cursor-not-allowed"
+              )}>
+              <CheckCircle2 className="w-4 h-4" />
+              {allChecked ? "Approve Stage" : `${checkedCount}/${activeChecklist.length} Verified`}
+            </button>
+          </motion.div>
+
+          {/* ═══ REJECTION FORM ═══ */}
+          <AnimatePresence>
+            {showRejectForm && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-6">
+                <div className="card-parchment px-5 py-5">
+                  <h3 className="text-[14px] font-semibold text-gray-800 mb-1">Request Changes</h3>
+                  <p className="text-[12px] text-gray-400 mb-4">Describe what needs to be modified before this stage can be approved.</p>
+                  <Textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Describe what needs to change..." className="min-h-[100px] mb-4" />
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => setShowRejectForm(false)}
+                      className="text-[12px] font-medium text-gray-500 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all">Cancel</button>
+                    <button disabled={!rejectionReason.trim()}
+                      onClick={() => { if (rejectionReason.trim()) { setRejectionSubmitted(true); setShowRejectForm(false); } }}
+                      className={cn("flex items-center gap-1.5 text-[12px] font-medium px-4 py-2 rounded-lg transition-all",
+                        rejectionReason.trim() ? "text-white bg-gradient-to-r from-brown-400 to-brown-600" : "text-gray-400 bg-gray-100 cursor-not-allowed"
+                      )}>
+                      <Send className="w-3 h-3" /> Submit Changes
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </>
       )}
 
-      {/* ── Success states ── */}
+      {/* ═══ SUCCESS STATES ═══ */}
       {approvalSubmitted && (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card-parchment" style={{ textAlign: "center", padding: "56px 40px" }}>
-          <div style={{ ...bx("forest", 64), borderRadius: 20, margin: "0 auto 20px" }}><CheckCircle2 style={{ width: 28, height: 28, color: C.forest }} /></div>
-          <h2 className="font-heading" style={{ fontSize: "1.3rem", fontWeight: 600, color: "var(--ink)", marginBottom: 6 }}>Stage Approved</h2>
-          <p style={{ fontSize: 13, color: "var(--ink-muted)" }}><span style={{ fontWeight: 600, color: "var(--ink)" }}>{activeStage ? stageLabels[activeStage.stage] : ""}</span> review completed.</p>
-          {comments && <p style={{ fontSize: 12, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 8 }}>&ldquo;{comments}&rdquo;</p>}
-          <Link href={`/enterprise/sow/${sow.id}`} style={{ ...btnOutline, marginTop: 24, textDecoration: "none" }}>Return to SOW</Link>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card-parchment text-center px-10 py-16">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-forest-400 to-forest-600 flex items-center justify-center mx-auto mb-5">
+            <CheckCircle2 className="w-7 h-7 text-white" />
+          </div>
+          <h2 className="text-[20px] font-semibold text-gray-900 mb-1">Stage Approved</h2>
+          <p className="text-[13px] text-gray-400"><span className="font-semibold text-gray-700">{activeStage ? stageLabels[activeStage.stage] : ""}</span> review completed.</p>
+          {comments && <p className="text-[12px] text-gray-400 italic mt-3 max-w-[360px] mx-auto">&ldquo;{comments}&rdquo;</p>}
+          <Link href={`/enterprise/sow/${sow.id}`} className="inline-flex items-center gap-1.5 text-[12px] font-medium text-gray-500 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-all mt-6">
+            Return to SOW
+          </Link>
         </motion.div>
       )}
 
       {rejectionSubmitted && (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card-parchment" style={{ textAlign: "center", padding: "56px 40px" }}>
-          <div style={{ ...bx(rejectionType === "changes" ? "gold" : "brown", 64), borderRadius: 20, margin: "0 auto 20px" }}>
-            {rejectionType === "changes" ? <AlertTriangle style={{ width: 28, height: 28, color: C.gold }} /> : <XCircle style={{ width: 28, height: 28, color: C.brown }} />}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card-parchment text-center px-10 py-16">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center mx-auto mb-5">
+            <AlertTriangle className="w-7 h-7 text-white" />
           </div>
-          <h2 className="font-heading" style={{ fontSize: "1.3rem", fontWeight: 600, color: "var(--ink)", marginBottom: 6 }}>{rejectionType === "changes" ? "Changes Requested" : "SOW Rejected"}</h2>
-          <p style={{ fontSize: 13, color: "var(--ink-muted)" }}>{rejectionType === "changes" ? "Sent back for modifications." : "This SOW has been terminated."}</p>
-          <p style={{ fontSize: 12, color: "var(--ink-faint)", fontStyle: "italic", maxWidth: 380, margin: "8px auto 0" }}>&ldquo;{rejectionReason}&rdquo;</p>
-          <Link href={`/enterprise/sow/${sow.id}`} style={{ ...btnOutline, marginTop: 24, textDecoration: "none" }}>Return to SOW</Link>
+          <h2 className="text-[20px] font-semibold text-gray-900 mb-1">Changes Requested</h2>
+          <p className="text-[13px] text-gray-400">Sent back for modifications.</p>
+          <p className="text-[12px] text-gray-400 italic mt-3 max-w-[380px] mx-auto">&ldquo;{rejectionReason}&rdquo;</p>
+          <Link href={`/enterprise/sow/${sow.id}`} className="inline-flex items-center gap-1.5 text-[12px] font-medium text-gray-500 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-all mt-6">
+            Return to SOW
+          </Link>
         </motion.div>
       )}
 
       {allStagesApproved && !activeStage && !approvalSubmitted && !rejectionSubmitted && (
-        <motion.div variants={fadeUp} className="card-parchment" style={{ textAlign: "center", padding: "56px 40px" }}>
-          <div style={{ ...bx("forest", 64), borderRadius: 20, margin: "0 auto 20px" }}><Sparkles style={{ width: 28, height: 28, color: C.forest }} /></div>
-          <h2 className="font-heading" style={{ fontSize: "1.3rem", fontWeight: 600, color: "var(--ink)", marginBottom: 6 }}>All Stages Approved</h2>
-          <p style={{ fontSize: 13, color: "var(--ink-muted)", maxWidth: 340, margin: "0 auto 24px" }}>Ready for decomposition into tasks.</p>
-          <Link href={`/enterprise/sow/${sow.id}`} style={{
-            ...btnPrimary, textDecoration: "none", background: "linear-gradient(135deg, #4D5741, #3a4230)", border: "1px solid rgba(77,87,65,0.30)",
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 8px rgba(77,87,65,0.20)",
-          }}><GitBranch style={{ width: 14, height: 14 }} /> Proceed to Decomposition</Link>
+        <motion.div variants={fadeUp} className="card-parchment text-center px-10 py-16">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-forest-400 to-forest-600 flex items-center justify-center mx-auto mb-5">
+            <Sparkles className="w-7 h-7 text-white" />
+          </div>
+          <h2 className="text-[20px] font-semibold text-gray-900 mb-1">All Stages Approved</h2>
+          <p className="text-[13px] text-gray-400 max-w-[340px] mx-auto mb-6">Ready for decomposition into tasks.</p>
+          <Link href={`/enterprise/sow/${sow.id}`}
+            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-white bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700 px-6 py-2.5 rounded-xl transition-all">
+            <GitBranch className="w-4 h-4" /> Proceed to Decomposition
+          </Link>
         </motion.div>
       )}
     </motion.div>

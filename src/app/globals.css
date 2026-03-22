@@ -114,7 +114,7 @@
 
 :root {
   /* Clean neutral surface system */
-  --page-bg:       #FFFFFF;
+  --page-bg:       #F8F8F6;
   --sidebar-bg:    #FEFEFE;
   --card-bg:       #FEFEFE;
   --card-bg-alt:   #F3F2F0;
@@ -288,29 +288,21 @@ body::after {
    ══════════════════════════════════════════════════════════════ */
 
 .card-parchment {
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 20px;
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.03),
-    0 8px 32px rgba(0, 0, 0, 0.04),
-    inset 0 1px 0 rgba(255,255,255,0.7);
-  transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+  background: #FFFFFF;
+  border: none;
+  border-radius: 18px;
+  box-shadow: 0 1px 3px var(--border-hair), 0 4px 12px var(--border-hair);
+  transition: box-shadow 0.3s ease;
   position: relative;
   overflow: hidden;
 }
 
 .card-parchment::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.95) 30%, rgba(255,255,255,0.95) 70%, transparent);
+  display: none;
 }
 
 .card-parchment:hover {
+  box-shadow: 0 2px 6px var(--border-hair), 0 6px 16px var(--border-hair);
 }
 
 /* Gold horizontal rule */

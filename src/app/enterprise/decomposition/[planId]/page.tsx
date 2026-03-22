@@ -102,7 +102,7 @@ const taskStatusConfig: Record<
     dotColor: string;
   }
 > = {
-  backlog: { variant: "beige", label: "Backlog", icon: Circle, dotColor: "bg-beige-400" },
+  backlog: { variant: "beige", label: "Backlog", icon: Circle, dotColor: "bg-gray-400" },
   in_progress: { variant: "teal", label: "In Progress", icon: Zap, dotColor: "bg-teal-500" },
   in_review: { variant: "gold", label: "In Review", icon: Clock, dotColor: "bg-gold-500" },
   rework: { variant: "danger", label: "Rework", icon: AlertTriangle, dotColor: "bg-red-500" },
@@ -128,7 +128,7 @@ const recTypeIcon: Record<AIRecommendation["type"], React.ElementType> = {
 const recSeverityColor: Record<AIRecommendation["severity"], string> = {
   info: "text-teal-600 bg-teal-50 border-teal-200/60",
   warning: "text-gold-700 bg-gold-50 border-gold-200/60",
-  critical: "text-brown-700 bg-brown-50 border-brown-200/60",
+  critical: "text-gray-700 bg-brown-50 border-brown-200/60",
 };
 
 const depTypeIcon: Record<string, React.ElementType> = {
@@ -159,7 +159,7 @@ function ConfidenceGauge({
 
   return (
     <div className={cn("flex items-center gap-2", size === "sm" ? "w-16" : "w-20")}>
-      <div className="flex-1 h-1.5 rounded-full bg-beige-100 overflow-hidden">
+      <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
         <div
           className={cn("h-full rounded-full bg-gradient-to-r transition-all duration-700", color)}
           style={{ width: `${barWidth}%` }}
@@ -191,7 +191,7 @@ function SkillChip({ skill, size = "sm" }: { skill: SkillTag; size?: "sm" | "md"
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md bg-beige-100/80 text-beige-700 font-semibold border border-beige-200/50",
+        "inline-flex items-center gap-1 rounded-md bg-gray-100/80 text-gray-700 font-semibold border border-gray-200/50",
         size === "sm" ? "text-[9px] px-1.5 py-0.5" : "text-[11px] px-2 py-0.5"
       )}
     >
@@ -201,7 +201,7 @@ function SkillChip({ skill, size = "sm" }: { skill: SkillTag; size?: "sm" | "md"
           "rounded px-1 py-px font-bold uppercase tracking-wider",
           skill.source === "ai"
             ? "bg-teal-100 text-teal-600 text-[7px]"
-            : "bg-beige-200 text-beige-500 text-[7px]"
+            : "bg-gray-200 text-gray-500 text-[7px]"
         )}
       >
         {skill.source === "ai" ? "AI" : "Manual"}
@@ -229,18 +229,18 @@ function SubtaskRow({
     >
       {/* Tree connector */}
       <div className="flex items-center gap-0 shrink-0 mt-1">
-        <span className="text-beige-300 text-[11px] font-mono select-none">
+        <span className="text-gray-300 text-[11px] font-mono select-none">
           {isLast ? "\u2514" : "\u251C"}
         </span>
-        <span className="w-2 h-px bg-beige-300" />
+        <span className="w-2 h-px bg-gray-300" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[11px] text-brown-700 group-hover:text-brown-900 transition-colors truncate">
+        <p className="text-[11px] text-gray-700 group-hover:text-gray-900 transition-colors truncate">
           {subtask.title}
         </p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <span className="text-[9px] text-beige-400 font-mono">{subtask.estimatedHours}h</span>
+        <span className="text-[9px] text-gray-400 font-mono">{subtask.estimatedHours}h</span>
         <ConfidenceGauge value={subtask.aiConfidence} size="sm" />
       </div>
     </button>
@@ -279,10 +279,10 @@ function TaskTreeCard({
       {/* Main task row */}
       <div
         className={cn(
-          "group relative rounded-xl border bg-white/80 backdrop-blur-sm transition-all duration-300 cursor-pointer",
+          "group relative rounded-xl border bg-white transition-all duration-300 cursor-pointer",
           isSelected
             ? "border-brown-300 bg-brown-50/30 shadow-lg shadow-brown-100/20 ring-1 ring-brown-200/40"
-            : "border-beige-200/60 hover:shadow-lg hover:shadow-brown-100/15 hover:border-beige-300/80"
+            : "border-gray-200/60 hover:shadow-lg hover:shadow-brown-100/15 hover:border-gray-300/80"
         )}
       >
         <div className="p-3.5" onClick={() => onSelect(task.id)}>
@@ -295,12 +295,12 @@ function TaskTreeCard({
                     e.stopPropagation();
                     setExpanded(!expanded);
                   }}
-                  className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 mt-0.5 bg-beige-100/60 hover:bg-beige-200/80 transition-colors"
+                  className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 mt-0.5 bg-gray-100/60 hover:bg-gray-200/80 transition-colors"
                 >
                   {expanded ? (
-                    <ChevronDown className="w-3 h-3 text-beige-500" />
+                    <ChevronDown className="w-3 h-3 text-gray-500" />
                   ) : (
-                    <ChevronRight className="w-3 h-3 text-beige-500" />
+                    <ChevronRight className="w-3 h-3 text-gray-500" />
                   )}
                 </button>
               ) : (
@@ -315,16 +315,16 @@ function TaskTreeCard({
                   task.status === "in_review" && "bg-gold-100 text-gold-600",
                   task.status === "rework" && "bg-red-50 text-red-600",
                   task.status === "rejected" && "bg-red-50 text-red-600",
-                  task.status === "backlog" && "bg-beige-100 text-beige-500"
+                  task.status === "backlog" && "bg-gray-100 text-gray-500"
                 )}
               >
                 <StatusIcon className="w-3.5 h-3.5" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-semibold text-brown-900 leading-tight truncate">
+                <p className="text-[13px] font-semibold text-gray-900 leading-tight truncate">
                   {task.title}
                 </p>
-                <p className="text-[11px] text-beige-500 mt-0.5 line-clamp-1 leading-relaxed">
+                <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-1 leading-relaxed">
                   {task.description}
                 </p>
               </div>
@@ -343,12 +343,12 @@ function TaskTreeCard({
             <Badge variant={priority.variant} size="sm">
               {priority.label}
             </Badge>
-            <span className="text-[10px] text-beige-500 flex items-center gap-1">
+            <span className="text-[10px] text-gray-500 flex items-center gap-1">
               <Clock className="w-3 h-3" />
               {task.estimatedHours}h
             </span>
             {hasSubtasks && (
-              <span className="text-[10px] text-beige-500 flex items-center gap-1">
+              <span className="text-[10px] text-gray-500 flex items-center gap-1">
                 <Layers className="w-3 h-3" />
                 {task.subtasks.length} subtask{task.subtasks.length > 1 ? "s" : ""}
               </span>
@@ -364,7 +364,7 @@ function TaskTreeCard({
               <SkillChip key={s.name} skill={s} />
             ))}
             {task.skillsRequired.length > 3 && (
-              <span className="text-[9px] text-beige-400 font-medium">
+              <span className="text-[9px] text-gray-400 font-medium">
                 +{task.skillsRequired.length - 3} more
               </span>
             )}
@@ -387,7 +387,7 @@ function TaskTreeCard({
             transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="overflow-hidden"
           >
-            <div className="ml-12 pl-3 border-l-2 border-beige-200/40 mt-1 mb-1 space-y-0">
+            <div className="ml-12 pl-3 border-l-2 border-gray-200/40 mt-1 mb-1 space-y-0">
               {task.subtasks.map((st, i) => (
                 <SubtaskRow
                   key={st.id}
@@ -430,7 +430,7 @@ function MilestoneGroup({
       ? "from-forest-500 to-forest-600"
       : milestone.itemStatus === "modified"
         ? "from-gold-500 to-gold-600"
-        : "from-beige-400 to-beige-500";
+        : "from-gray-300 to-gray-400";
 
   return (
     <motion.div variants={fadeUp} className="space-y-3">
@@ -449,7 +449,7 @@ function MilestoneGroup({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="text-[14px] font-bold text-brown-900 truncate">
+            <h3 className="text-[14px] font-bold text-gray-900 truncate">
               {milestone.title}
             </h3>
             <Badge
@@ -459,11 +459,11 @@ function MilestoneGroup({
               {milestone.itemStatus === "accepted" ? "Complete" : "Proposed"}
             </Badge>
           </div>
-          <p className="text-[11px] text-beige-500 mt-0.5 flex items-center gap-2">
+          <p className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-2">
             <span>{completedCount}/{tasks.length} tasks</span>
-            <span className="text-beige-300">&middot;</span>
+            <span className="text-gray-300">&middot;</span>
             <span>{milestone.subtaskCount} subtasks</span>
-            <span className="text-beige-300">&middot;</span>
+            <span className="text-gray-300">&middot;</span>
             <span>{milestoneTotalHours.toLocaleString()}h</span>
           </p>
         </div>
@@ -477,16 +477,16 @@ function MilestoneGroup({
             />
           </div>
           {open ? (
-            <ChevronDown className="w-4 h-4 text-beige-400 transition-transform" />
+            <ChevronDown className="w-4 h-4 text-gray-400 transition-transform" />
           ) : (
-            <ChevronRight className="w-4 h-4 text-beige-400 transition-transform" />
+            <ChevronRight className="w-4 h-4 text-gray-400 transition-transform" />
           )}
         </div>
       </button>
 
       {/* Milestone description */}
       {open && milestone.description && (
-        <p className="text-[11px] text-beige-500 ml-12 -mt-1 italic">
+        <p className="text-[11px] text-gray-500 ml-12 -mt-1 italic">
           {milestone.description}
         </p>
       )}
@@ -505,7 +505,7 @@ function MilestoneGroup({
               variants={stagger}
               initial="hidden"
               animate="show"
-              className="space-y-2.5 pl-4 border-l-2 border-beige-200/50 ml-4"
+              className="space-y-2.5 pl-4 border-l-2 border-gray-200/50 ml-4"
             >
               {tasks.map((task) => (
                 <TaskTreeCard
@@ -585,7 +585,7 @@ function RecommendationCard({
           </p>
         )}
         {rec.suggestion && (
-          <div className="mt-2 rounded-lg bg-white/60 backdrop-blur-sm border border-current/10 px-2.5 py-1.5">
+          <div className="mt-2 rounded-lg bg-gray-50 border border-gray-200 px-2.5 py-1.5">
             <p className="text-[10px] font-medium flex items-center gap-1">
               <Sparkles className="w-3 h-3" />
               Suggestion
@@ -656,19 +656,19 @@ function TaskDetailPanel({
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: "100%", opacity: 0 }}
       transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="fixed right-0 top-0 bottom-0 w-full max-w-[420px] z-50 bg-white/95 backdrop-blur-xl border-l border-beige-200/80 shadow-2xl shadow-brown-900/10 overflow-hidden flex flex-col"
+      className="fixed right-0 top-0 bottom-0 w-full max-w-[420px] z-50 bg-white border-l border-gray-200 overflow-hidden flex flex-col" style={{ boxShadow: "0 0 40px var(--border-hair)" }}
     >
       {/* Mobile drag handle — tap to close (#9) */}
       <button
         onClick={onClose}
-        className="sm:hidden w-full flex justify-center py-2.5 border-b border-beige-100"
+        className="sm:hidden w-full flex justify-center py-2.5 border-b border-gray-100"
         aria-label="Close panel"
       >
-        <div className="w-10 h-1 rounded-full bg-beige-300" />
+        <div className="w-10 h-1 rounded-full bg-gray-300" />
       </button>
 
       {/* Header */}
-      <div className="p-5 pb-4 border-b border-beige-200/50">
+      <div className="p-5 pb-4 border-b border-gray-200/50">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div
@@ -679,7 +679,7 @@ function TaskDetailPanel({
                 task.status === "in_review" && "bg-gold-100 text-gold-600",
                 task.status === "rework" && "bg-red-50 text-red-600",
                 task.status === "rejected" && "bg-red-50 text-red-600",
-                task.status === "backlog" && "bg-beige-100 text-beige-500"
+                task.status === "backlog" && "bg-gray-100 text-gray-500"
               )}
             >
               <StatusIcon className="w-4 h-4" />
@@ -701,10 +701,10 @@ function TaskDetailPanel({
             </Button>
           </div>
         </div>
-        <h2 className="text-[16px] font-bold text-brown-900 mt-3 leading-snug">
+        <h2 className="text-[16px] font-bold text-gray-900 mt-3 leading-snug">
           {task.title}
         </h2>
-        <p className="text-[11px] text-beige-500 mt-1.5 leading-relaxed">
+        <p className="text-[11px] text-gray-500 mt-1.5 leading-relaxed">
           {task.description}
         </p>
       </div>
@@ -714,20 +714,20 @@ function TaskDetailPanel({
         <div className="p-5 space-y-5">
           {/* Quick stats row */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-xl bg-beige-50/80 border border-beige-200/40 p-3 text-center">
-              <Clock className="w-4 h-4 text-beige-400 mx-auto" />
-              <p className="text-[14px] font-bold text-brown-900 mt-1">
+            <div className="rounded-xl bg-gray-50/80 border border-gray-200/40 p-3 text-center">
+              <Clock className="w-4 h-4 text-gray-400 mx-auto" />
+              <p className="text-[14px] font-bold text-gray-900 mt-1">
                 {task.estimatedHours}h
               </p>
-              <p className="text-[9px] text-beige-500 font-medium">Est. Hours</p>
+              <p className="text-[9px] text-gray-500 font-medium">Est. Hours</p>
             </div>
-            <div className="rounded-xl bg-beige-50/80 border border-beige-200/40 p-3 text-center">
+            <div className="rounded-xl bg-gray-50/80 border border-gray-200/40 p-3 text-center">
               <Badge variant={priority.variant} size="sm" className="mx-auto">
                 {priority.label}
               </Badge>
-              <p className="text-[9px] text-beige-500 font-medium mt-2">Priority</p>
+              <p className="text-[9px] text-gray-500 font-medium mt-2">Priority</p>
             </div>
-            <div className="rounded-xl bg-beige-50/80 border border-beige-200/40 p-3 text-center">
+            <div className="rounded-xl bg-gray-50/80 border border-gray-200/40 p-3 text-center">
               <div className="flex justify-center">
                 <MetricRing
                   value={task.aiConfidence}
@@ -736,14 +736,14 @@ function TaskDetailPanel({
                   color={task.aiConfidence >= 85 ? "forest" : task.aiConfidence >= 70 ? "teal" : "gold"}
                 />
               </div>
-              <p className="text-[9px] text-beige-500 font-medium mt-1">AI Confidence</p>
+              <p className="text-[9px] text-gray-500 font-medium mt-1">AI Confidence</p>
             </div>
           </div>
 
           {/* Skills */}
           <div>
-            <h4 className="text-[11px] font-bold text-brown-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3 text-beige-400" />
+            <h4 className="text-[11px] font-bold text-gray-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Sparkles className="w-3 h-3 text-gray-400" />
               Required Skills
             </h4>
             <div className="flex flex-wrap gap-1.5">
@@ -756,8 +756,8 @@ function TaskDetailPanel({
           {/* Dependencies */}
           {deps.length > 0 && (
             <div>
-              <h4 className="text-[11px] font-bold text-brown-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <GitBranch className="w-3 h-3 text-beige-400" />
+              <h4 className="text-[11px] font-bold text-gray-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <GitBranch className="w-3 h-3 text-gray-400" />
                 Dependencies ({deps.length})
               </h4>
               <div className="space-y-2">
@@ -767,14 +767,14 @@ function TaskDetailPanel({
                   return (
                     <div
                       key={depTask.id}
-                      className="flex items-center gap-2.5 rounded-lg border border-beige-200/50 bg-beige-50/50 p-2.5"
+                      className="flex items-center gap-2.5 rounded-lg border border-gray-200/50 bg-gray-50/50 p-2.5"
                     >
-                      <DepIcon className="w-3.5 h-3.5 text-beige-400 shrink-0" />
+                      <DepIcon className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-medium text-brown-800 truncate">
+                        <p className="text-[11px] font-medium text-gray-800 truncate">
                           {depTask.title}
                         </p>
-                        <p className="text-[9px] text-beige-400 mt-0.5">
+                        <p className="text-[9px] text-gray-400 mt-0.5">
                           {dep.type === "blocks" ? "Blocking" : "Related"}
                         </p>
                       </div>
@@ -791,8 +791,8 @@ function TaskDetailPanel({
           {/* Acceptance Criteria */}
           {task.acceptanceCriteria.length > 0 && (
             <div>
-              <h4 className="text-[11px] font-bold text-brown-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <ListChecks className="w-3 h-3 text-beige-400" />
+              <h4 className="text-[11px] font-bold text-gray-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <ListChecks className="w-3 h-3 text-gray-400" />
                 Acceptance Criteria
               </h4>
               <div className="space-y-1.5">
@@ -803,7 +803,7 @@ function TaskDetailPanel({
                         "w-4 h-4 rounded-md flex items-center justify-center shrink-0 mt-0.5 border",
                         task.status === "accepted"
                           ? "bg-forest-100 border-forest-300 text-forest-600"
-                          : "bg-beige-50 border-beige-200 text-beige-400"
+                          : "bg-gray-50 border-gray-200 text-gray-400"
                       )}
                     >
                       {task.status === "accepted" ? (
@@ -812,7 +812,7 @@ function TaskDetailPanel({
                         <Circle className="w-2 h-2" />
                       )}
                     </div>
-                    <p className="text-[11px] text-brown-700 leading-relaxed">
+                    <p className="text-[11px] text-gray-700 leading-relaxed">
                       {criteria}
                     </p>
                   </div>
@@ -824,22 +824,22 @@ function TaskDetailPanel({
           {/* Subtasks */}
           {task.subtasks.length > 0 && (
             <div>
-              <h4 className="text-[11px] font-bold text-brown-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <Layers className="w-3 h-3 text-beige-400" />
+              <h4 className="text-[11px] font-bold text-gray-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Layers className="w-3 h-3 text-gray-400" />
                 Subtasks ({task.subtasks.length})
               </h4>
               <div className="space-y-2">
                 {task.subtasks.map((st) => (
                   <div
                     key={st.id}
-                    className="flex items-center gap-2.5 rounded-lg border border-beige-200/40 bg-beige-50/30 p-2.5"
+                    className="flex items-center gap-2.5 rounded-lg border border-gray-200/40 bg-gray-50/30 p-2.5"
                   >
                     <div
                       className={cn(
                         "w-5 h-5 rounded-md flex items-center justify-center shrink-0",
                         st.itemStatus === "accepted"
                           ? "bg-forest-100 text-forest-600"
-                          : "bg-beige-100 text-beige-400"
+                          : "bg-gray-100 text-gray-400"
                       )}
                     >
                       {st.itemStatus === "accepted" ? (
@@ -849,11 +849,11 @@ function TaskDetailPanel({
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-medium text-brown-800 truncate">
+                      <p className="text-[11px] font-medium text-gray-800 truncate">
                         {st.title}
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[9px] text-beige-400">{st.estimatedHours}h</span>
+                        <span className="text-[9px] text-gray-400">{st.estimatedHours}h</span>
                         <ConfidenceGauge value={st.aiConfidence} size="sm" />
                       </div>
                     </div>
@@ -869,8 +869,8 @@ function TaskDetailPanel({
           )}
 
           {/* AI Confidence Detailed */}
-          <div className="rounded-xl border border-beige-200/50 bg-gradient-to-br from-beige-50/50 to-white p-4">
-            <h4 className="text-[11px] font-bold text-brown-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <h4 className="text-[11px] font-bold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
               <Brain className="w-3 h-3 text-teal-500" />
               AI Confidence Analysis
             </h4>
@@ -883,7 +883,7 @@ function TaskDetailPanel({
                 label="Confidence"
               />
             </div>
-            <p className="text-[10px] text-beige-500 text-center leading-relaxed">
+            <p className="text-[10px] text-gray-500 text-center leading-relaxed">
               {task.aiConfidence >= 90
                 ? "High confidence. This task decomposition closely matches historical patterns."
                 : task.aiConfidence >= 75
@@ -1137,67 +1137,33 @@ export default function PlanDetailPage() {
         animate="show"
         className="max-w-[1200px] mx-auto space-y-6"
       >
-        {/* ── Back + Header ── */}
+        {/* ── Header ── */}
         <motion.div variants={fadeUp}>
-          <Link
-            href="/enterprise/decomposition"
-            className="inline-flex items-center gap-1.5 text-[12px] text-beige-500 hover:text-brown-600 transition-colors mb-3 group"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
-            Back to Decomposition Plans
-          </Link>
-
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-brown-500 to-brown-600 flex items-center justify-center shrink-0 shadow-md shadow-brown-500/20">
-                <Network className="w-5 h-5 text-white" />
+            <div>
+              <div className="flex items-center gap-2.5 flex-wrap mb-2">
+                <Badge variant={status.variant} size="sm" dot>
+                  {status.label}
+                </Badge>
               </div>
-              <div>
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <h1 className="text-[22px] font-bold text-brown-900 tracking-[-0.02em]">
-                    {plan.title}
-                  </h1>
-                  <Badge variant={status.variant} size="sm" dot>
-                    {status.label}
-                  </Badge>
-                </div>
-                <p className="text-[12px] text-beige-500 mt-1 flex items-center gap-1.5 flex-wrap">
-                  <Link
-                    href={`/enterprise/sow/${plan.sowId}`}
-                    className="inline-flex items-center gap-1 text-teal-600 hover:text-teal-700 font-medium transition-colors"
-                  >
-                    <FileText className="w-3 h-3" />
-                    {sowTitle}
-                    <ExternalLink className="w-2.5 h-2.5 opacity-50" />
-                  </Link>
-                  <span className="text-beige-300">&middot;</span>
-                  <span>
-                    Created{" "}
-                    {new Date(plan.createdAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </span>
-                  <span className="text-beige-300">&middot;</span>
-                  <span>v{plan.version}</span>
-                  <span className="text-beige-300">&middot;</span>
-                  <span className="flex items-center gap-1">
-                    AI Confidence:
-                    <span
-                      className={cn(
-                        "font-bold font-mono",
-                        plan.aiConfidence >= 85
-                          ? "text-forest-600"
-                          : plan.aiConfidence >= 70
-                            ? "text-teal-600"
-                            : "text-gold-600"
-                      )}
-                    >
-                      {plan.aiConfidence}%
-                    </span>
-                  </span>
-                </p>
+              <h1 className="font-heading text-[28px] font-semibold text-gray-900 tracking-tight leading-tight">
+                {plan.title}
+              </h1>
+              <div className="flex items-center gap-2 mt-2 text-[12px] text-gray-400 flex-wrap">
+                <Link href={`/enterprise/sow/${plan.sowId}`} className="text-brown-500 hover:text-brown-600 font-medium transition-colors">
+                  {sowTitle}
+                </Link>
+                <span className="w-1 h-1 rounded-full bg-gray-300" />
+                <span>v{plan.version}</span>
+                <span className="w-1 h-1 rounded-full bg-gray-300" />
+                <span>{new Date(plan.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                <span className="w-1 h-1 rounded-full bg-gray-300" />
+                <span className="flex items-center gap-1">
+                  AI:
+                  <span className={cn("font-mono font-semibold",
+                    plan.aiConfidence >= 85 ? "text-forest-600" : plan.aiConfidence >= 70 ? "text-teal-600" : "text-gold-600"
+                  )}>{plan.aiConfidence}%</span>
+                </span>
               </div>
             </div>
 
@@ -1228,7 +1194,7 @@ export default function PlanDetailPage() {
               {/* C4: Only show approval CTA for draft/pending_review plans */}
               {(plan.status === "draft" || plan.status === "pending_review") && (
                 <Link href={`/enterprise/decomposition/${plan.id}/approve`}>
-                  <Button variant="gradient-primary" size="sm">
+                  <Button className="text-white bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700" size="sm">
                     <ShieldCheck className="w-3.5 h-3.5" />
                     Submit for Approval
                   </Button>
@@ -1237,7 +1203,7 @@ export default function PlanDetailPage() {
               {/* Approved — link to team formation (#3) */}
               {plan.status === "approved" && (
                 <Link href="/enterprise/team">
-                  <Button variant="gradient-primary" size="sm">
+                  <Button className="text-white bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700" size="sm">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     View Team Formation
                   </Button>
@@ -1246,7 +1212,7 @@ export default function PlanDetailPage() {
               {/* In progress — link to active project (#3) */}
               {plan.status === "in_progress" && (
                 <Link href={`/enterprise/projects/${plan.projectId ?? "proj-001"}`}>
-                  <Button variant="gradient-primary" size="sm">
+                  <Button className="text-white bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700" size="sm">
                     <FolderOpen className="w-3.5 h-3.5" />
                     View Project
                   </Button>
@@ -1255,7 +1221,7 @@ export default function PlanDetailPage() {
               {/* Completed — link to completed project (#2, #3) */}
               {plan.status === "completed" && (
                 <Link href={`/enterprise/projects/${plan.projectId ?? "proj-001"}`}>
-                  <Button variant="gradient-primary" size="sm">
+                  <Button className="text-white bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700" size="sm">
                     <FolderOpen className="w-3.5 h-3.5" />
                     View Completed Project
                   </Button>
@@ -1268,9 +1234,9 @@ export default function PlanDetailPage() {
         {/* ── Summary Bar ── */}
         <motion.div
           variants={fadeUp}
-          className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm"
+          className="card-parchment"
         >
-          <div className="flex items-center divide-x divide-beige-200/50 overflow-x-auto">
+          <div className="flex items-center divide-x divide-gray-100 overflow-x-auto">
             {[
               {
                 label: "Milestones",
@@ -1288,7 +1254,7 @@ export default function PlanDetailPage() {
                 label: "Subtasks",
                 value: totalSubtasks.toString(),
                 icon: Hash,
-                color: "text-beige-500",
+                color: "text-gray-500",
               },
               {
                 label: "Hours",
@@ -1321,10 +1287,10 @@ export default function PlanDetailPage() {
               >
                 <item.icon className={cn("w-3.5 h-3.5 shrink-0", item.color)} />
                 <div className="min-w-0">
-                  <p className="text-[13px] font-bold text-brown-900 tabular-nums">
+                  <p className="text-[13px] font-bold text-gray-900 tabular-nums">
                     {item.value}
                   </p>
-                  <p className="text-[9px] text-beige-500 font-medium uppercase tracking-wider">
+                  <p className="text-[9px] text-gray-500 font-medium uppercase tracking-wider">
                     {item.label}
                   </p>
                 </div>
@@ -1344,7 +1310,7 @@ export default function PlanDetailPage() {
             )}
           >
             {/* Task status summary */}
-            <div className="flex items-center gap-4 flex-wrap rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-3.5">
+            <div className="flex items-center gap-4 flex-wrap card-parchment p-3.5">
               {(
                 [
                   ["backlog", "Backlog"],
@@ -1359,14 +1325,14 @@ export default function PlanDetailPage() {
                 return (
                   <div key={key} className="flex items-center gap-2">
                     <div className={cn("w-2 h-2 rounded-full", cfg.dotColor)} />
-                    <span className="text-[12px] text-brown-700 font-medium tabular-nums">
+                    <span className="text-[12px] text-gray-700 font-medium tabular-nums">
                       {count} {label}
                     </span>
                   </div>
                 );
               })}
               <div className="flex-1" />
-              <span className="text-[11px] text-beige-400">
+              <span className="text-[11px] text-gray-400">
                 {completedTasks}/{tasks.length} complete
               </span>
             </div>
@@ -1395,7 +1361,7 @@ export default function PlanDetailPage() {
             {/* AI Recommendations Panel */}
             <motion.div variants={fadeUp} className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-[14px] font-bold text-brown-900 flex items-center gap-2">
+                <h3 className="text-[14px] font-bold text-gray-900 flex items-center gap-2">
                   <Brain className="w-4 h-4 text-teal-500" />
                   AI Recommendations
                   {activeRecCount > 0 && (
@@ -1404,17 +1370,17 @@ export default function PlanDetailPage() {
                     </span>
                   )}
                 </h3>
-                <span className="text-[10px] text-beige-400">
+                <span className="text-[10px] text-gray-400">
                   {dismissedRecs.size} dismissed
                 </span>
               </div>
               <div className="space-y-2.5">
                 {recommendations.length === 0 ? (
                   /* #11: Empty state when no AI recommendations */
-                  <div className="rounded-xl border border-beige-200/40 bg-beige-50/30 p-6 text-center">
-                    <Inbox className="w-8 h-8 text-beige-300 mx-auto mb-2" />
-                    <p className="text-[12px] font-medium text-beige-500">No active recommendations</p>
-                    <p className="text-[10px] text-beige-400 mt-0.5">All AI suggestions have been resolved for this plan.</p>
+                  <div className="rounded-xl border border-gray-200/40 bg-gray-50/30 p-6 text-center">
+                    <Inbox className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                    <p className="text-[12px] font-medium text-gray-500">No active recommendations</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">All AI suggestions have been resolved for this plan.</p>
                   </div>
                 ) : activeRecCount === 0 ? (
                   /* All dismissed */
@@ -1449,7 +1415,7 @@ export default function PlanDetailPage() {
           <motion.div variants={slideInRight} className="space-y-5">
             <div className="lg:sticky lg:top-6 space-y-5">
               {/* Completion ring */}
-              <div className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5 text-center">
+              <div className="card-parchment p-5 text-center">
                 <MetricRing
                   value={completionPct}
                   size={100}
@@ -1458,13 +1424,13 @@ export default function PlanDetailPage() {
                   label="Complete"
                   className="mx-auto"
                 />
-                <p className="text-[13px] font-semibold text-brown-800 mt-3">
+                <p className="text-[13px] font-semibold text-gray-800 mt-3">
                   Plan Completion
                 </p>
-                <p className="text-[11px] text-beige-500 mt-0.5">
+                <p className="text-[11px] text-gray-500 mt-0.5">
                   {completedTasks} of {tasks.length} tasks accepted
                 </p>
-                <div className="mt-3 pt-3 border-t border-beige-100">
+                <div className="mt-3 pt-3 border-t border-gray-100">
                   <Progress
                     value={completionPct}
                     size="sm"
@@ -1474,9 +1440,9 @@ export default function PlanDetailPage() {
               </div>
 
               {/* Plan metadata */}
-              <div className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5 space-y-4">
-                <h3 className="text-[13px] font-bold text-brown-900 flex items-center gap-2">
-                  <Target className="w-4 h-4 text-beige-400" />
+              <div className="card-parchment p-5 space-y-4">
+                <h3 className="text-[13px] font-bold text-gray-900 flex items-center gap-2">
+                  <Target className="w-4 h-4 text-gray-400" />
                   Plan Details
                 </h3>
                 {[
@@ -1518,20 +1484,20 @@ export default function PlanDetailPage() {
                     className="flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2">
-                      <item.icon className="w-3.5 h-3.5 text-beige-400" />
-                      <span className="text-[12px] text-beige-600">
+                      <item.icon className="w-3.5 h-3.5 text-gray-400" />
+                      <span className="text-[12px] text-gray-600">
                         {item.label}
                       </span>
                     </div>
-                    <span className="text-[13px] font-semibold text-brown-800 tabular-nums">
+                    <span className="text-[13px] font-semibold text-gray-800 tabular-nums">
                       {item.value}
                     </span>
                   </div>
                 ))}
 
                 {/* Progress by milestone */}
-                <div className="pt-3 border-t border-beige-100">
-                  <p className="text-[11px] text-beige-500 font-medium mb-2.5">
+                <div className="pt-3 border-t border-gray-100">
+                  <p className="text-[11px] text-gray-500 font-medium mb-2.5">
                     Progress by Milestone
                   </p>
                   {milestones.map((ms, i) => {
@@ -1545,14 +1511,14 @@ export default function PlanDetailPage() {
                     return (
                       <div key={ms.id} className="mb-2.5 last:mb-0">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] text-brown-700 font-medium truncate max-w-[70%]">
+                          <span className="text-[10px] text-gray-700 font-medium truncate max-w-[70%]">
                             {ms.title}
                           </span>
-                          <span className="text-[10px] text-beige-500 tabular-nums">
+                          <span className="text-[10px] text-gray-500 tabular-nums">
                             {msPct}%
                           </span>
                         </div>
-                        <div className="h-1.5 rounded-full bg-beige-100 overflow-hidden">
+                        <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
                           <div
                             className={cn(
                               "h-full rounded-full transition-all duration-500",
@@ -1574,9 +1540,9 @@ export default function PlanDetailPage() {
               </div>
 
               {/* Plan lifecycle timeline */}
-              <div className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5">
-                <h3 className="text-[13px] font-bold text-brown-900 mb-4 flex items-center gap-2">
-                  <GitBranch className="w-4 h-4 text-beige-400" />
+              <div className="card-parchment p-5">
+                <h3 className="text-[13px] font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <GitBranch className="w-4 h-4 text-gray-400" />
                   Lifecycle
                 </h3>
                 <StatusTimeline steps={timelineSteps} />
@@ -1595,7 +1561,7 @@ export default function PlanDetailPage() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="fixed inset-0 z-40 bg-brown-950/10 backdrop-blur-[2px]"
+                className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[2px]"
                 onClick={() => setSelectedTaskId(null)}
               />
               {/* Panel */}
@@ -1619,16 +1585,16 @@ export default function PlanDetailPage() {
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
           >
-            <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-brown-900 text-white shadow-2xl shadow-brown-900/30 max-w-md">
+            <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-gray-900 text-white shadow-2xl max-w-md">
               {recToast.type === "accept" ? (
                 <CheckCircle2 className="w-4 h-4 text-forest-400 shrink-0" />
               ) : (
-                <X className="w-4 h-4 text-beige-400 shrink-0" />
+                <X className="w-4 h-4 text-gray-400 shrink-0" />
               )}
               <span className="text-[12px] font-medium truncate">{recToast.message}</span>
               <button
                 onClick={() => setRecToast(null)}
-                className="text-[11px] text-beige-300 hover:text-white ml-2 transition-colors shrink-0"
+                className="text-[11px] text-gray-300 hover:text-white ml-2 transition-colors shrink-0"
               >
                 Dismiss
               </button>
@@ -1649,7 +1615,7 @@ export default function PlanDetailPage() {
       >
         <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-brown-900">
+            <DialogTitle className="flex items-center gap-2 text-gray-900">
               <FileDown className="w-5 h-5 text-brown-600" />
               Export Plan
             </DialogTitle>
@@ -1662,7 +1628,7 @@ export default function PlanDetailPage() {
             <div className="space-y-5 py-2">
               {/* ── Format selection ── */}
               <div>
-                <p className="text-[12px] font-semibold text-brown-800 mb-2.5">
+                <p className="text-[12px] font-semibold text-gray-800 mb-2.5">
                   Format
                 </p>
                 <div className="grid grid-cols-2 gap-3">
@@ -1673,7 +1639,7 @@ export default function PlanDetailPage() {
                       "flex items-center gap-3 rounded-xl border-2 p-4 transition-all text-left",
                       exportFormat === "csv"
                         ? "border-brown-400 bg-brown-50/50 shadow-sm"
-                        : "border-beige-200 bg-white hover:border-beige-300"
+                        : "border-gray-200 bg-white hover:border-gray-300"
                     )}
                   >
                     <div
@@ -1681,14 +1647,14 @@ export default function PlanDetailPage() {
                         "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
                         exportFormat === "csv"
                           ? "bg-forest-100 text-forest-600"
-                          : "bg-beige-100 text-beige-500"
+                          : "bg-gray-100 text-gray-500"
                       )}
                     >
                       <FileSpreadsheet className="w-5 h-5" />
                     </div>
                     <div>
-                      <p className="text-[13px] font-bold text-brown-900">CSV</p>
-                      <p className="text-[10px] text-beige-500">
+                      <p className="text-[13px] font-bold text-gray-900">CSV</p>
+                      <p className="text-[10px] text-gray-500">
                         Tabular data, spreadsheet-ready
                       </p>
                     </div>
@@ -1700,7 +1666,7 @@ export default function PlanDetailPage() {
                       "flex items-center gap-3 rounded-xl border-2 p-4 transition-all text-left",
                       exportFormat === "pdf"
                         ? "border-brown-400 bg-brown-50/50 shadow-sm"
-                        : "border-beige-200 bg-white hover:border-beige-300"
+                        : "border-gray-200 bg-white hover:border-gray-300"
                     )}
                   >
                     <div
@@ -1708,14 +1674,14 @@ export default function PlanDetailPage() {
                         "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
                         exportFormat === "pdf"
                           ? "bg-teal-100 text-teal-600"
-                          : "bg-beige-100 text-beige-500"
+                          : "bg-gray-100 text-gray-500"
                       )}
                     >
                       <FileText className="w-5 h-5" />
                     </div>
                     <div>
-                      <p className="text-[13px] font-bold text-brown-900">PDF</p>
-                      <p className="text-[10px] text-beige-500">
+                      <p className="text-[13px] font-bold text-gray-900">PDF</p>
+                      <p className="text-[10px] text-gray-500">
                         Formatted document, print-ready
                       </p>
                     </div>
@@ -1725,7 +1691,7 @@ export default function PlanDetailPage() {
 
               {/* ── Content scope ── */}
               <div>
-                <p className="text-[12px] font-semibold text-brown-800 mb-2.5">
+                <p className="text-[12px] font-semibold text-gray-800 mb-2.5">
                   Content Scope
                 </p>
                 <div className="space-y-2">
@@ -1754,7 +1720,7 @@ export default function PlanDetailPage() {
                         "w-full flex items-center gap-3 rounded-xl border px-4 py-3 transition-all text-left",
                         exportScope === opt.value
                           ? "border-brown-400 bg-brown-50/40"
-                          : "border-beige-200 bg-white hover:border-beige-300"
+                          : "border-gray-200 bg-white hover:border-gray-300"
                       )}
                     >
                       <div
@@ -1762,7 +1728,7 @@ export default function PlanDetailPage() {
                           "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
                           exportScope === opt.value
                             ? "border-brown-500"
-                            : "border-beige-300"
+                            : "border-gray-300"
                         )}
                       >
                         {exportScope === opt.value && (
@@ -1770,10 +1736,10 @@ export default function PlanDetailPage() {
                         )}
                       </div>
                       <div>
-                        <p className="text-[12px] font-semibold text-brown-900">
+                        <p className="text-[12px] font-semibold text-gray-900">
                           {opt.label}
                         </p>
-                        <p className="text-[10px] text-beige-500">{opt.desc}</p>
+                        <p className="text-[10px] text-gray-500">{opt.desc}</p>
                       </div>
                     </button>
                   ))}
@@ -1797,9 +1763,9 @@ export default function PlanDetailPage() {
               )}
 
               {/* Filename preview */}
-              <div className="rounded-lg bg-beige-50 border border-beige-200/50 px-4 py-2.5">
-                <p className="text-[10px] text-beige-500 mb-0.5">Filename</p>
-                <p className="text-[11px] font-mono font-medium text-brown-700 truncate">
+              <div className="rounded-lg bg-gray-50 border border-gray-200/50 px-4 py-2.5">
+                <p className="text-[10px] text-gray-500 mb-0.5">Filename</p>
+                <p className="text-[11px] font-mono font-medium text-gray-700 truncate">
                   {exportFilename}
                 </p>
               </div>
@@ -1810,13 +1776,13 @@ export default function PlanDetailPage() {
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-forest-100 to-teal-100 flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 className="w-7 h-7 text-forest-600" />
               </div>
-              <h3 className="text-[16px] font-bold text-brown-900 mb-1">
+              <h3 className="text-[16px] font-bold text-gray-900 mb-1">
                 Export Complete
               </h3>
-              <p className="text-[12px] text-beige-500 max-w-xs mx-auto mb-3">
+              <p className="text-[12px] text-gray-500 max-w-xs mx-auto mb-3">
                 Your file has been downloaded successfully.
               </p>
-              <p className="text-[11px] font-mono text-brown-600 bg-beige-50 inline-block px-3 py-1.5 rounded-lg">
+              <p className="text-[11px] font-mono text-brown-600 bg-gray-50 inline-block px-3 py-1.5 rounded-lg">
                 {exportFilename}
               </p>
             </div>
@@ -1833,7 +1799,7 @@ export default function PlanDetailPage() {
                   Cancel
                 </Button>
                 <Button
-                  variant="gradient-primary"
+                  className="text-white bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700"
                   size="sm"
                   disabled={exporting}
                   onClick={handleExport}
@@ -1863,7 +1829,7 @@ export default function PlanDetailPage() {
                   Export Again
                 </Button>
                 <Button
-                  variant="gradient-primary"
+                  className="text-white bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700"
                   size="sm"
                   onClick={() => setExportOpen(false)}
                 >
