@@ -10,6 +10,8 @@ import {
   LogOut,
   User,
   Settings,
+  CheckCheck,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useSidebarStore } from "@/lib/stores/sidebar-store";
@@ -21,9 +23,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import type { ModuleConfig } from "@/lib/config/navigation";
+import type { AppNotification } from "@/types/enterprise";
 import { mockPlans, mockTeams } from "@/mocks/data/enterprise-projects";
 import { mockSOWs } from "@/mocks/data/enterprise-sow";
+import { mockNotifications } from "@/mocks/data/enterprise-dashboard";
 
 const segmentLabels: Record<string, string> = {
   apg: "Policies", "sow-forms": "SOW Intake Forms", "clause-library": "Clause Library",
@@ -46,6 +55,91 @@ function getFriendlyLabel(segment: string, _prev: string[]): string | null {
   if (team) return team.name;
   if (templateNames[segment]) return templateNames[segment];
   return null;
+}
+
+/* ══════════════════════════════════════════ Notification Bell ══════════════════════════════════════════ */
+
+function timeAgo(ts: string) {
+  const h = Math.floor((Date.now() - new Date(ts).getTime()) / 3600000);
+  if (h < 1) return "Just now";
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+const severityColor: Record<string, string> = { high: "bg-red-500", medium: "bg-gold-500", low: "bg-gray-300" };
+
+function NotificationBell() {
+  const [notifications, setNotifications] = React.useState<AppNotification[]>(mockNotifications);
+  const [tab, setTab] = React.useState<"all" | "high">("all");
+
+  const unread = notifications.filter((n) => !n.read);
+  const hasHigh = unread.some((n) => n.severity === "high");
+  const badgeColor = hasHigh ? "bg-red-500" : "bg-gold-500";
+
+  const filtered = tab === "high" ? notifications.filter((n) => n.severity === "high") : notifications;
+
+  const markAllRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const markRead = (id: string) => setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className="relative flex items-center justify-center w-8 h-8 rounded-full text-gray-500 bg-white/50 border border-white/30 hover:bg-white/70 transition-all"
+          aria-label={`Notifications, ${unread.length} unread`}
+        >
+          <Bell className="w-[14px] h-[14px]" />
+          {unread.length > 0 && (
+            <span className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full ${badgeColor} text-white text-[9px] font-bold flex items-center justify-center`}
+              style={{ boxShadow: `0 0 6px ${hasHigh ? "rgba(239,68,68,0.5)" : "rgba(208,176,96,0.5)"}` }}>
+              {unread.length}
+            </span>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-0 shadow-xl border border-gray-100" sideOffset={8}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <h3 className="text-sm font-semibold text-gray-800">Notifications</h3>
+          {unread.length > 0 && (
+            <button onClick={markAllRead} className="flex items-center gap-1 text-[11px] font-medium text-brown-500 hover:text-brown-600">
+              <CheckCheck className="w-3 h-3" /> Mark all read
+            </button>
+          )}
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-gray-100">
+          {(["all", "high"] as const).map((t) => (
+            <button key={t} onClick={() => setTab(t)}
+              className={cn("flex-1 py-2 text-[11px] font-medium transition-colors", tab === t ? "text-brown-600 border-b-2 border-brown-500" : "text-gray-400 hover:text-gray-600")}>
+              {t === "all" ? "All" : "High Priority"}
+            </button>
+          ))}
+        </div>
+
+        {/* Items */}
+        <div className="max-h-72 overflow-y-auto">
+          {filtered.length === 0 ? (
+            <div className="py-10 text-center text-[12px] text-gray-400">No notifications.</div>
+          ) : (
+            filtered.slice(0, 20).map((n) => (
+              <button key={n.id} onClick={() => markRead(n.id)}
+                className={cn("w-full flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-black/[0.02]", !n.read && "bg-brown-50/40")}
+                style={{ borderBottom: "1px solid var(--border-hair)" }}>
+                <span className={cn("w-1.5 h-1.5 rounded-full mt-1.5 shrink-0", severityColor[n.severity])} />
+                <div className="flex-1 min-w-0">
+                  <div className={cn("text-[12px] font-medium truncate", n.read ? "text-gray-500" : "text-gray-800")}>{n.title}</div>
+                  <div className="text-[11px] text-gray-400 truncate mt-0.5">{n.body}</div>
+                  <div className="text-[10px] text-gray-300 mt-1">{timeAgo(n.timestamp)}</div>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 interface TopBarProps { config: ModuleConfig; }
@@ -135,11 +229,8 @@ export function TopBar({ config }: TopBarProps) {
             )}
           </div>
 
-          {/* Bell */}
-          <button className="relative flex items-center justify-center w-8 h-8 rounded-full text-gray-500 bg-white/50 border border-white/30 hover:bg-white/70 transition-all">
-            <Bell className="w-[14px] h-[14px]" />
-            <span className="absolute top-1.5 right-1.5 w-[6px] h-[6px] rounded-full bg-brown-500" style={{ boxShadow: "0 0 6px rgba(166,119,99,0.5)" }} />
-          </button>
+          {/* Notification Bell (FSD 6.7) */}
+          <NotificationBell />
 
           {/* Avatar */}
           <DropdownMenu>
