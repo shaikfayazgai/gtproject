@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import {
   Menu,
   Search,
@@ -257,17 +258,47 @@ export function TopBar({ config }: TopBarProps) {
                     <p className="text-sm font-semibold text-gray-800">Priya Nair</p>
                     <p className="text-xs text-gray-400">priya@enterprise.com</p>
                   </div>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem><User className="w-4 h-4" /> <span>Profile</span></DropdownMenuItem>
-              <DropdownMenuItem><Settings className="w-4 h-4" /> <span>Settings</span></DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-[var(--danger)] focus:text-[var(--danger-hover)] focus:bg-[var(--danger-light)]">
-                <LogOut className="w-4 h-4" /> <span>Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel>
+                  <div className="flex items-center gap-3">
+                    <Avatar size="md">
+                      <AvatarFallback className="bg-gradient-to-br from-brown-400 to-brown-600 text-white font-bold">
+                        PN
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Priya Nair
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        priya@enterprise.com
+                      </p>
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/enterprise/profile">
+                    <User className="w-4 h-4" /> <span>Profile</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/enterprise/settings">
+                    <Settings className="w-4 h-4" /> <span>Settings</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-[var(--danger)] focus:text-[var(--danger-hover)] focus:bg-[var(--danger-light)]"
+                  onClick={() => signOut({ callbackUrl: "/auth/login" })}
+                >
+                  <LogOut className="w-4 h-4" /> <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </header>
