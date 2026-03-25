@@ -43,7 +43,7 @@ export function AppShell({ config, children }: AppShellProps) {
         </main>
       </motion.div>
 
-      <AIChatWidget />
+      {config.basePath === "/contributor" && <AIChatWidget />}
       <Toaster />
     </div>
   );
