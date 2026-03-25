@@ -181,12 +181,6 @@ export const contributorNav: ModuleConfig = {
         { label: "Messages", href: "/contributor/messages", icon: MessageSquare },
       ],
     },
-    {
-      items: [
-        { label: "Profile", href: "/contributor/profile", icon: Users },
-        { label: "Settings", href: "/contributor/settings", icon: Settings },
-      ],
-    },
   ],
 };
 
