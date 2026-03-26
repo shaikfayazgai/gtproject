@@ -15,7 +15,10 @@ export async function proxy(req: NextRequest) {
   let isLoggedIn = false;
   let userRole = "enterprise";
   try {
-    const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+    // secureCookie must be true on HTTPS (Vercel) so getToken reads
+    // "__Secure-authjs.session-token" instead of "authjs.session-token"
+    const secureCookie = req.nextUrl.protocol === "https:";
+    const token = await getToken({ req, secret: process.env.AUTH_SECRET, secureCookie });
     isLoggedIn = !!token?.email;
     if (token?.role) userRole = token.role as string;
   } catch {
