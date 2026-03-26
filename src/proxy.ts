@@ -8,14 +8,17 @@ const protectedRoutes = ["/enterprise", "/contributor", "/mentor"];
 // Routes that should redirect to dashboard if already authenticated
 const authRoutes = ["/auth/login", "/auth/register"];
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Use getToken (Edge-compatible) instead of importing auth (which pulls in bcryptjs)
   let isLoggedIn = false;
   let userRole = "enterprise";
   try {
-    const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+    // secureCookie must be true on HTTPS (Vercel) so getToken reads
+    // "__Secure-authjs.session-token" instead of "authjs.session-token"
+    const secureCookie = req.nextUrl.protocol === "https:";
+    const token = await getToken({ req, secret: process.env.AUTH_SECRET, secureCookie });
     isLoggedIn = !!token?.email;
     userRole = (token?.role as string) || "enterprise";
   } catch {
@@ -39,6 +42,7 @@ export async function middleware(req: NextRequest) {
   if (isAuthRoute && isLoggedIn) {
     const dashboardMap: Record<string, string> = {
       contributor: "/contributor/dashboard",
+      mentor: "/mentor/dashboard",
       admin: "/enterprise/dashboard",
       enterprise: "/enterprise/dashboard",
     };

@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "flag-icons/css/flag-icons.min.css";
+@import "flag-icons/css/flag-icons.min.css" layer(base);
 
 /* ══════════════════════════════════════════════════════════════
    GLIMMORA DESIGN SYSTEM — WARM PARCHMENT THEME
@@ -88,6 +88,11 @@
   /* ── BLACK & WHITE ── */
   --color-black: #000000;
   --color-white: #FFFFFF;
+
+  /* ── SEMANTIC: DANGER (maps to --danger CSS variable) ── */
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-light: var(--danger-light);
 
   /* ── FONT FAMILIES ── */
   --font-heading: var(--font-sans), "Inter", system-ui, sans-serif;
