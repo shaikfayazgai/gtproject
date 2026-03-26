@@ -75,6 +75,11 @@ const typeConfig: Record<
   evidence_dispute:       { label: "Evidence Dispute",      badge: "brown",  icon: FileText,     severity: "high" },
   scope_concern:          { label: "Scope Concern",         badge: "gold",   icon: Eye,          severity: "medium" },
   admin_decision_pending: { label: "Admin Decision Pending", badge: "teal",  icon: MessageSquare, severity: "high" },
+  overdue:                { label: "Overdue",               badge: "danger", icon: Clock,        severity: "high" },
+  payment_delay:          { label: "Payment Delay",         badge: "danger", icon: Wallet,       severity: "high" },
+  quality_issue:          { label: "Quality Issue",         badge: "gold",   icon: TrendingDown, severity: "medium" },
+  escalation:             { label: "Escalation",            badge: "brown",  icon: AlertTriangle, severity: "high" },
+  sla_breach:             { label: "SLA Breach",            badge: "danger", icon: Timer,        severity: "high" },
 };
 
 /* ── Severity config — FSD §9.2.1: CRITICAL / HIGH / MEDIUM ── */
@@ -114,6 +119,7 @@ const statusConfig: Record<
   pending_admin_review: { label: "Pending Admin Review", variant: "gold" },
   pending_enterprise_response: { label: "Pending Enterprise Response", variant: "teal" },
   resolved: { label: "Resolved", variant: "forest" },
+  closed: { label: "Closed", variant: "forest" },
 };
 
 /* ── Sorting order ── */
@@ -123,6 +129,7 @@ const statusOrder: Record<ExceptionStatus, number> = {
   pending_admin_review: 1,
   pending_enterprise_response: 2,
   resolved: 3,
+  closed: 4,
 };
 
 /* ── SLA helpers ── */

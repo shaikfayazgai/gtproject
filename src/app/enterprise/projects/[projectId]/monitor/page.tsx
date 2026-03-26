@@ -33,6 +33,8 @@ const ringColorMap: Record<ProjectHealth, "forest" | "gold" | "brown" | "teal"> 
   on_track: "forest",
   at_risk: "gold",
   behind: "brown",
+  on_hold: "brown",
+  escalated: "gold",
   completed: "teal",
 };
 

@@ -15,6 +15,7 @@ import {
   mockProjects, mockTasks, mockTeams, mockMilestones, mockDeliverables,
 } from "@/mocks/data/enterprise-projects";
 import type { ProjectHealth, MilestoneStatus, TaskStatus } from "@/types/enterprise";
+import { toast } from "@/lib/stores/toast-store";
 
 /* ═══ Badge ═══ */
 
@@ -43,6 +44,8 @@ const healthCfg: Record<ProjectHealth, { label: string; variant: string }> = {
   on_track: { label: "On Track", variant: "forest" },
   at_risk: { label: "At Risk", variant: "gold" },
   behind: { label: "Behind", variant: "danger" },
+  on_hold: { label: "On Hold", variant: "beige" },
+  escalated: { label: "Escalated", variant: "brown" },
   completed: { label: "Completed", variant: "teal" },
 };
 

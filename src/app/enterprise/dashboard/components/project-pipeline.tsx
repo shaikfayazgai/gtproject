@@ -15,11 +15,13 @@ const HEALTH_CFG: Record<ProjectHealth, { label: string; dot: string; bg: string
   on_track: { label: "On Track", dot: "bg-forest-500", bg: "bg-forest-50", text: "text-forest-700" },
   at_risk: { label: "At Risk", dot: "bg-gold-500", bg: "bg-gold-50", text: "text-gold-700" },
   behind: { label: "Behind", dot: "bg-red-500", bg: "bg-red-50", text: "text-red-700" },
+  on_hold: { label: "On Hold", dot: "bg-gray-400", bg: "bg-gray-50", text: "text-gray-600" },
+  escalated: { label: "Escalated", dot: "bg-orange-500", bg: "bg-orange-50", text: "text-orange-700" },
   completed: { label: "Completed", dot: "bg-teal-500", bg: "bg-teal-50", text: "text-teal-700" },
 };
 
 const HEALTH_SORT: Record<ProjectHealth, number> = {
-  behind: 1, at_risk: 2, on_track: 3, completed: 4,
+  escalated: 0, behind: 1, at_risk: 2, on_track: 3, on_hold: 4, completed: 5,
 };
 
 export function ProjectPipeline({ projects, healthFilter }: ProjectPipelineProps) {

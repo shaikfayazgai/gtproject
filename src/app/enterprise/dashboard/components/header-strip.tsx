@@ -36,6 +36,8 @@ export function HeaderStrip({ attentionCount, portfolio, avgSla, healthFilter, o
     on_track: portfolio.onTrack,
     at_risk: portfolio.atRisk,
     behind: portfolio.behind,
+    on_hold: 0,
+    escalated: 0,
     completed: 0,
   };
 

@@ -366,7 +366,7 @@ function ProjectCard({
                 <span className="text-beige-500">Current Milestone Progress</span>
                 <span className="font-mono text-brown-700">{milestoneProgress}%</span>
               </div>
-              <Progress value={milestoneProgress} size="xs" variant="teal" />
+              <Progress value={milestoneProgress} size="sm" variant="teal" />
             </div>
 
             {/* Task Progress (Current Milestone) */}

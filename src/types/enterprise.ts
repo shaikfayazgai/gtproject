@@ -18,6 +18,62 @@ export type MilestoneStatus = "upcoming" | "in_progress" | "completed" | "overdu
 export type ReviewDecision = "approved" | "rejected" | "rework_requested";
 export type InvoiceStatus = "draft" | "pending" | "paid" | "overdue" | "cancelled";
 export type EscrowStatus = "held" | "partially_released" | "released" | "disputed";
+
+/* ── Exceptions / Escalations ── */
+export type ExceptionType =
+  | "task_sla_breach" | "milestone_breach" | "rework_deadline_missed"
+  | "payment_overdue" | "quality_concern" | "capacity_flag"
+  | "matching_issue" | "evidence_dispute" | "scope_concern"
+  | "admin_decision_pending" | "overdue" | "payment_delay"
+  | "quality_issue" | "escalation" | "sla_breach";
+
+export type ExceptionSeverity = "critical" | "high" | "medium";
+export type ExceptionStatus = "open" | "pending_admin_review" | "pending_enterprise_response" | "resolved" | "closed";
+export type ExceptionRaisedBy = "enterprise" | "admin" | "agi";
+
+export interface ExceptionHistoryEntry {
+  id: string;
+  timestamp: string;
+  actor: string;
+  action: string;
+  fromStatus?: ExceptionStatus;
+  toStatus?: string;
+  notes?: string;
+}
+
+export interface ExceptionItem {
+  id: string;
+  type: ExceptionType;
+  severity: ExceptionSeverity;
+  status: ExceptionStatus;
+  projectId: string;
+  projectName: string;
+  milestoneId?: string;
+  milestoneName?: string;
+  taskId?: string;
+  taskName: string;
+  description: string;
+  raisedBy: ExceptionRaisedBy;
+  raisedByName: string;
+  reportedDate: string;
+  assignedTo: string;
+  slaDeadline: string;
+  resolvedAt?: string;
+  resolutionNotes?: string;
+  resolvedBy?: string;
+  adminNotes?: string;
+  history: ExceptionHistoryEntry[];
+}
+
+export interface RaiseEscalationPayload {
+  type: ExceptionType;
+  severity: ExceptionSeverity;
+  projectId: string;
+  milestoneId?: string;
+  taskId?: string;
+  description: string;
+  expectedResolutionDate?: string;
+}
 export type AuditAction = "created" | "updated" | "approved" | "rejected" | "escalated" | "completed" | "archived";
 export type UserRole = "owner" | "admin" | "manager" | "viewer";
 export type NotificationChannel = "email" | "in_app" | "slack" | "webhook";
