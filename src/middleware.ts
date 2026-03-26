@@ -13,9 +13,11 @@ export async function middleware(req: NextRequest) {
 
   // Use getToken (Edge-compatible) instead of importing auth (which pulls in bcryptjs)
   let isLoggedIn = false;
+  let userRole = "enterprise";
   try {
     const token = await getToken({ req, secret: process.env.AUTH_SECRET });
     isLoggedIn = !!token?.email;
+    userRole = (token?.role as string) || "enterprise";
   } catch {
     isLoggedIn = false;
   }
@@ -33,11 +35,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Redirect authenticated users away from auth routes
+  // Redirect authenticated users away from auth routes (role-based)
   if (isAuthRoute && isLoggedIn) {
-    return NextResponse.redirect(
-      new URL("/enterprise/dashboard", req.nextUrl.origin)
-    );
+    const dashboardMap: Record<string, string> = {
+      contributor: "/contributor/dashboard",
+      admin: "/enterprise/dashboard",
+      enterprise: "/enterprise/dashboard",
+    };
+    const dest = dashboardMap[userRole] || "/enterprise/dashboard";
+    return NextResponse.redirect(new URL(dest, req.nextUrl.origin));
   }
 
   return NextResponse.next();

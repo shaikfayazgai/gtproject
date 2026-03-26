@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import {
   Sparkles,
   ArrowRight,
@@ -34,12 +34,21 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   const isMfaEnabled = useAuthStore((s) => s.isMfaEnabled);
   const isOnboardingComplete = useAuthStore((s) => s.isOnboardingComplete);
+  const setOnboardingComplete = useAuthStore((s) => s.setOnboardingComplete);
 
   const callbackUrl = searchParams.get("callbackUrl") || undefined;
-  const enterpriseDest = isOnboardingComplete ? "/enterprise/dashboard" : "/enterprise/onboarding";
-  const redirectTo = callbackUrl || enterpriseDest;
 
   const [step, setStep] = useState<Step>("credentials");
+  const [userRole, setUserRole] = useState<string>("");
+
+  // Route based on user role
+  const getRoleDest = () => {
+    if (userRole === "contributor") return "/contributor/dashboard";
+    if (userRole === "admin") return "/enterprise/dashboard";
+    // enterprise role — show onboarding if not complete
+    return isOnboardingComplete ? "/enterprise/dashboard" : "/enterprise/onboarding";
+  };
+  const redirectTo = callbackUrl || getRoleDest();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -146,6 +155,21 @@ function LoginPageContent() {
       }
 
       if (result?.ok) {
+        // Fetch session to get user role
+        const session = await getSession();
+        const role = (session?.user as { role?: string })?.role;
+
+        // Reset onboarding so the modal shows after login (enterprise only)
+        if (role === "enterprise") {
+          setOnboardingComplete(false);
+        } else {
+          // For contributor/admin, mark onboarding as complete so modal doesn't show
+          setOnboardingComplete(true);
+        }
+
+        // Store role for redirect after MFA
+        setUserRole(role || "enterprise");
+
         // Credentials verified - check MFA
         if (isMfaEnabled) {
           setStep("mfa");
