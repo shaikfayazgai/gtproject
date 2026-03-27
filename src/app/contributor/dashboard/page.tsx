@@ -8,6 +8,7 @@ import {
   Sparkles, CheckCircle2, AlertTriangle, Target, ChevronRight,
   BookOpen, Bell, FileText,
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
 
@@ -66,6 +67,8 @@ function getGreeting() { const h = new Date().getHours(); return h < 12 ? "Good 
 
 /* ═══ DASHBOARD ═══ */
 export default function ContributorDashboardPage() {
+  const { data: session } = useSession();
+  const userName = session?.user?.name?.split(" ")[0] ?? "there";
   const greeting = getGreeting();
   const totalEarned = 2180;
   const pendingPayout = 680;
@@ -76,7 +79,7 @@ export default function ContributorDashboardPage() {
       {/* ═══ HEADER ═══ */}
       <motion.div variants={fadeUp} className="mb-8">
         <h1 className="font-heading text-[24px] font-semibold text-gray-900 tracking-[-0.02em]">
-          {greeting}, Arjun
+          {greeting}, {userName}
         </h1>
         <p className="text-[13px] text-gray-400 mt-1">
           {activeTasks.length} active tasks · {notifications.filter(n => !n.read).length} new notifications
