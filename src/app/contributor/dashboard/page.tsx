@@ -152,23 +152,16 @@ export default function ContributorDashboardPage() {
     <motion.div variants={stagger} initial="hidden" animate="show">
 
       {/* ═══ HEADER ═══ */}
-<<<<<<< Updated upstream
-      <motion.div variants={fadeUp} className="mb-8">
-        <h1 className="font-heading text-[24px] font-semibold text-gray-900 tracking-[-0.02em]">
-          {greeting}, {userName}
-        </h1>
-=======
       <motion.div variants={fadeUp} className="mb-4">
         <div className="flex items-center justify-between">
           <h1 className="font-heading text-[24px] font-semibold text-gray-900 tracking-[-0.02em]">
-            {greeting}, Arjun
+            {greeting}, {userName}
           </h1>
           <div className="flex items-center gap-1.5 text-[10px] text-gray-400" role="status" aria-live="polite" aria-label="Dashboard refresh status">
             <RefreshCw className={cn("w-3 h-3 transition-transform", isRefreshing && "animate-spin text-teal-500")} aria-hidden="true" />
             <span>{isRefreshing ? "Refreshing..." : secondsAgo === 0 ? "Just now" : `Updated ${secondsAgo}s ago`}</span>
           </div>
         </div>
->>>>>>> Stashed changes
         <p className="text-[13px] text-gray-400 mt-1">
           {activeTasks.length} active tasks · {notifications.filter(n => !n.read).length} new notifications
         </p>
