@@ -22,9 +22,8 @@ import {
   LayoutGrid,
   RefreshCw,
   ArrowRight,
-  PenLine,
 } from "lucide-react";
-import { GlassCard, GlassCardContent } from "@/components/ui";
+import { GlassCard, GlassCardContent, Button } from "@/components/ui";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 import { useRegistration } from "./hooks/useRegistration";
@@ -322,20 +321,18 @@ function AuthMethodPicker({
         </div>
 
         {/* Manual */}
-        <button
+        <Button
           type="button"
           onClick={onManual}
+          variant="gradient-cta"
+          size="lg"
           style={{ transitionDelay: "240ms" }}
-          className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-beige-200 bg-white hover:border-brown-300 hover:shadow-md hover:shadow-brown-50 transition-all text-sm font-medium text-brown-800 group ${
+          className={`w-full transition-all duration-500 ${
             visible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4"
           }`}
         >
-          <div className="w-5 h-5 rounded-md bg-beige-100 flex items-center justify-center shrink-0 group-hover:bg-brown-100 transition-colors">
-            <PenLine className="w-3 h-3 text-beige-500 group-hover:text-brown-600 transition-colors" />
-          </div>
-          <span className="flex-1 text-left">Register manually</span>
-          <ArrowRight className="w-4 h-4 text-beige-300 group-hover:text-brown-400 group-hover:translate-x-0.5 transition-all" />
-        </button>
+          Register Manually
+        </Button>
       </div>
     </div>
   );
