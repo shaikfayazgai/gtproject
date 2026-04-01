@@ -3,7 +3,6 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/db";
 
 export type UserRole = "contributor" | "enterprise" | "admin" | "reviewer";
 
@@ -39,7 +38,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     error: "/auth/login",
   },
   providers: [
-    ...oauthProviders,
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code",
+        },
+      },
+    }),
+    MicrosoftEntraID({
+      clientId: process.env.MICROSOFT_CLIENT_ID,
+      clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+      issuer: `https://login.microsoftonline.com/${process.env.MICROSOFT_TENANT_ID ?? "common"}/v2.0`,
+    }),
     Credentials({
       name: "credentials",
       credentials: {
