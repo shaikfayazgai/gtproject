@@ -9,6 +9,7 @@ import {
   BookOpen, Bell, FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { ContributorDashboardSkeleton } from "./components/dashboard-skeleton";
 import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
 
 /* ═══ Inline mock data (until contributor mock file is ready) ═══ */
@@ -66,6 +67,15 @@ function getGreeting() { const h = new Date().getHours(); return h < 12 ? "Good 
 
 /* ═══ DASHBOARD ═══ */
 export default function ContributorDashboardPage() {
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 200);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) return <ContributorDashboardSkeleton />;
+
   const greeting = getGreeting();
   const totalEarned = 2180;
   const pendingPayout = 680;
