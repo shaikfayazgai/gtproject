@@ -3,6 +3,7 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { CheckCircle, Sparkles, Shield } from "lucide-react";
 
 import { useRegistration } from "@/app/auth/register/hooks/useRegistration";
@@ -48,19 +49,24 @@ function SidebarStep({ step, current }: { step: typeof STEPS[0]; current: number
   );
 }
 
-function getSsoDataFromStorage(): SSOData | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem("sso_data");
-    if (!raw) return null;
-    return JSON.parse(raw) as SSOData;
-  } catch { return null; }
+function getSsoDataFromParams(params: URLSearchParams): SSOData | null {
+  const email = params.get("email");
+  const provider = params.get("provider") as SSOData["provider"] | null;
+  if (!email || !provider) return null;
+  return {
+    firstName: params.get("firstName") ?? "",
+    lastName:  params.get("lastName")  ?? "",
+    email,
+    provider,
+    image: params.get("image") ?? undefined,
+  };
 }
 
 export default function OnboardingModal() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
 
-  const [ssoData] = React.useState<SSOData | null>(() => getSsoDataFromStorage());
+  const [ssoData] = React.useState<SSOData | null>(() => getSsoDataFromParams(searchParams));
 
   const reg = useRegistration(ssoData);
   const [started, setStarted] = React.useState(false);
