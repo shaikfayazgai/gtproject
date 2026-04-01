@@ -221,9 +221,9 @@ export function useContributorOnboarding() {
   }
 
   function goToStep4() {
-    if (!ndaAccepted || !ndaSignature.trim()) { setError("You must read, sign, and accept the NDA to continue"); return; }
-    if (!phoneVerified) { setError("Please verify your phone number to continue"); return; }
-    // emailVerified is always true for SSO users — no check needed
+    if (!ndaAccepted)    { setError("Please check the NDA agreement checkbox to continue"); return; }
+    if (!ndaSignedFile)  { setError("Please upload your signed NDA document to continue"); return; }
+    if (!phoneVerified)  { setError("Please verify your phone number to continue"); return; }
     setError(""); setStep(4);
   }
 
