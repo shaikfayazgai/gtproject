@@ -91,7 +91,8 @@ export default function SOWUploadPage() {
   const [validationErrors, setValidationErrors] = React.useState<string[]>([]);
   const [projectTitle, setProjectTitle] = React.useState(store.projectTitle);
   const [clientOrg, setClientOrg] = React.useState(store.clientOrganisation);
-  const [linkedSowId, setLinkedSowId] = React.useState(store.linkedSowId || "");
+  const [linkedSowId, setLinkedSowId] = React.useState(store.linkedSowId || "none");
+  const [fieldErrors, setFieldErrors] = React.useState<{ projectTitle?: string; clientOrg?: string }>({});
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const isParsing = parsingStage !== null && parsingStage !== "complete";
@@ -145,10 +146,16 @@ export default function SOWUploadPage() {
 
   const startParsing = () => {
     if (!selectedFile || isParsing) return;
+    /* Validate required fields */
+    const errors: { projectTitle?: string; clientOrg?: string } = {};
+    if (!projectTitle.trim()) errors.projectTitle = "Project title is required";
+    if (!clientOrg.trim()) errors.clientOrg = "Client / Organisation is required";
+    if (Object.keys(errors).length > 0) { setFieldErrors(errors); return; }
+    setFieldErrors({});
     /* Save to store */
     store.setProjectTitle(projectTitle);
     store.setClientOrganisation(clientOrg);
-    store.setLinkedSowId(linkedSowId || null);
+    store.setLinkedSowId(linkedSowId === "none" ? null : linkedSowId);
     store.setFile({ name: selectedFile.name, size: selectedFile.size, type: selectedFile.type, uploadedAt: new Date().toISOString() });
     setFileObjectUrl(URL.createObjectURL(selectedFile));
     store.setFlowStep(1);
@@ -188,27 +195,37 @@ export default function SOWUploadPage() {
               <div className="card-parchment px-5 py-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] font-medium text-gray-500 mb-1.5 block">Project Title (optional)</label>
-                    <input type="text" value={projectTitle} onChange={(e) => setProjectTitle(e.target.value)}
-                      placeholder="Auto-extracted from document"
-                      className="w-full text-[13px] text-gray-700 px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white outline-none focus:border-brown-300 transition-colors" />
+                    <label className="text-[11px] font-medium text-gray-500 mb-1.5 block">
+                      Project Title <span className="text-red-400">*</span>
+                    </label>
+                    <input type="text" value={projectTitle}
+                      onChange={(e) => { setProjectTitle(e.target.value); if (fieldErrors.projectTitle) setFieldErrors((p) => ({ ...p, projectTitle: undefined })); }}
+                      placeholder="e.g. HealthTech Patient Portal"
+                      className={cn("w-full text-[13px] text-gray-700 px-3.5 py-2.5 rounded-xl border bg-white outline-none focus:border-brown-300 transition-colors",
+                        fieldErrors.projectTitle ? "border-red-300 bg-red-50/30" : "border-gray-200")} />
+                    {fieldErrors.projectTitle && <p className="text-[11px] text-red-500 mt-1">{fieldErrors.projectTitle}</p>}
                   </div>
                   <div>
-                    <label className="text-[11px] font-medium text-gray-500 mb-1.5 block">Client / Organisation (optional)</label>
-                    <input type="text" value={clientOrg} onChange={(e) => setClientOrg(e.target.value)}
-                      placeholder="Override if needed"
-                      className="w-full text-[13px] text-gray-700 px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white outline-none focus:border-brown-300 transition-colors" />
+                    <label className="text-[11px] font-medium text-gray-500 mb-1.5 block">
+                      Client / Organisation <span className="text-red-400">*</span>
+                    </label>
+                    <input type="text" value={clientOrg}
+                      onChange={(e) => { setClientOrg(e.target.value); if (fieldErrors.clientOrg) setFieldErrors((p) => ({ ...p, clientOrg: undefined })); }}
+                      placeholder="e.g. MedCare Solutions Pvt. Ltd."
+                      className={cn("w-full text-[13px] text-gray-700 px-3.5 py-2.5 rounded-xl border bg-white outline-none focus:border-brown-300 transition-colors",
+                        fieldErrors.clientOrg ? "border-red-300 bg-red-50/30" : "border-gray-200")} />
+                    {fieldErrors.clientOrg && <p className="text-[11px] text-red-500 mt-1">{fieldErrors.clientOrg}</p>}
                   </div>
-                  {existingSows.length > 0 && (
-                    <div className="sm:col-span-2">
-                      <label className="text-[11px] font-medium text-gray-500 mb-1.5 block">Link to existing SOW? (version upload)</label>
-                      <select value={linkedSowId} onChange={(e) => setLinkedSowId(e.target.value)}
-                        className="w-full text-[13px] text-gray-700 px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white outline-none focus:border-brown-300 transition-colors">
-                        <option value="">No — create a new SOW</option>
-                        {existingSows.map((s) => <option key={s.id} value={s.id}>{s.title} ({s.status})</option>)}
-                      </select>
-                    </div>
-                  )}
+                  <div className="sm:col-span-2">
+                    <label className="text-[11px] font-medium text-gray-500 mb-1.5 block">
+                      Link to existing SOW? <span className="text-red-400">*</span>
+                    </label>
+                    <select value={linkedSowId} onChange={(e) => setLinkedSowId(e.target.value)}
+                      className="w-full text-[13px] text-gray-700 px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white outline-none focus:border-brown-300 transition-colors">
+                      <option value="none">No — create a new SOW</option>
+                      {existingSows.map((s) => <option key={s.id} value={s.id}>{s.title} ({s.status})</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
             </motion.div>
