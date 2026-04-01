@@ -71,6 +71,92 @@ export async function registerContributor(data: unknown): Promise<ActionResult> 
   return { success: true };
 }
 
+// ── SSO Contributor Onboarding (existing user, no password) ──
+export async function onboardContributor(data: {
+  firstName: string;
+  lastName?: string;
+  email: string;
+  contribType: string;
+  country: string;
+  dob: string;
+  timezone: string;
+  departmentCategory: string;
+  departmentOther?: string;
+  primarySkills: string[];
+  secondarySkills: string[];
+  otherSkills: string[];
+  availability: string;
+  degree?: string;
+  branch?: string;
+  linkedin?: string;
+  careerStage?: string;
+  yearsExperience?: string;
+  workStart?: string;
+  workEnd?: string;
+  phone?: string;
+  ndaAccepted: boolean;
+  ndaSignature?: string;
+  acceptTos: boolean;
+  acceptCoc: boolean;
+  acceptPrivacy: boolean;
+  acceptFee: boolean;
+  acceptAhp: boolean;
+  marketingOptIn: boolean;
+}): Promise<ActionResult> {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: data.email.toLowerCase() },
+    });
+
+    if (!user) {
+      return { success: false, error: "No account found for this email" };
+    }
+
+    await prisma.user.update({
+      where: { email: data.email.toLowerCase() },
+      data: {
+        firstName: data.firstName,
+        lastName:  data.lastName ?? "",
+        role:      "contributor",
+        phone:     data.phone ?? null,
+        contributorProfile: {
+          create: {
+            contribType:        data.contribType,
+            country:            data.country,
+            dob:                new Date(data.dob),
+            timezone:           data.timezone,
+            departmentCategory: data.departmentCategory,
+            departmentOther:    data.departmentOther ?? null,
+            primarySkills:      data.primarySkills,
+            secondarySkills:    data.secondarySkills,
+            otherSkills:        data.otherSkills,
+            availability:       data.availability,
+            degree:             data.degree ?? null,
+            branch:             data.branch ?? null,
+            linkedin:           data.linkedin ?? null,
+            careerStage:        data.careerStage ?? null,
+            yearsExperience:    data.yearsExperience ?? null,
+            workStart:          data.workStart ?? null,
+            workEnd:            data.workEnd ?? null,
+            ndaAccepted:        data.ndaAccepted,
+            ndaSignature:       data.ndaSignature ?? "",
+            acceptTos:          true,
+            acceptCoc:          true,
+            acceptPrivacy:      true,
+            acceptFee:          true,
+            acceptAhp:          true,
+            marketingOptIn:     data.marketingOptIn,
+          },
+        },
+      },
+    });
+
+    return { success: true };
+  } catch {
+    return { success: false, error: "Failed to complete onboarding. Please try again." };
+  }
+}
+
 // ── Enterprise Registration ──
 export async function registerEnterprise(data: unknown): Promise<ActionResult> {
   const parsed = enterpriseRegistrationSchema.safeParse(data);
