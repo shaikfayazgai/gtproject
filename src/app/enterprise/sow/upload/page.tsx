@@ -249,81 +249,51 @@ export default function SOWUploadPage() {
           {/* STATE 1: Drop zone */}
           {!selectedFile && !isParsing && !isComplete && (
             <motion.div variants={fadeUp}>
-              <motion.div
-                className={cn(
-                  "card-parchment cursor-pointer transition-colors duration-200 overflow-hidden",
-                  isDragging
-                    ? "border-2 border-dashed border-brown-400 bg-brown-50/60"
-                    : "border border-transparent"
-                )}
-                style={{ padding: "56px 40px" }}
-                animate={isDragging ? { scale: 1.01 } : { scale: 1 }}
-                transition={{ duration: 0.15 }}
+              <div
                 onClick={handleBrowseClick}
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={handleDrop}
+                className={cn(
+                  "rounded-2xl border-2 border-dashed cursor-pointer transition-all duration-200",
+                  isDragging
+                    ? "border-brown-400 bg-brown-50"
+                    : "border-gray-300 bg-gray-50/50 hover:border-brown-300 hover:bg-brown-50/30"
+                )}
               >
-                <div className="flex flex-col items-center text-center">
-                  {/* Animated icon */}
-                  <div className="relative mb-7">
-                    <motion.div
-                      className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brown-400 to-brown-600 flex items-center justify-center shadow-lg"
-                      animate={isDragging
-                        ? { y: -6, boxShadow: "0 16px 32px rgba(0,0,0,0.18)" }
-                        : { y: [0, -4, 0], boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }
-                      }
-                      transition={isDragging
-                        ? { duration: 0.2 }
-                        : { duration: 2.8, repeat: Infinity, ease: "easeInOut" }
-                      }
-                    >
-                      <FileUp className="w-7 h-7 text-white" />
-                    </motion.div>
-                    {/* Pulse ring */}
-                    <motion.div
-                      className="absolute inset-0 rounded-2xl border-2 border-brown-300"
-                      animate={{ opacity: [0.6, 0, 0.6], scale: [1, 1.35, 1] }}
-                      transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
-                    />
+                {/* Top strip — icon + text */}
+                <div className="flex items-center gap-5 px-8 py-7 border-b border-dashed border-gray-200">
+                  <div className={cn(
+                    "w-14 h-14 rounded-xl flex items-center justify-center shrink-0 transition-colors",
+                    isDragging ? "bg-brown-100" : "bg-white border border-gray-200 shadow-sm"
+                  )}>
+                    <FileUp className={cn("w-6 h-6", isDragging ? "text-brown-600" : "text-gray-400")} />
                   </div>
-
-                  <AnimatePresence mode="wait">
-                    {isDragging ? (
-                      <motion.div key="drag"
-                        initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                        transition={{ duration: 0.15 }}
-                        className="flex flex-col items-center"
-                      >
-                        <h3 className="text-[17px] font-semibold text-brown-700 mb-1">Release to upload</h3>
-                        <p className="text-[13px] text-brown-500">Drop your SOW document here</p>
-                      </motion.div>
-                    ) : (
-                      <motion.div key="idle"
-                        initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                        transition={{ duration: 0.15 }}
-                        className="flex flex-col items-center"
-                      >
-                        <h3 className="text-[17px] font-semibold text-gray-900 mb-1.5">Drop your SOW document here</h3>
-                        <p className="text-[13px] text-gray-400 mb-6">Our AI will instantly parse, extract, and structure every key clause</p>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleBrowseClick(); }}
-                          className="flex items-center gap-2 text-[12px] font-semibold text-white bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700 px-5 py-2.5 rounded-xl shadow-sm transition-all"
-                        >
-                          <Upload className="w-3.5 h-3.5" /> Browse Files
-                        </button>
-                        <div className="flex items-center gap-2 mt-5">
-                          {["PDF", "DOCX", "DOC"].map((fmt) => (
-                            <span key={fmt} className="text-[10px] font-medium text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">{fmt}</span>
-                          ))}
-                          <span className="w-1 h-1 rounded-full bg-gray-300" />
-                          <span className="text-[10px] text-gray-400">Up to 50 MB</span>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-semibold text-gray-800">
+                      {isDragging ? "Release to upload" : "Drag & drop your SOW document"}
+                    </p>
+                    <p className="text-[12px] text-gray-400 mt-0.5">
+                      {isDragging ? "Drop the file anywhere in this area" : "PDF, DOCX, or DOC — up to 50 MB"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleBrowseClick(); }}
+                    className="shrink-0 flex items-center gap-2 text-[12px] font-semibold text-white bg-gradient-to-r from-brown-500 to-brown-700 hover:from-brown-600 hover:to-brown-800 px-5 py-2.5 rounded-xl shadow-sm transition-all"
+                  >
+                    <Upload className="w-3.5 h-3.5" /> Browse Files
+                  </button>
                 </div>
-              </motion.div>
+
+                {/* Bottom strip — format info */}
+                <div className="flex items-center gap-3 px-8 py-3.5">
+                  <span className="text-[11px] text-gray-400 font-medium">Supported formats:</span>
+                  {["PDF", "DOCX", "DOC"].map((fmt) => (
+                    <span key={fmt} className="text-[10px] font-semibold text-gray-500 bg-white border border-gray-200 px-2.5 py-1 rounded-md shadow-sm">{fmt}</span>
+                  ))}
+                  <span className="ml-auto text-[11px] text-gray-400">Max file size: 50 MB</span>
+                </div>
+              </div>
             </motion.div>
           )}
 
