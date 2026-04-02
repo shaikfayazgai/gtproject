@@ -49,7 +49,7 @@ export function Section2DeliveryScope({ onComplete, onBack }: Props) {
 
   return (
     <>
-      <SectionHeader number={2} title="Delivery Scope Boundary" fsdRef="FSD §7.6.4 Section 2" />
+      <SectionHeader number={2} title="Delivery Scope Boundary" />
 
       <div className="px-6 py-6 space-y-5">
 

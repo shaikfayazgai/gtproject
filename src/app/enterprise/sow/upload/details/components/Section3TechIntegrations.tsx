@@ -42,7 +42,7 @@ export function Section3TechIntegrations({ onComplete, onBack }: Props) {
 
   return (
     <>
-      <SectionHeader number={3} title="Technical Architecture & Integrations" fsdRef="FSD §7.6.4 Section 3" />
+      <SectionHeader number={3} title="Technical Architecture & Integrations" />
 
       <div className="px-6 py-6 space-y-5">
 

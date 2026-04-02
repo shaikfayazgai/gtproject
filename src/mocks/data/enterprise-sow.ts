@@ -2,7 +2,7 @@ import type { SOW, SOWSection, RiskScoreBreakdown, SOWApprovalStage } from "@/ty
 
 /* 5-stage approval pipeline per FSD v2.7 §7.7 */
 const approvedStages: SOWApprovalStage[] = [
-  { stage: "business", status: "approved", reviewer: "Priya Nair", reviewedAt: "2026-02-25T10:00:00Z", comments: "Budget and scope align with Q2 priorities." },
+  { stage: "business", status: "approved", reviewer: "Enterprise Admin", reviewedAt: "2026-02-25T10:00:00Z", comments: "Budget and scope align with Q2 priorities." },
   { stage: "glimmora_commercial", status: "approved", reviewer: "GlimmoraTeam Commercial", reviewedAt: "2026-02-25T18:00:00Z", comments: "Contracted value confirmed at $285,000. Rate cards aligned." },
   { stage: "legal", status: "approved", reviewer: "Kavita Sharma", reviewedAt: "2026-02-26T14:30:00Z", comments: "All clauses compliant with standard terms." },
   { stage: "security", status: "approved", reviewer: "Arjun Reddy", reviewedAt: "2026-02-27T09:15:00Z", comments: "Data handling meets ISO 27001 requirements." },
@@ -10,15 +10,15 @@ const approvedStages: SOWApprovalStage[] = [
 ];
 
 const pendingApprovalStages: SOWApprovalStage[] = [
-  { stage: "business", status: "approved", reviewer: "Priya Nair", reviewedAt: "2026-03-04T10:00:00Z", comments: "Scope verified." },
-  { stage: "glimmora_commercial", status: "approved", reviewer: "GlimmoraTeam Commercial", reviewedAt: "2026-03-05T11:30:00Z", comments: "Budget viability confirmed." },
-  { stage: "legal", status: "in_review", reviewer: "Kavita Sharma" },
+  { stage: "business", status: "approved", reviewer: "Enterprise Admin", reviewedAt: "2026-03-04T10:00:00Z", comments: "Scope verified." },
+  { stage: "glimmora_commercial", status: "approved", reviewer: "GlimmoraTeam Admin", reviewedAt: "2026-03-05T11:30:00Z", comments: "Budget viability confirmed." },
+  { stage: "legal", status: "in_review", reviewer: "Enterprise Admin" },
   { stage: "security", status: "pending" },
   { stage: "final", status: "pending" },
 ];
 
 const draftStages: SOWApprovalStage[] = [
-  { stage: "business", status: "pending" },
+  { stage: "business", status: "in_review", reviewer: "Enterprise Admin" },
   { stage: "glimmora_commercial", status: "pending" },
   { stage: "legal", status: "pending" },
   { stage: "security", status: "pending" },
@@ -26,8 +26,8 @@ const draftStages: SOWApprovalStage[] = [
 ];
 
 const changesRequestedStages: SOWApprovalStage[] = [
-  { stage: "business", status: "approved", reviewer: "Priya Nair", reviewedAt: "2026-03-10T10:00:00Z", comments: "Scope verified." },
-  { stage: "glimmora_commercial", status: "rejected", reviewer: "GlimmoraTeam Commercial", reviewedAt: "2026-03-11T15:00:00Z", comments: "Budget range too low for declared scope. Minimum viable budget for this scope is $220,000." },
+  { stage: "business", status: "approved", reviewer: "Enterprise Admin", reviewedAt: "2026-03-10T10:00:00Z", comments: "Scope verified." },
+  { stage: "glimmora_commercial", status: "rejected", reviewer: "GlimmoraTeam Admin", reviewedAt: "2026-03-11T15:00:00Z", comments: "Budget range too low for declared scope. Minimum viable budget for this scope is $220,000." },
   { stage: "legal", status: "pending" },
   { stage: "security", status: "pending" },
   { stage: "final", status: "pending" },

@@ -49,7 +49,7 @@ export function Section6GovernanceCompliance({ onComplete, onBack }: Props) {
 
   return (
     <>
-      <SectionHeader number={6} title="Governance & Compliance" fsdRef="FSD §7.6.4 Section 6" />
+      <SectionHeader number={6} title="Governance & Compliance" />
 
       <div className="px-6 py-6 space-y-5">
 

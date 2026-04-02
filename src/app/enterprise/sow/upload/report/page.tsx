@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  CheckCircle2, Clock, RotateCcw, ArrowRight, Target, Users, Lightbulb,
+  CheckCircle2, RotateCcw, ArrowRight, Target, Users, Lightbulb,
   LayoutList, Sparkles, ShieldCheck, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
@@ -88,8 +88,8 @@ export default function ExtractionReportPage() {
           ]} />
         </div>
 
-        {/* Context Detection + Sensitive Data + Estimated Review Time */}
-        <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
+        {/* Context Detection + Sensitive Data */}
+        <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
 
           {/* Left: Context Detection */}
           <div className="px-5 py-4">
@@ -132,17 +132,6 @@ export default function ExtractionReportPage() {
             </div>
           </div>
 
-          {/* Right: Estimated Review Time */}
-          <div className="px-5 py-4">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Estimated Review Time</p>
-            <div className="rounded-xl border border-gray-100 bg-white px-4 py-5 h-[calc(100%-28px)]">
-              <div className="flex items-center gap-2 mb-2">
-                <Clock className="w-4 h-4 text-brown-400" />
-                <span className="num-display text-[20px] text-gray-900">{report.estimatedReviewTime}</span>
-              </div>
-              <p className="text-[10px] text-gray-400">Time to review extractions and resolve gaps</p>
-            </div>
-          </div>
         </div>
 
         {/* Warning banner (conditional) */}
@@ -160,7 +149,7 @@ export default function ExtractionReportPage() {
         <div className="flex items-center justify-end gap-2 px-5 py-4 bg-gray-50/40">
           <button onClick={handleUploadAnother}
             className="text-[12px] font-semibold text-white bg-gradient-to-r from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600 px-4 py-2.5 rounded-xl transition-all uppercase">
-            Upload Another
+            Wrong File? Re-upload
           </button>
           <button onClick={handleViewParsedSOW}
             className="flex items-center gap-2 text-[13px] font-semibold text-white bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700 px-6 py-2.5 rounded-xl transition-all uppercase">

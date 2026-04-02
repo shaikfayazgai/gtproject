@@ -48,7 +48,7 @@ export function Section4TimelineTeam({ onComplete, onBack }: Props) {
 
   return (
     <>
-      <SectionHeader number={4} title="Timeline, Team & Testing" fsdRef="FSD §7.6.4 Section 4" />
+      <SectionHeader number={4} title="Timeline, Team & Testing" />
 
       <div className="px-6 py-6 space-y-5">
 

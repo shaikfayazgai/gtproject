@@ -42,7 +42,7 @@ export function Section1BusinessContext({ onComplete, onBack }: Props) {
 
   return (
     <>
-      <SectionHeader number={1} title="Business Context & Vision" fsdRef="FSD §7.6.4 Section 1" />
+      <SectionHeader number={1} title="Business Context & Vision" />
 
       <div className="px-6 py-6 space-y-5">
 

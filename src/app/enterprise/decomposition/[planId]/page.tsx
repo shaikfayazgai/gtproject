@@ -20,7 +20,7 @@ import type {
   DecompositionTask, PlanMilestone, PlanStatus, TaskStatus, AIRecommendation,
 } from "@/types/enterprise";
 import { Gantt } from "@svar-ui/react-gantt";
-import "@svar-ui/react-gantt/dist/gantt.css";
+import "@svar-ui/react-gantt/style.css";
 
 /* ═══ Badge ═══ */
 

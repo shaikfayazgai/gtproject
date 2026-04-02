@@ -6,17 +6,14 @@ import { cn } from "@/lib/utils/cn";
 
 /* ── Section header bar ── */
 export function SectionHeader({
-  number, title, fsdRef,
-}: { number: number; title: string; fsdRef: string }) {
+  number, title,
+}: { number: number; title: string }) {
   return (
-    <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <span className="w-8 h-8 rounded-full bg-brown-100 flex items-center justify-center text-[12px] font-bold text-brown-600 shrink-0">
-          {number}
-        </span>
-        <h2 className="text-[16px] font-semibold text-gray-900">{title}</h2>
-      </div>
-      <span className="text-[10px] text-gray-400 hidden sm:block">{fsdRef}</span>
+    <div className="px-6 py-5 border-b border-gray-100 flex items-center gap-3">
+      <span className="w-8 h-8 rounded-full bg-brown-100 flex items-center justify-center text-[12px] font-bold text-brown-600 shrink-0">
+        {number}
+      </span>
+      <h2 className="text-[16px] font-semibold text-gray-900">{title}</h2>
     </div>
   );
 }

@@ -70,7 +70,7 @@ const STATUS = {
 export default function ExtractionReportPage() {
   const router = useRouter();
 
-  const { sections, overallConfidence, gapScore, ambiguities, documentName, estimatedReviewTime } = MOCK_EXTRACTION;
+  const { sections, overallConfidence, gapScore, ambiguities, documentName } = MOCK_EXTRACTION;
 
   const countComplete  = sections.filter((s) => s.status === "complete").length;
   const countReview    = sections.filter((s) => s.status === "partial" || s.status === "ambiguous").length;
@@ -159,7 +159,6 @@ export default function ExtractionReportPage() {
                 { label: "Needs Review",          value: countReview         },
                 { label: "Missing",               value: countMissing        },
                 { label: "Identified Gaps",       value: totalGaps           },
-                { label: "Estimated Review Time", value: estimatedReviewTime },
               ].map(({ label, value }) => (
                 <div key={label} className="flex items-center justify-between py-3.5">
                   <span className="text-[13px] text-gray-500">{label}</span>

@@ -42,7 +42,7 @@ export function Section5BudgetRisk({ onComplete, onBack }: Props) {
 
   return (
     <>
-      <SectionHeader number={5} title="Budget & Risk" fsdRef="FSD §7.6.4 Section 5" />
+      <SectionHeader number={5} title="Budget & Risk" />
 
       <div className="px-6 py-6 space-y-5">
 

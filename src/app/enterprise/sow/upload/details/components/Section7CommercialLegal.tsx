@@ -60,7 +60,7 @@ export function Section7CommercialLegal({ onComplete, onBack }: Props) {
 
   return (
     <>
-      <SectionHeader number={7} title="Commercial & Legal" fsdRef="FSD §7.6.4 Section 7" />
+      <SectionHeader number={7} title="Commercial & Legal" />
 
       <div className="px-6 py-6 space-y-5">
 

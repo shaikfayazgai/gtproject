@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, ArrowRight, CheckCircle2, Loader2, AlertTriangle, Send,
   Sparkles, ShieldCheck, FileText, RefreshCw, Ban, Eye, GitBranch,
-  MessageSquareDiff, RotateCcw, X,
+  MessageSquareDiff, RotateCcw, X, Zap, TrendingUp, FileCheck2, PenLine, Clock4,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp } from "@/lib/utils/motion-variants";
@@ -47,6 +47,9 @@ export default function GeneratePreviewPage() {
   const [showRejectModal, setShowRejectModal] = React.useState(false);
   const [requestChangesText, setRequestChangesText] = React.useState("");
   const [submitted, setSubmitted] = React.useState(false);
+  const [showProcessingModal, setShowProcessingModal] = React.useState(false);
+  const [showImprovementsModal, setShowImprovementsModal] = React.useState(false);
+  const [processingStageIdx, setProcessingStageIdx] = React.useState(-1);
   const [activeTab, setActiveTab] = React.useState<TabKey>("sow");
 
   const metrics = mockPreviewMetrics;
@@ -76,6 +79,36 @@ export default function GeneratePreviewPage() {
     if (genPhase === "idle") startGeneration();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const PROCESSING_STAGES = [
+    { label: "Analyzing your request",        icon: FileText },
+    { label: "Identifying affected clauses",  icon: PenLine },
+    { label: "Applying document changes",     icon: Zap },
+    { label: "Verifying compliance",          icon: ShieldCheck },
+    { label: "Finalizing updates",            icon: FileCheck2 },
+  ];
+
+  const STATIC_IMPROVEMENTS = [
+    { icon: TrendingUp,  color: "text-forest-600",  bg: "bg-forest-50",  border: "border-forest-200", section: "Delivery Scope",         change: "Updated to include a dedicated performance testing phase with defined benchmarks." },
+    { icon: FileCheck2,  color: "text-brown-600",   bg: "bg-brown-50",   border: "border-brown-200",  section: "Budget Section",         change: "Revised to reflect the agreed fixed-price engagement model with milestone-based payments." },
+    { icon: Clock4,      color: "text-indigo-600",  bg: "bg-indigo-50",  border: "border-indigo-200", section: "Timeline & Milestones",  change: "Added a 2-week UAT buffer and updated Phase 4 end date accordingly." },
+    { icon: ShieldCheck, color: "text-teal-600",    bg: "bg-teal-50",    border: "border-teal-200",   section: "Risk Management",        change: "New clause added for scope change management and change request approval process." },
+    { icon: PenLine,     color: "text-amber-600",   bg: "bg-amber-50",   border: "border-amber-200",  section: "Acceptance Criteria",    change: "Detailed sign-off conditions added per milestone with named approvers." },
+  ];
+
+  const handleSubmitRequest = () => {
+    setShowRequestChangesModal(false);
+    setRequestChangesText("");
+    setProcessingStageIdx(-1);
+    setShowProcessingModal(true);
+    PROCESSING_STAGES.forEach((_, i) => {
+      setTimeout(() => setProcessingStageIdx(i), (i + 1) * 700);
+    });
+    setTimeout(() => {
+      setShowProcessingModal(false);
+      setShowImprovementsModal(true);
+    }, (PROCESSING_STAGES.length + 1) * 700);
+  };
 
   const handleSubmit = () => {
     setSubmitted(true);
@@ -113,43 +146,169 @@ export default function GeneratePreviewPage() {
         </p>
       </motion.div>
 
-      {/* ═══ GENERATING ═══ */}
-      {genPhase === "generating" && (
-        <motion.div variants={fadeUp} className="card-parchment px-8 py-14 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brown-400 to-brown-600 flex items-center justify-center mx-auto mb-6">
-            <Loader2 className="w-6 h-6 text-white animate-spin" />
-          </div>
-          <p className="text-[13px] text-gray-400 mb-8 max-w-xs mx-auto">
-            This usually takes a few seconds. Please don't close this page.
-          </p>
-          <div className="max-w-sm mx-auto space-y-1.5">
-            {GEN_STAGES.map((stage, i) => {
-              const isDone = genStageIdx > i;
-              const isActive = genStageIdx === i;
-              const Icon = stage.icon;
-              return (
-                <div key={stage.key} className={cn(
-                  "flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all",
-                  isActive ? "bg-brown-50 border border-brown-100" : "",
-                  !isActive && !isDone ? "opacity-35" : "",
-                )}>
-                  {isDone
-                    ? <CheckCircle2 className="w-4 h-4 text-forest-500 shrink-0" />
-                    : isActive
-                    ? <Loader2 className="w-4 h-4 text-brown-500 animate-spin shrink-0" />
-                    : <Icon className="w-4 h-4 text-gray-400 shrink-0" />}
-                  <span className={cn(
-                    "text-[12px] font-medium",
-                    isDone ? "text-forest-700" : isActive ? "text-brown-700" : "text-gray-400",
-                  )}>
-                    {stage.label}
-                  </span>
+      {/* ═══ GENERATING MODAL ═══ */}
+      <AnimatePresence>
+        {genPhase === "generating" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center px-4"
+            style={{ background: "rgba(15,10,6,0.72)", backdropFilter: "blur(12px)" }}
+          >
+            <motion.div
+              initial={{ scale: 0.88, opacity: 0, y: 28 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 16 }}
+              transition={{ type: "spring", stiffness: 300, damping: 28 }}
+              className="relative w-full max-w-lg overflow-hidden rounded-3xl"
+              style={{
+                background: "linear-gradient(160deg, #FFFFFF 0%, #FAF7F4 100%)",
+                boxShadow: "0 48px 96px -24px rgba(0,0,0,0.45), 0 12px 40px rgba(0,0,0,0.18), 0 0 0 1px rgba(229,221,212,0.9)",
+              }}
+            >
+              {/* Premium top gradient bar */}
+              <div className="absolute top-0 left-0 right-0 h-[3px]"
+                style={{ background: "linear-gradient(90deg, transparent 0%, #A67763 25%, #2A6068 50%, #A67763 75%, transparent 100%)" }} />
+
+              {/* Corner glow decorations */}
+              <div className="absolute top-0 right-0 w-48 h-48 pointer-events-none rounded-full opacity-30"
+                style={{ background: "radial-gradient(circle at top right, rgba(166,119,99,0.18) 0%, transparent 65%)", transform: "translate(20%, -20%)" }} />
+              <div className="absolute bottom-0 left-0 w-40 h-40 pointer-events-none rounded-full opacity-20"
+                style={{ background: "radial-gradient(circle at bottom left, rgba(42,96,104,0.18) 0%, transparent 65%)", transform: "translate(-20%, 20%)" }} />
+
+              {/* Ambient breathing glow */}
+              <motion.div
+                className="absolute inset-0 pointer-events-none"
+                animate={{ opacity: [0.4, 0.7, 0.4] }}
+                transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+                style={{ background: "radial-gradient(ellipse at 20% 10%, rgba(42,96,104,0.07) 0%, transparent 55%)" }}
+              />
+
+              <div className="relative px-8 pt-8 pb-7">
+
+                {/* ── Header ── */}
+                <div className="flex items-center gap-4 mb-7">
+                  <div className="relative shrink-0">
+                    <div
+                      className="w-[60px] h-[60px] rounded-2xl bg-gradient-to-br from-brown-400 to-brown-600 flex items-center justify-center"
+                      style={{ boxShadow: "0 8px 24px rgba(166,119,99,0.40), inset 0 1px 0 rgba(255,255,255,0.25)" }}
+                    >
+                      <Loader2 className="w-7 h-7 text-white animate-spin" />
+                    </div>
+                    {/* Breathing ring */}
+                    <motion.div
+                      className="absolute inset-0 rounded-2xl"
+                      animate={{ scale: [1, 1.22, 1], opacity: [0.5, 0, 0.5] }}
+                      transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                      style={{ border: "2px solid rgba(166,119,99,0.45)" }}
+                    />
+                    {/* Outer slow ring */}
+                    <motion.div
+                      className="absolute inset-0 rounded-2xl"
+                      animate={{ scale: [1, 1.45, 1], opacity: [0.2, 0, 0.2] }}
+                      transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
+                      style={{ border: "1.5px solid rgba(166,119,99,0.25)" }}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-[20px] font-extrabold text-gray-900 uppercase tracking-tight leading-tight">
+                      Generating Final SOW
+                    </h2>
+                    <p className="text-[12.5px] text-gray-400 mt-1 leading-relaxed">
+                      Assembling your document from extracted content and commercial inputs.
+                    </p>
+                  </div>
                 </div>
-              );
-            })}
-          </div>
-        </motion.div>
-      )}
+
+                {/* ── Stages 2-col grid ── */}
+                <div className="grid grid-cols-2 gap-x-6 gap-y-3.5 mb-7">
+                  {GEN_STAGES.map((stage, i) => {
+                    const isDone = genStageIdx > i;
+                    const isActive = genStageIdx === i;
+                    return (
+                      <motion.div
+                        key={stage.key}
+                        className="flex items-center gap-2.5 min-w-0"
+                        animate={{ opacity: isDone || isActive ? 1 : 0.28 }}
+                        transition={{ duration: 0.35 }}
+                      >
+                        {/* Status dot with pulse */}
+                        <div className="relative shrink-0 w-3 h-3 flex items-center justify-center">
+                          {isActive && (
+                            <motion.div
+                              className="absolute inset-0 rounded-full bg-brown-400"
+                              animate={{ scale: [1, 1.9, 1], opacity: [0.6, 0, 0.6] }}
+                              transition={{ duration: 1.5, repeat: Infinity }}
+                            />
+                          )}
+                          <div className={cn(
+                            "w-2.5 h-2.5 rounded-full transition-all duration-300",
+                            isDone ? "bg-forest-500" : isActive ? "bg-brown-500" : "bg-gray-300",
+                          )} />
+                        </div>
+
+                        {/* Label */}
+                        <span className={cn(
+                          "text-[11px] font-bold tracking-widest uppercase truncate transition-colors duration-300",
+                          isDone ? "text-gray-400" : isActive ? "text-gray-900" : "text-gray-400",
+                        )}>
+                          {stage.label}...
+                        </span>
+
+                        {/* Checkmark pop */}
+                        {isDone && (
+                          <motion.span
+                            className="ml-auto shrink-0"
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ type: "spring", stiffness: 420, damping: 18 }}
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-forest-500" />
+                          </motion.span>
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+
+                {/* ── Separator ── */}
+                <div className="mb-5" style={{ borderTop: "1px solid #EDE8E3" }} />
+
+                {/* ── Progress bar ── */}
+                <div>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <span className="text-[10px] font-bold tracking-widest uppercase text-gray-400">
+                      Overall Progress
+                    </span>
+                    <span className="num-display text-[14px] font-bold" style={{ color: "#A67763" }}>
+                      {genStageIdx < 0 ? 0 : Math.round(((genStageIdx + 1) / GEN_STAGES.length) * 100)}%
+                    </span>
+                  </div>
+                  <div className="h-2.5 rounded-full overflow-hidden bg-gray-100">
+                    <motion.div
+                      className="h-full rounded-full bg-gradient-to-r from-brown-400 to-brown-600"
+                      animate={{ width: genStageIdx < 0 ? "4%" : `${Math.round(((genStageIdx + 1) / GEN_STAGES.length) * 100)}%` }}
+                      transition={{ duration: 0.65, ease: "easeOut" }}
+                      style={{ boxShadow: "0 0 14px rgba(166,119,99,0.50)" }}
+                    />
+                  </div>
+                </div>
+
+                {/* ── Warning ── */}
+                <div className="flex items-center justify-center gap-2 mt-5">
+                  <div className="w-1 h-1 rounded-full bg-amber-400" />
+                  <p className="text-[11px] text-gray-400">
+                    Please don&apos;t close this page while generating
+                  </p>
+                  <div className="w-1 h-1 rounded-full bg-amber-400" />
+                </div>
+
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ═══ PREVIEW & CONFIRM ═══ */}
       {genPhase === "complete" && (
@@ -371,7 +530,7 @@ export default function GeneratePreviewPage() {
                 </button>
                 <button
                   disabled={requestChangesText.trim().length < 20}
-                  onClick={() => { setShowRequestChangesModal(false); setRequestChangesText(""); }}
+                  onClick={handleSubmitRequest}
                   className={cn(
                     "flex items-center gap-1.5 text-[12px] font-semibold px-5 py-2.5 rounded-xl transition-all",
                     requestChangesText.trim().length >= 20
@@ -425,7 +584,7 @@ export default function GeneratePreviewPage() {
                   className="text-[12px] font-medium text-gray-500 px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-all">
                   Cancel
                 </button>
-                <button onClick={() => { setShowRejectModal(false); setGenPhase("idle"); setGenStageIdx(-1); startGeneration(); }}
+                <button onClick={() => { setShowRejectModal(false); router.push("/enterprise/sow/upload"); }}
                   className="flex items-center gap-1.5 text-[12px] font-semibold text-white bg-gradient-to-r from-red-400 to-red-600 hover:from-red-500 hover:to-red-700 px-5 py-2.5 rounded-xl transition-all">
                   <RotateCcw className="w-3.5 h-3.5" /> Discard & Regenerate
                 </button>
@@ -439,76 +598,377 @@ export default function GeneratePreviewPage() {
       <AnimatePresence>
         {showSubmitModal && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
-            onClick={() => !submitted && setShowSubmitModal(false)}>
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center px-4"
+            style={{ background: "rgba(15,10,6,0.72)", backdropFilter: "blur(12px)" }}
+            onClick={() => !submitted && setShowSubmitModal(false)}
+          >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              initial={{ scale: 0.90, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.93, opacity: 0, y: 10 }}
+              transition={{ type: "spring", stiffness: 320, damping: 26 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-[440px] overflow-hidden">
+              className="relative w-full max-w-[420px] overflow-hidden rounded-2xl"
+              style={{
+                background: "linear-gradient(160deg, #FFFFFF 0%, #FAF7F4 100%)",
+                boxShadow: "0 32px 64px -16px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.12), 0 0 0 1px rgba(229,221,212,0.9)",
+              }}
+            >
+              {/* Top accent bar */}
+              <div className="absolute top-0 left-0 right-0 h-[3px]"
+                style={{ background: "linear-gradient(90deg, transparent, #A67763 30%, #2A6068 70%, transparent)" }} />
 
-              {!submitted ? (
-                <>
-                  {/* Modal header */}
-                  <div className="px-6 pt-6 pb-4 border-b border-gray-100">
-                    <h3 className="text-[16px] font-semibold text-gray-900 mb-1">Submit for Approval?</h3>
-                    <p className="text-[12px] text-gray-400">
-                      This SOW will enter the 5-stage approval pipeline.
-                    </p>
-                  </div>
+              <AnimatePresence mode="wait">
+                {!submitted ? (
+                  <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.96 }}>
 
-                  {/* Pipeline stages */}
-                  <div className="px-6 py-4 space-y-1.5">
-                    {["Business Owner", "GlimmoraTeam Commercial", "Legal", "Security", "Final Sign-off"].map((stage, i) => (
-                      <div key={stage} className="flex items-center gap-3">
-                        <span className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-[9px] font-bold text-gray-500 shrink-0">
-                          {i + 1}
-                        </span>
-                        <span className="text-[12px] text-gray-600">{stage}</span>
+                    {/* Header */}
+                    <div className="flex items-center gap-3 px-5 pt-5 pb-4" style={{ borderBottom: "1px solid #F0EBE5" }}>
+                      <div className="shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-brown-400 to-brown-600 flex items-center justify-center"
+                        style={{ boxShadow: "0 4px 12px rgba(166,119,99,0.30), inset 0 1px 0 rgba(255,255,255,0.2)" }}>
+                        <Send className="w-4 h-4 text-white" />
                       </div>
-                    ))}
-                  </div>
-
-                  {/* Summary metrics */}
-                  <div className="mx-6 mb-5 rounded-xl border border-gray-100 divide-y divide-gray-100 overflow-hidden">
-                    {[
-                      { l: "Confidence",   v: `${metrics.confidence}%` },
-                      { l: "Risk Score",   v: `${metrics.riskScore}/100` },
-                      { l: "Completeness", v: `${metrics.completeness}%` },
-                    ].map((item) => (
-                      <div key={item.l} className="flex items-center justify-between px-4 py-2.5 bg-gray-50/50">
-                        <span className="text-[11px] text-gray-400 uppercase tracking-wider">{item.l}</span>
-                        <span className="text-[12px] font-semibold text-gray-700">{item.v}</span>
+                      <div>
+                        <h3 className="text-[15px] font-extrabold text-gray-900 tracking-tight">Submit for Approval</h3>
+                        <p className="text-[13px] font-medium text-gray-500">Enters the 5-stage approval pipeline</p>
                       </div>
-                    ))}
-                  </div>
+                    </div>
 
-                  {/* Actions */}
-                  <div className="px-6 pb-5 flex gap-2 justify-end">
-                    <button onClick={() => setShowSubmitModal(false)}
-                      className="text-[12px] font-medium text-gray-500 px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-all">
-                      Cancel
-                    </button>
-                    <button onClick={handleSubmit}
-                      className="flex items-center gap-1.5 text-[12px] font-semibold text-white bg-gradient-to-r from-forest-400 to-forest-600 hover:from-forest-500 hover:to-forest-700 px-5 py-2.5 rounded-xl transition-all">
-                      <Send className="w-3.5 h-3.5" /> Confirm & Submit
-                    </button>
+                    {/* Quality metrics */}
+                    <div className="px-5 pt-3.5 pb-3">
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Quality Snapshot</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { label: "Confidence",   value: `${metrics.confidence}%`,   color: "text-brown-600",  bg: "bg-brown-50",  border: "border-brown-100" },
+                          { label: "Risk",         value: `${metrics.riskScore}`,      color: "text-amber-600",  bg: "bg-amber-50",  border: "border-amber-100" },
+                          { label: "Completeness", value: `${metrics.completeness}%`,  color: "text-teal-700",   bg: "bg-teal-50",   border: "border-teal-100"  },
+                        ].map((m) => (
+                          <div key={m.label} className={cn("rounded-xl border px-2.5 py-2.5 text-center", m.bg, m.border)}>
+                            <p className={cn("num-display text-[18px] leading-none font-bold", m.color)}>{m.value}</p>
+                            <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-widest mt-1">{m.label}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Pipeline */}
+                    <div className="px-5 pb-4">
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">Approval Stages</p>
+                      <div className="space-y-0">
+                        {(() => {
+                          const STAGE_COLORS = [
+                            { grad: "from-teal-400 to-teal-600",   shadow: "rgba(42,96,104,0.45)",  ping: "bg-teal-300",   line: "rgba(42,96,104,0.5)"  },
+                            { grad: "from-brown-400 to-brown-600", shadow: "rgba(166,119,99,0.45)", ping: "bg-brown-300",  line: "rgba(166,119,99,0.5)" },
+                            { grad: "from-forest-400 to-forest-600", shadow: "rgba(42,96,68,0.45)", ping: "bg-forest-300", line: "rgba(42,96,68,0.5)"   },
+                            { grad: "from-amber-400 to-amber-600", shadow: "rgba(180,130,50,0.45)", ping: "bg-amber-300",  line: "rgba(180,130,50,0.5)" },
+                            { grad: "from-teal-500 to-forest-600", shadow: "rgba(42,96,86,0.45)",  ping: "bg-teal-300",   line: "rgba(42,96,86,0.5)"   },
+                          ];
+                          const stages = [
+                            "Business Owner Review",
+                            "GlimmoraTeam Commercial",
+                            "Legal Review",
+                            "Security Compliance",
+                            "Final Sign-off",
+                          ];
+                          const BASE = 0.1;
+                          const STEP = 0.22;
+                          return stages.map((label, i) => {
+                            const dotDelay  = BASE + i * STEP;
+                            const lineDelay = dotDelay + 0.10;
+                            const cardDelay = dotDelay + 0.07;
+                            const isLast = i === stages.length - 1;
+                            const col = STAGE_COLORS[i];
+                            return (
+                              <div key={label} className="flex gap-3">
+
+                                {/* Left column: dot + connector line */}
+                                <div className="flex flex-col items-center" style={{ width: 28, minWidth: 28 }}>
+                                  <div className="relative flex items-center justify-center" style={{ width: 28, height: 28 }}>
+                                    {/* Ping ring */}
+                                    <motion.div
+                                      className={`absolute inset-0 rounded-full ${col.ping}`}
+                                      initial={{ scale: 0, opacity: 0 }}
+                                      animate={{ scale: [0, 1.7, 1.7], opacity: [0, 0.45, 0] }}
+                                      transition={{ delay: dotDelay + 0.05, duration: 0.5, ease: "easeOut" }}
+                                    />
+                                    {/* Main dot */}
+                                    <motion.div
+                                      className={`relative z-10 w-[28px] h-[28px] rounded-full bg-gradient-to-br ${col.grad} flex items-center justify-center border-2 border-white`}
+                                      initial={{ scale: 0, rotate: -30 }}
+                                      animate={{ scale: 1, rotate: 0 }}
+                                      transition={{ delay: dotDelay, type: "spring", stiffness: 520, damping: 22 }}
+                                      style={{ boxShadow: `0 3px 12px ${col.shadow}` }}
+                                    >
+                                      <motion.span
+                                        className="text-[10px] font-extrabold text-white"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ delay: dotDelay + 0.12, duration: 0.12 }}
+                                      >
+                                        {i + 1}
+                                      </motion.span>
+                                    </motion.div>
+                                  </div>
+
+                                  {/* Connector line */}
+                                  {!isLast && (
+                                    <motion.div
+                                      className="w-px flex-1 origin-top"
+                                      initial={{ scaleY: 0 }}
+                                      animate={{ scaleY: 1 }}
+                                      transition={{ delay: lineDelay, duration: 0.14, ease: "easeIn" }}
+                                      style={{
+                                        minHeight: 14,
+                                        background: `linear-gradient(to bottom, ${col.line}, rgba(200,200,200,0.15))`,
+                                      }}
+                                    />
+                                  )}
+                                </div>
+
+                                {/* Right column: label card */}
+                                <motion.div
+                                  className="flex-1 flex items-center min-w-0 mb-2"
+                                  initial={{ opacity: 0, x: 14 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: cardDelay, duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                                >
+                                  <div className="w-full px-3 py-2 rounded-xl border border-gray-100 bg-gray-50/70 flex items-center justify-between">
+                                    <span className="text-[12px] font-medium text-gray-700">{label}</span>
+                                    <motion.div
+                                      className={`w-1.5 h-1.5 rounded-full ${col.ping} shrink-0`}
+                                      initial={{ scale: 0 }}
+                                      animate={{ scale: 1 }}
+                                      transition={{ delay: cardDelay + 0.08, type: "spring", stiffness: 520, damping: 22 }}
+                                    />
+                                  </div>
+                                </motion.div>
+
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="px-5 pb-5 flex gap-2">
+                      <button onClick={() => setShowSubmitModal(false)}
+                        className="flex-1 text-[11.5px] font-medium text-gray-500 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-all">
+                        Cancel
+                      </button>
+                      <button onClick={handleSubmit}
+                        className="flex-[2] flex items-center justify-center gap-1.5 text-[12px] font-bold text-white py-2.5 rounded-xl transition-all bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700"
+                        style={{ boxShadow: "0 4px 14px rgba(166,119,99,0.35)" }}>
+                        <Send className="w-3.5 h-3.5" /> Confirm &amp; Submit
+                      </button>
+                    </div>
+
+                  </motion.div>
+                ) : (
+                  /* Success */
+                  <motion.div key="success" initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}
+                    transition={{ type: "spring", stiffness: 320, damping: 24 }}
+                    className="px-6 py-10 flex flex-col items-center text-center">
+                    <div className="relative mb-5">
+                      <motion.div
+                        className="w-16 h-16 rounded-2xl bg-gradient-to-br from-forest-400 to-forest-600 flex items-center justify-center"
+                        initial={{ scale: 0 }} animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 380, damping: 20, delay: 0.1 }}
+                        style={{ boxShadow: "0 8px 24px rgba(42,96,68,0.35), inset 0 1px 0 rgba(255,255,255,0.2)" }}>
+                        <CheckCircle2 className="w-7 h-7 text-white" />
+                      </motion.div>
+                      {[1.35, 1.7].map((scale, i) => (
+                        <motion.div key={i} className="absolute inset-0 rounded-2xl border-2 border-forest-300"
+                          initial={{ scale: 1, opacity: 0.5 }} animate={{ scale, opacity: 0 }}
+                          transition={{ duration: 1.1, delay: i * 0.18, ease: "easeOut" }} />
+                      ))}
+                    </div>
+                    <motion.h3 initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                      className="text-[16px] font-extrabold text-gray-900 tracking-tight mb-1.5">
+                      Submitted Successfully
+                    </motion.h3>
+                    <motion.p initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+                      className="text-[12px] text-gray-400 leading-relaxed">
+                      Sent to <span className="font-semibold text-gray-600">Stage 1 — Business Owner Review</span>
+                    </motion.p>
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45 }}
+                      className="mt-4 flex items-center gap-1.5 text-[11px] text-gray-400">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Redirecting…
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ═══ PROCESSING MODAL ═══ */}
+      <AnimatePresence>
+        {showProcessingModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 backdrop-blur-md px-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", stiffness: 280, damping: 24 }}
+              className="relative w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl">
+              {/* Gradient top bar */}
+              <div className="h-1.5 w-full bg-gradient-to-r from-amber-400 via-brown-400 to-amber-500" />
+              <div className="px-8 pt-8 pb-10">
+                {/* Icon */}
+                <div className="flex items-center justify-center mb-6">
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-brown-500 flex items-center justify-center shadow-lg">
+                      <Sparkles className="w-8 h-8 text-white" />
+                    </div>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                      className="absolute -inset-1.5 rounded-2xl border-2 border-dashed border-amber-300/60" />
                   </div>
-                </>
-              ) : (
-                <div className="text-center px-6 py-12">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-forest-400 to-forest-600 flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle2 className="w-6 h-6 text-white" />
-                  </div>
-                  <h3 className="text-[16px] font-semibold text-gray-900 mb-1">Submitted Successfully</h3>
-                  <p className="text-[13px] text-gray-400">Sent to Stage 1 — Business Owner Review.</p>
                 </div>
-              )}
+                <h3 className="text-center font-heading text-[18px] font-semibold text-gray-900 mb-1">
+                  Applying Changes
+                </h3>
+                <p className="text-center text-[12px] text-gray-400 mb-7">
+                  AI is processing your request and updating the document
+                </p>
+                {/* Stages */}
+                <div className="space-y-3">
+                  {PROCESSING_STAGES.map((stage, i) => {
+                    const done = processingStageIdx > i;
+                    const active = processingStageIdx === i;
+                    const Icon = stage.icon;
+                    return (
+                      <motion.div
+                        key={stage.label}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: i <= processingStageIdx + 1 ? 1 : 0.3, x: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all duration-500",
+                          done   ? "bg-forest-500" :
+                          active ? "bg-amber-400" :
+                                   "bg-gray-100",
+                        )}>
+                          {done
+                            ? <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                            : active
+                            ? <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                                <Loader2 className="w-3.5 h-3.5 text-white" />
+                              </motion.div>
+                            : <Icon className="w-3.5 h-3.5 text-gray-400" />
+                          }
+                        </div>
+                        <span className={cn(
+                          "text-[12px] font-medium transition-colors",
+                          done ? "text-forest-600" : active ? "text-amber-600" : "text-gray-400",
+                        )}>
+                          {stage.label}
+                        </span>
+                        {done && (
+                          <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+                            className="ml-auto text-[10px] font-semibold text-forest-600">
+                            Done
+                          </motion.span>
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ═══ IMPROVEMENTS MODAL ═══ */}
+      <AnimatePresence>
+        {showImprovementsModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 backdrop-blur-md px-4">
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 24 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 24 }}
+              transition={{ type: "spring", stiffness: 280, damping: 24 }}
+              className="relative w-full max-w-[420px] overflow-hidden rounded-2xl bg-white shadow-2xl">
+
+              {/* ── Gradient header ── */}
+              <div className="relative bg-gradient-to-br from-forest-500 via-teal-500 to-forest-600 px-5 pt-5 pb-5 overflow-hidden">
+                <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/10" />
+                <div className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full bg-white/10" />
+
+                <button onClick={() => setShowImprovementsModal(false)}
+                  className="absolute top-3 right-3 w-6 h-6 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all">
+                  <X className="w-3 h-3 text-white" />
+                </button>
+
+                <div className="flex items-center gap-3 relative z-10">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0 border border-white/30">
+                    <CheckCircle2 className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-semibold text-white/70 uppercase tracking-widest">Changes Applied</p>
+                    <h3 className="font-heading text-[17px] font-bold text-white leading-tight">Document Updated</h3>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 mt-3.5 relative z-10">
+                  {[
+                    { label: "Sections Updated", value: "5" },
+                    { label: "Clauses Revised",  value: "12" },
+                    { label: "Compliance",        value: "✓ Pass" },
+                  ].map((s) => (
+                    <div key={s.label} className="flex-1 bg-white/15 rounded-lg px-2.5 py-1.5 border border-white/20">
+                      <p className="text-[14px] font-bold text-white leading-none">{s.value}</p>
+                      <p className="text-[8px] text-white/70 mt-0.5">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Improvements list ── */}
+              <div className="px-4 pt-4 pb-3 space-y-1.5">
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2">Improved Areas</p>
+                {STATIC_IMPROVEMENTS.map((item, i) => {
+                  const Icon = item.icon;
+                  return (
+                    <motion.div
+                      key={item.section}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.06 }}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-100 bg-gray-50/60 hover:bg-white hover:border-gray-200 transition-all">
+                      <div className={cn("w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border", item.bg, item.border)}>
+                        <Icon className={cn("w-3 h-3", item.color)} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className={cn("text-[10px] font-bold uppercase tracking-wider", item.color)}>
+                          {item.section}
+                        </p>
+                        <p className="text-[10px] text-gray-500 truncate">{item.change}</p>
+                      </div>
+                      <CheckCircle2 className="w-3 h-3 text-forest-400 shrink-0" />
+                    </motion.div>
+                  );
+                })}
+              </div>
+
+              {/* ── Footer ── */}
+              <div className="px-4 pb-4">
+                <button
+                  onClick={() => setShowImprovementsModal(false)}
+                  className="w-full flex items-center justify-center gap-2 text-[12px] font-semibold text-white bg-gradient-to-r from-brown-500 to-brown-700 hover:from-brown-600 hover:to-brown-800 py-2.5 rounded-xl shadow-sm transition-all">
+                  <Eye className="w-3.5 h-3.5" /> View Updated SOW
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
