@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, Send, X, Sparkles } from "lucide-react";
+import { Bot, Send, X, Sparkles, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 export function AIChatWidget() {
@@ -11,11 +11,20 @@ export function AIChatWidget() {
     { role: "ai", text: "Hi! I'm your support assistant. Ask me anything about tasks, payments, submissions, or account settings." },
   ]);
   const [input, setInput] = React.useState("");
+  const [hoveredMsg, setHoveredMsg] = React.useState<number | null>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
+
+  const handleEdit = (index: number) => {
+    const msg = messages[index];
+    setMessages((prev) => prev.slice(0, index));
+    setInput(msg.text);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
 
   const handleSend = () => {
     if (!input.trim()) return;
@@ -102,7 +111,21 @@ export function AIChatWidget() {
                     </div>
                   </div>
                 ) : (
-                  <div key={i} className="flex justify-end">
+                  <div
+                    key={i}
+                    className="flex justify-end items-end gap-1.5 group"
+                    onMouseEnter={() => setHoveredMsg(i)}
+                    onMouseLeave={() => setHoveredMsg(null)}
+                  >
+                    {hoveredMsg === i && (
+                      <button
+                        onClick={() => handleEdit(i)}
+                        className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:text-brown-500 hover:bg-brown-50 transition-all mb-0.5"
+                        title="Edit message"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
                     <div className="bg-brown-500 rounded-2xl rounded-tr-md px-3.5 py-2.5 max-w-[85%]">
                       <p className="text-[12px] text-white leading-relaxed">{msg.text}</p>
                     </div>
@@ -138,6 +161,7 @@ export function AIChatWidget() {
             <div className="px-4 py-3 border-t border-gray-100 bg-white">
               <div className="flex items-center gap-2">
                 <input
+                  ref={inputRef}
                   type="text"
                   placeholder="Type your question..."
                   value={input}

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, AlertTriangle, FileText, Shield, ShieldCheck, DollarSign,
@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp } from "@/lib/utils/motion-variants";
 import { Checkbox, Textarea } from "@/components/ui";
 import { mockSOWs } from "@/mocks/data/enterprise-sow";
+import { useSowStore, INITIAL_APPROVAL_STAGES } from "@/lib/stores/sow-store";
+import { useSOWPipelineStore } from "@/lib/stores/sow-pipeline-store";
 import type { ApprovalStage } from "@/types/enterprise";
 
 /* ═══ Badge component (matches detail page) ═══ */
@@ -89,8 +91,47 @@ const statusVariant: Record<string, string> = {
 
 export default function SOWApprovePage() {
   const params = useParams();
+  const router = useRouter();
   const sowId = params.sowId as string;
-  const sow = mockSOWs.find((s) => s.id === sowId) || mockSOWs[0];
+  const storeSows = useSowStore((s) => s.sows);
+  const addSow = useSowStore((s) => s.addSow);
+  const pipelineSows = useSOWPipelineStore((s) => s.sows);
+  const removeSOW = useSOWPipelineStore((s) => s.removeSOW);
+  const updatePipelineSOW = useSOWPipelineStore((s) => s.updateSOW);
+
+  // Base SOW: prefer store (has live stage progress), fall back to mock
+  const rawSow = storeSows.find((s) => s.id === sowId)
+    ?? mockSOWs.find((s) => s.id === sowId)
+    ?? mockSOWs[0];
+
+  const pipelineMeta = pipelineSows.find((s) => s.id === sowId);
+
+  // Build approval stages that reflect pipeline store state (completed + current stage)
+  function buildStagesFromPipeline() {
+    const stageKeys: ApprovalStage[] = ["business", "glimmora_commercial", "legal", "security", "final"];
+    const completed = pipelineMeta?.completedStages ?? [];
+    const current = pipelineMeta?.currentStage ?? 1;
+    return stageKeys.map((key, idx) => {
+      const num = idx + 1;
+      if (completed.includes(num)) return { stage: key, status: "approved" as const };
+      if (num === current) return { stage: key, status: "in_review" as const, reviewer: "Enterprise Admin" };
+      return { stage: key, status: "pending" as const };
+    });
+  }
+
+  const hasActiveStage = rawSow.approvalStages.some(
+    (s) => s.status === "in_review" || s.status === "pending"
+  );
+  const sow = hasActiveStage
+    ? rawSow
+    : {
+        ...rawSow,
+        id: sowId,
+        title: pipelineMeta?.title ?? rawSow.title,
+        client: pipelineMeta?.client ?? rawSow.client,
+        status: "approval" as const,
+        approvalStages: pipelineMeta ? buildStagesFromPipeline() : INITIAL_APPROVAL_STAGES.map((s) => ({ ...s })),
+      };
 
   const activeStageIndex = sow.approvalStages.findIndex((s) => s.status === "in_review" || s.status === "pending");
   const activeStage = activeStageIndex >= 0 ? sow.approvalStages[activeStageIndex] : null;
@@ -107,6 +148,65 @@ export default function SOWApprovePage() {
   const [approvalSubmitted, setApprovalSubmitted] = React.useState(false);
 
   const allStagesApproved = sow.approvalStages.every((s) => s.status === "approved");
+
+  function handleApproveStage() {
+    if (!activeStage) return;
+    const now = new Date().toISOString();
+    const isFinalStage = activeStage.stage === "final";
+
+    const updatedStages = sow.approvalStages.map((s, idx) => {
+      if (s.stage === activeStage.stage) {
+        return { ...s, status: "approved" as const, reviewedAt: now, comments: comments || undefined };
+      }
+      if (idx === activeStageIndex + 1 && s.status === "pending") {
+        return { ...s, status: "in_review" as const };
+      }
+      return s;
+    });
+
+    const stageNum = activeStageIndex + 1;          // 1-indexed stage just approved
+    const newCompletedStages = [...(pipelineMeta?.completedStages ?? []).filter(n => n !== stageNum), stageNum];
+
+    if (isFinalStage) {
+      addSow({ ...sow, approvalStages: updatedStages, status: "approved", approvedAt: now, updatedAt: now });
+      removeSOW(sow.id);
+      setApprovalSubmitted(true);
+      setTimeout(() => router.push("/enterprise/sow"), 2000);
+    } else {
+      addSow({ ...sow, approvalStages: updatedStages, updatedAt: now });
+      // Sync pipeline store for real-time stage tracker
+      updatePipelineSOW(sow.id, {
+        currentStage: stageNum + 1,
+        completedStages: newCompletedStages,
+      });
+      setApprovalSubmitted(true);
+    }
+  }
+
+  function handleRejectStage() {
+    if (!activeStage || !rejectionReason.trim()) return;
+    const now = new Date().toISOString();
+    const updatedStages = sow.approvalStages.map((s) =>
+      s.stage === activeStage.stage
+        ? { ...s, status: "rejected" as const, reviewedAt: now, comments: rejectionReason }
+        : s
+    );
+    addSow({
+      ...sow,
+      approvalStages: updatedStages,
+      status: "changes_requested",
+      updatedAt: now,
+    });
+    // Mark the pipeline SOW so it surfaces at the top with a notification
+    updatePipelineSOW(sowId, {
+      changesRequested: true,
+      changeRequestReason: rejectionReason,
+      changeRequestedAt: now,
+      changeRequestedBy: stageLabels[activeStage.stage],
+    });
+    setRejectionSubmitted(true);
+    setShowRejectForm(false);
+  }
   const showMain = activeStage && !approvalSubmitted && !rejectionSubmitted;
 
   return (
@@ -209,7 +309,7 @@ export default function SOWApprovePage() {
               className="flex items-center gap-1.5 text-[12px] font-medium text-gray-500 px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-all">
               <AlertTriangle className="w-3.5 h-3.5" /> Request Changes
             </button>
-            <button disabled={!allChecked} onClick={() => setApprovalSubmitted(true)}
+            <button disabled={!allChecked} onClick={handleApproveStage}
               className={cn("flex items-center gap-1.5 text-[13px] font-semibold px-6 py-2.5 rounded-xl transition-all",
                 allChecked ? "text-white bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700" : "text-gray-400 bg-gray-100 cursor-not-allowed"
               )}>
@@ -231,7 +331,7 @@ export default function SOWApprovePage() {
                     <button onClick={() => setShowRejectForm(false)}
                       className="text-[12px] font-medium text-gray-500 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all">Cancel</button>
                     <button disabled={!rejectionReason.trim()}
-                      onClick={() => { if (rejectionReason.trim()) { setRejectionSubmitted(true); setShowRejectForm(false); } }}
+                      onClick={handleRejectStage}
                       className={cn("flex items-center gap-1.5 text-[12px] font-medium px-4 py-2 rounded-lg transition-all",
                         rejectionReason.trim() ? "text-white bg-gradient-to-r from-brown-400 to-brown-600" : "text-gray-400 bg-gray-100 cursor-not-allowed"
                       )}>
@@ -246,7 +346,7 @@ export default function SOWApprovePage() {
       )}
 
       {/* ═══ SUCCESS STATES ═══ */}
-      {approvalSubmitted && (
+      {approvalSubmitted && activeStage?.stage !== "final" && (
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card-parchment text-center px-10 py-16">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-forest-400 to-forest-600 flex items-center justify-center mx-auto mb-5">
             <CheckCircle2 className="w-7 h-7 text-white" />
@@ -256,6 +356,20 @@ export default function SOWApprovePage() {
           {comments && <p className="text-[12px] text-gray-400 italic mt-3 max-w-[360px] mx-auto">&ldquo;{comments}&rdquo;</p>}
           <Link href={`/enterprise/sow/${sow.id}`} className="inline-flex items-center gap-1.5 text-[12px] font-medium text-gray-500 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-all mt-6">
             Return to SOW
+          </Link>
+        </motion.div>
+      )}
+
+      {approvalSubmitted && activeStage?.stage === "final" && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card-parchment text-center px-10 py-16">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-forest-400 to-forest-600 flex items-center justify-center mx-auto mb-5">
+            <Sparkles className="w-7 h-7 text-white" />
+          </div>
+          <h2 className="text-[20px] font-semibold text-gray-900 mb-2">SOW Fully Approved</h2>
+          <p className="text-[13px] text-gray-400 max-w-[320px] mx-auto">All 5 stages complete. Redirecting you to the SOW Repository…</p>
+          {comments && <p className="text-[12px] text-gray-400 italic mt-3 max-w-[360px] mx-auto">&ldquo;{comments}&rdquo;</p>}
+          <Link href="/enterprise/sow" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-white bg-gradient-to-r from-forest-500 to-forest-600 px-6 py-2.5 rounded-xl transition-all mt-6">
+            <CheckCircle2 className="w-4 h-4" /> Go to SOW Repository
           </Link>
         </motion.div>
       )}

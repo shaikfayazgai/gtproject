@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useSidebarStore } from "@/lib/stores/sidebar-store";
-import { useSowBadges } from "@/lib/hooks/use-sow-badges";
+import { useSowBadges, useSowAlerts, type SOWAlert } from "@/lib/hooks/use-sow-badges";
 import type { ModuleConfig } from "@/lib/config/navigation";
 import {
   Tooltip,
@@ -30,6 +30,18 @@ export function Sidebar({ config }: SidebarProps) {
   const pathname = usePathname();
   const { isCollapsed, isMobileOpen, toggle, closeMobile } = useSidebarStore();
   const dynamicBadges = useSowBadges();
+  const alertMap = useSowAlerts();
+  const [openAlertHref, setOpenAlertHref] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!openAlertHref) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-alert-popover]")) setOpenAlertHref(null);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [openAlertHref]);
   const [expandedSections, setExpandedSections] = React.useState<
     Record<number, boolean>
   >({});
@@ -188,6 +200,9 @@ export function Sidebar({ config }: SidebarProps) {
                           const active = isActive(item.href);
                           const Icon = item.icon;
                           const badge = dynamicBadges[item.href] ?? item.badge;
+                          const alertState = alertMap[item.href];
+                          const hasAlert = alertState?.hasAlert ?? false;
+                          const alertItems: SOWAlert[] = alertState?.items ?? [];
 
                           const link = (
                             <Link
@@ -216,7 +231,7 @@ export function Sidebar({ config }: SidebarProps) {
                                     isCollapsed ? "w-4 h-4" : "w-[14px] h-[14px]"
                                   )}
                                 />
-                                {badge && isCollapsed && (
+                                {badge && !hasAlert && isCollapsed && (
                                   <span
                                     className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
                                     style={{ background: "linear-gradient(135deg,#A67763,#8B5E4A)" }}
@@ -239,7 +254,71 @@ export function Sidebar({ config }: SidebarProps) {
                                 )}
                               </AnimatePresence>
 
-                              {badge && !isCollapsed && (
+                              {hasAlert && !isCollapsed && (
+                                <span className="ml-auto relative">
+                                  <button
+                                    type="button"
+                                    data-alert-popover
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setOpenAlertHref((prev) => prev === item.href ? null : item.href);
+                                    }}
+                                    className="flex items-center justify-center w-5 h-5 rounded-full hover:opacity-80 transition-opacity"
+                                  >
+                                    <span className="relative flex h-2 w-2">
+                                      <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-60" />
+                                      <span className="relative rounded-full w-2 h-2 bg-red-500" />
+                                    </span>
+                                  </button>
+                                  {openAlertHref === item.href && (
+                                    <div
+                                      data-alert-popover
+                                      className="absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50 w-72"
+                                      style={{ filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.12))" }}
+                                    >
+                                      {/* Arrow */}
+                                      <div
+                                        className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45"
+                                        style={{ background: "var(--card-bg, #fff)", border: "1px solid rgba(185,28,28,0.15)", borderRight: "none", borderTop: "none" }}
+                                      />
+                                      <div
+                                        className="rounded-xl overflow-hidden"
+                                        style={{ background: "var(--card-bg, #fff)", border: "1px solid rgba(185,28,28,0.15)" }}
+                                      >
+                                        <div
+                                          className="px-3 py-2 flex items-center gap-2"
+                                          style={{ background: "rgba(185,28,28,0.05)", borderBottom: "1px solid rgba(185,28,28,0.10)" }}
+                                        >
+                                          <AlertCircle className="w-3.5 h-3.5 shrink-0" style={{ color: "#B91C1C" }} strokeWidth={2.5} />
+                                          <p className="text-[11px] font-semibold" style={{ color: "#B91C1C" }}>
+                                            {alertItems.length} SOW{alertItems.length > 1 ? "s require" : " requires"} attention
+                                          </p>
+                                        </div>
+                                        <div className="divide-y divide-red-50">
+                                          {alertItems.map((alert) => (
+                                            <div key={alert.id} className="px-3 py-2.5">
+                                              <p className="text-[12px] font-medium text-gray-800 leading-snug">{alert.title}</p>
+                                              {alert.requestedBy && (
+                                                <p className="text-[10.5px] text-gray-400 mt-0.5">by {alert.requestedBy}</p>
+                                              )}
+                                              {alert.reason && (
+                                                <p
+                                                  className="text-[11px] italic mt-1.5 leading-snug"
+                                                  style={{ color: "#7F1D1D" }}
+                                                >
+                                                  &ldquo;{alert.reason}&rdquo;
+                                                </p>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </span>
+                              )}
+                              {badge && !hasAlert && !isCollapsed && (
                                 <span
                                   className="ml-auto px-1.5 py-0.5 rounded-full text-[9px] font-bold text-white"
                                   style={{ background: "linear-gradient(135deg,#A67763,#8B5E4A)" }}

@@ -281,11 +281,16 @@ function AddContributorDialog({ trigger }: { trigger: React.ReactNode }) {
    CONTRIBUTOR MANAGEMENT PAGE (H5)
    ═══════════════════════════════════ */
 export default function ContributorManagementPage() {
+  const [contributors, setContributors] = React.useState<Contributor[]>(mockContributors);
   const [search, setSearch] = React.useState("");
   const [segmentFilter, setSegmentFilter] = React.useState("all");
   const [statusFilter, setStatusFilter] = React.useState("all");
 
-  const filteredContributors = mockContributors.filter((c) => {
+  const updateStatus = (id: string, status: Contributor["status"]) => {
+    setContributors((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)));
+  };
+
+  const filteredContributors = contributors.filter((c) => {
     const matchesSearch =
       c.anonymizedId.toLowerCase().includes(search.toLowerCase()) ||
       c.skills.some((s) => s.toLowerCase().includes(search.toLowerCase()));
@@ -296,9 +301,9 @@ export default function ContributorManagementPage() {
 
   const hasActiveFilters = segmentFilter !== "all" || statusFilter !== "all";
 
-  const activeCount = mockContributors.filter((c) => c.status === "active").length;
-  const womenCount = mockContributors.filter((c) => c.track === "women").length;
-  const studentCount = mockContributors.filter((c) => c.track === "student").length;
+  const activeCount = contributors.filter((c) => c.status === "active").length;
+  const womenCount = contributors.filter((c) => c.track === "women").length;
+  const studentCount = contributors.filter((c) => c.track === "student").length;
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-6">
@@ -334,7 +339,7 @@ export default function ContributorManagementPage() {
 
       {/* Stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-fade-up [animation-delay:50ms]">
-        <StatMini icon={Users} label="Total Contributors" value={mockContributors.length} accent="from-brown-400 to-brown-600" />
+        <StatMini icon={Users} label="Total Contributors" value={contributors.length} accent="from-brown-400 to-brown-600" />
         <StatMini icon={UserCheck} label="Active" value={activeCount} accent="from-forest-400 to-forest-600" />
         <StatMini icon={Users} label="Women Track" value={womenCount} accent="from-teal-400 to-teal-600" />
         <StatMini icon={Briefcase} label="Student Track" value={studentCount} accent="from-gold-400 to-gold-600" />
@@ -463,13 +468,13 @@ export default function ContributorManagementPage() {
                         <DropdownMenuSeparator />
                         {contributor.status === "active" ? (
                           <DropdownMenuItem
-                            onClick={() => toast.success("Status Updated", `${contributor.anonymizedId} has been deactivated.`)}
+                            onClick={() => { updateStatus(contributor.id, "inactive"); toast.success("Status Updated", `${contributor.anonymizedId} has been deactivated.`); }}
                           >
                             <Ban className="w-3.5 h-3.5" /> <span>Deactivate</span>
                           </DropdownMenuItem>
                         ) : contributor.status === "inactive" ? (
                           <DropdownMenuItem
-                            onClick={() => toast.success("Status Updated", `${contributor.anonymizedId} has been reactivated.`)}
+                            onClick={() => { updateStatus(contributor.id, "active"); toast.success("Status Updated", `${contributor.anonymizedId} has been reactivated.`); }}
                           >
                             <ShieldCheck className="w-3.5 h-3.5" /> <span>Reactivate</span>
                           </DropdownMenuItem>
@@ -500,7 +505,7 @@ export default function ContributorManagementPage() {
         <div className="flex items-center justify-between px-5 py-3 border-t border-beige-100 bg-beige-50/30">
           <span className="text-[11px] text-beige-500">
             Showing <span className="font-semibold text-brown-700">{filteredContributors.length}</span> of{" "}
-            <span className="font-semibold text-brown-700">{mockContributors.length}</span> contributors
+            <span className="font-semibold text-brown-700">{contributors.length}</span> contributors
           </span>
           <div className="flex items-center gap-2">
             {hasActiveFilters && (

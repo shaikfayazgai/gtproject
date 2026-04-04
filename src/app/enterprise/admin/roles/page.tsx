@@ -219,7 +219,7 @@ const emptyUserForm = {
   designation: "",
   department: "",
   username: "",
-  role: "reviewer",
+  role: "",
   isActive: true,
   language: "",
   timeZone: "",
@@ -368,314 +368,167 @@ function CreateUserDialog({
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[480px] bg-[#F9F7F5] border border-beige-200">
 
         {/* ── Step 1: Form ── */}
         {step === "form" && (
           <>
             <DialogHeader>
               <DialogTitle className="text-brown-900 font-heading">Create New User</DialogTitle>
-              <DialogDescription className="text-beige-500">
-                A temporary password will be auto-generated and emailed to the user.
+              <DialogDescription className="text-beige-500 text-[12px]">
+                Fill in the details below. A temporary password will be sent to the user.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="max-h-[65vh] overflow-y-auto pr-1">
-              <div className="space-y-4 py-4">
+            <div className="space-y-3 py-2">
 
-                {/* User Role — first field */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="cu-role" className="text-[12px] text-brown-700">
-                    User Role <span className="text-red-400">*</span>
-                  </Label>
-                  <UserRoleDropdown
-                    id="cu-role"
-                    value={form.role}
-                    onChange={(v) => set("role", v)}
-                    hasError={!!errors.role}
-                  />
-                  <FieldError message={errors.role} />
+              {/* Row 1: First Name + Last Name */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="cu-fname" className="text-[11px] font-medium text-brown-700">First Name <span className="text-red-400">*</span></Label>
+                  <Input id="cu-fname" placeholder="First name" value={form.firstName} onChange={(e) => set("firstName", e.target.value)} className={cn("h-8 text-[12px]", errors.firstName && "border-red-400")} />
+                  <FieldError message={errors.firstName} />
                 </div>
-
-                {/* First Name + Last Name */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="cu-fname" className="text-[12px] text-brown-700">
-                      First Name <span className="text-red-400">*</span>
-                    </Label>
-                    <Input
-                      id="cu-fname"
-                      placeholder="First name"
-                      value={form.firstName}
-                      onChange={(e) => set("firstName", e.target.value)}
-                      className={cn(errors.firstName && "border-red-400")}
-                    />
-                    <FieldError message={errors.firstName} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="cu-lname" className="text-[12px] text-brown-700">
-                      Last Name <span className="text-red-400">*</span>
-                    </Label>
-                    <Input
-                      id="cu-lname"
-                      placeholder="Last name"
-                      value={form.lastName}
-                      onChange={(e) => set("lastName", e.target.value)}
-                      className={cn(errors.lastName && "border-red-400")}
-                    />
-                    <FieldError message={errors.lastName} />
-                  </div>
+                <div className="space-y-1">
+                  <Label htmlFor="cu-lname" className="text-[11px] font-medium text-brown-700">Last Name <span className="text-red-400">*</span></Label>
+                  <Input id="cu-lname" placeholder="Last name" value={form.lastName} onChange={(e) => set("lastName", e.target.value)} className={cn("h-8 text-[12px]", errors.lastName && "border-red-400")} />
+                  <FieldError message={errors.lastName} />
                 </div>
+              </div>
 
-                {/* Email */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="cu-email" className="text-[12px] text-brown-700">
-                    Email ID <span className="text-red-400">*</span>
-                  </Label>
-                  <Input
-                    id="cu-email"
-                    type="email"
-                    placeholder="user@company.com"
-                    value={form.email}
-                    onChange={(e) => set("email", e.target.value)}
-                    className={cn(errors.email && "border-red-400")}
-                  />
+              {/* Row 2: Email + Role */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="cu-email" className="text-[11px] font-medium text-brown-700">Email <span className="text-red-400">*</span></Label>
+                  <Input id="cu-email" type="email" placeholder="user@company.com" value={form.email} onChange={(e) => set("email", e.target.value)} className={cn("h-8 text-[12px]", errors.email && "border-red-400")} />
                   <FieldError message={errors.email} />
                 </div>
-
-                {/* Designation + Department */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="cu-designation" className="text-[12px] text-brown-700">
-                      Designation <span className="text-red-400">*</span>
-                    </Label>
-                    <Input
-                      id="cu-designation"
-                      placeholder="e.g. Senior Reviewer"
-                      value={form.designation}
-                      onChange={(e) => set("designation", e.target.value)}
-                      className={cn(errors.designation && "border-red-400")}
-                    />
-                    <FieldError message={errors.designation} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="cu-dept" className="text-[12px] text-brown-700">
-                      Department <span className="text-red-400">*</span>
-                    </Label>
-                    <Input
-                      id="cu-dept"
-                      placeholder="e.g. Engineering"
-                      value={form.department}
-                      onChange={(e) => set("department", e.target.value)}
-                      className={cn(errors.department && "border-red-400")}
-                    />
-                    <FieldError message={errors.department} />
-                  </div>
+                <div className="space-y-1">
+                  <Label htmlFor="cu-role" className="text-[11px] font-medium text-brown-700">Role <span className="text-red-400">*</span></Label>
+                  <Input id="cu-role" placeholder="e.g. Manager" value={form.role} onChange={(e) => set("role", e.target.value)} className={cn("h-8 text-[12px]", errors.role && "border-red-400")} />
+                  <FieldError message={errors.role} />
                 </div>
+              </div>
 
-                {/* Username */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="cu-username" className="text-[12px] text-brown-700">
-                    Username <span className="text-red-400">*</span>
-                  </Label>
-                  <Input
-                    id="cu-username"
-                    placeholder="username"
-                    value={form.username}
-                    onChange={(e) => set("username", e.target.value)}
-                    className={cn(errors.username && "border-red-400")}
-                  />
+              {/* Row 3: Designation + Department */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="cu-designation" className="text-[11px] font-medium text-brown-700">Designation <span className="text-red-400">*</span></Label>
+                  <Input id="cu-designation" placeholder="e.g. Senior Reviewer" value={form.designation} onChange={(e) => set("designation", e.target.value)} className={cn("h-8 text-[12px]", errors.designation && "border-red-400")} />
+                  <FieldError message={errors.designation} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="cu-dept" className="text-[11px] font-medium text-brown-700">Department <span className="text-red-400">*</span></Label>
+                  <Input id="cu-dept" placeholder="e.g. Engineering" value={form.department} onChange={(e) => set("department", e.target.value)} className={cn("h-8 text-[12px]", errors.department && "border-red-400")} />
+                  <FieldError message={errors.department} />
+                </div>
+              </div>
+
+              {/* Row 4: Username + Active toggle */}
+              <div className="grid grid-cols-2 gap-3 items-start">
+                <div className="space-y-1">
+                  <Label htmlFor="cu-username" className="text-[11px] font-medium text-brown-700">Username <span className="text-red-400">*</span></Label>
+                  <Input id="cu-username" placeholder="username" value={form.username} onChange={(e) => set("username", e.target.value)} className={cn("h-8 text-[12px]", errors.username && "border-red-400")} />
                   <FieldError message={errors.username} />
                 </div>
-
-                {/* Active User toggle */}
-                <div className="flex items-center justify-between rounded-xl border border-beige-200/50 bg-beige-50/40 px-4 py-3">
-                  <div>
-                    <p className="text-[13px] font-medium text-brown-800">Active User</p>
-                    <p className="text-[11px] text-beige-500 mt-0.5">
-                      User can log in and access the platform
-                    </p>
-                  </div>
-                  <Switch
-                    checked={form.isActive}
-                    onCheckedChange={(v) => set("isActive", v)}
-                    aria-label="Active user toggle"
-                  />
-                </div>
-
-                {/* Language + Time Zone */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="cu-lang" className="text-[12px] text-brown-700">
-                      Language <span className="text-red-400">*</span>
-                    </Label>
-                    <Select value={form.language} onValueChange={(v) => set("language", v)}>
-                      <SelectTrigger
-                        id="cu-lang"
-                        className={cn(errors.language && "border-red-400 focus:ring-red-400")}
-                      >
-                        <SelectValue placeholder="Select language" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LANGUAGE_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FieldError message={errors.language} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="cu-tz" className="text-[12px] text-brown-700">
-                      Time Zone <span className="text-red-400">*</span>
-                    </Label>
-                    <Select value={form.timeZone} onValueChange={(v) => set("timeZone", v)}>
-                      <SelectTrigger
-                        id="cu-tz"
-                        className={cn(errors.timeZone && "border-red-400 focus:ring-red-400")}
-                      >
-                        <SelectValue placeholder="Select time zone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TIMEZONE_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FieldError message={errors.timeZone} />
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-medium text-brown-700">Status</Label>
+                  <div className="flex items-center justify-between h-8 rounded-lg border border-beige-200 bg-white/60 px-3">
+                    <span className="text-[12px] text-brown-700">Active</span>
+                    <Switch checked={form.isActive} onCheckedChange={(v) => set("isActive", v)} aria-label="Active user toggle" />
                   </div>
                 </div>
               </div>
+
+              {/* Row 5: Language + Time Zone */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="cu-lang" className="text-[11px] font-medium text-brown-700">Language <span className="text-red-400">*</span></Label>
+                  <Select value={form.language} onValueChange={(v) => set("language", v)}>
+                    <SelectTrigger id="cu-lang" className={cn("h-8 text-[12px]", errors.language && "border-red-400")}>
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LANGUAGE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <FieldError message={errors.language} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="cu-tz" className="text-[11px] font-medium text-brown-700">Time Zone <span className="text-red-400">*</span></Label>
+                  <Select value={form.timeZone} onValueChange={(v) => set("timeZone", v)}>
+                    <SelectTrigger id="cu-tz" className={cn("h-8 text-[12px]", errors.timeZone && "border-red-400")}>
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIMEZONE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <FieldError message={errors.timeZone} />
+                </div>
+              </div>
+
             </div>
 
             <DialogFooter>
-              <Button variant="outline" size="sm" onClick={() => handleClose(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="gradient-primary"
-                size="sm"
-                onClick={handleCreate}
-                disabled={saving}
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Creating…
-                  </>
-                ) : (
-                  <>
-                    <Mail className="w-3.5 h-3.5" />
-                    Create & Send Invite
-                  </>
-                )}
+              <Button variant="outline" size="sm" onClick={() => handleClose(false)}>Cancel</Button>
+              <Button variant="gradient-primary" size="sm" onClick={handleCreate} disabled={saving}>
+                {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Creating…</> : <><Mail className="w-3.5 h-3.5" />Create & Invite</>}
               </Button>
             </DialogFooter>
           </>
         )}
 
-        {/* ── Step 2: Email sent confirmation ── */}
+        {/* ── Step 2: Success ── */}
         {step === "success" && (
           <>
             <DialogHeader>
               <DialogTitle className="text-brown-900 font-heading">Invitation Sent</DialogTitle>
-              <DialogDescription className="text-beige-500">
-                An email with login credentials has been sent to {form.email.trim()}.
+              <DialogDescription className="text-beige-500 text-[12px]">
+                Login credentials have been sent to <span className="font-medium text-brown-700">{form.email.trim()}</span>.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="py-4 space-y-4">
+            <div className="py-2 space-y-3">
               {/* Success banner */}
               <div className="flex items-center gap-3 rounded-xl bg-teal-50 border border-teal-100 px-4 py-3">
-                <CheckCircle2 className="w-5 h-5 text-teal-500 shrink-0" />
-                <div>
-                  <p className="text-[13px] font-semibold text-teal-700">
-                    {form.firstName.trim()} {form.lastName.trim()} added as {roleLabel}
-                  </p>
-                  <p className="text-[11px] text-teal-600 mt-0.5">
-                    They will be prompted to change their password on first login.
-                  </p>
-                </div>
+                <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
+                <p className="text-[12px] font-semibold text-teal-700">
+                  {form.firstName.trim()} {form.lastName.trim()} added as <span className="capitalize">{roleLabel}</span>
+                </p>
               </div>
 
-              {/* Email preview */}
-              <div className="rounded-xl border border-beige-200/60 bg-beige-50/40 overflow-hidden">
-                {/* Email header bar */}
-                <div className="flex items-center gap-2 px-4 py-2.5 bg-white/70 border-b border-beige-100">
-                  <Mail className="w-3.5 h-3.5 text-beige-400" />
-                  <span className="text-[11px] font-semibold text-beige-500 uppercase tracking-wider">
-                    Email Preview
-                  </span>
+              {/* Credentials box */}
+              <div className="rounded-xl border border-beige-200 bg-white overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-2 border-b border-beige-100 bg-beige-50/60">
+                  <KeyRound className="w-3 h-3 text-beige-400" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-beige-500">Login Credentials</span>
                 </div>
-
-                {/* Email body */}
-                <div className="px-5 py-4 space-y-3 text-[12px] text-brown-700 leading-relaxed">
-                  <p>
-                    <span className="text-beige-500">To:</span>{" "}
-                    <span className="font-medium">{form.email.trim()}</span>
-                  </p>
-                  <p>
-                    <span className="text-beige-500">Subject:</span>{" "}
-                    <span className="font-medium">
-                      You&apos;ve been invited to GlimmoraTeam
-                    </span>
-                  </p>
-                  <div className="border-t border-beige-100 pt-3 space-y-2">
-                    <p>Hi {form.firstName.trim()},</p>
-                    <p>
-                      You&apos;ve been invited to join{" "}
-                      <span className="font-semibold">GlimmoraTeam</span> as a{" "}
-                      <span className="font-semibold">{roleLabel}</span>.
-                    </p>
-                    <p className="text-beige-500">Your login credentials:</p>
-                    {/* Credentials box */}
-                    <div className="rounded-lg bg-white border border-beige-200 px-4 py-3 space-y-2 font-mono text-[11px]">
-                      <div className="flex justify-between items-center">
-                        <span className="text-beige-500">Email</span>
-                        <span className="font-semibold text-brown-800">{form.email.trim()}</span>
-                      </div>
-                      <div className="border-t border-beige-100" />
-                      <div className="flex justify-between items-center">
-                        <span className="text-beige-500">Temporary Password</span>
-                        <span className="font-semibold text-brown-800 tracking-widest">{tempPassword}</span>
-                      </div>
-                      <div className="border-t border-beige-100" />
-                      <div className="flex justify-between items-center">
-                        <span className="text-beige-500">Login URL</span>
-                        <span className="font-semibold text-teal-600">app.glimmorateam.com/auth/login</span>
-                      </div>
-                    </div>
-                    <p className="text-[11px] text-brown-500 font-medium">
-                      ⚠ For security, the user will be asked to set a new password on first login.
-                    </p>
+                <div className="px-4 py-3 space-y-2 font-mono text-[11px]">
+                  <div className="flex justify-between items-center">
+                    <span className="text-beige-500">Email</span>
+                    <span className="font-semibold text-brown-800">{form.email.trim()}</span>
+                  </div>
+                  <div className="border-t border-beige-100" />
+                  <div className="flex justify-between items-center">
+                    <span className="text-beige-500">Temp Password</span>
+                    <span className="font-semibold text-brown-800 tracking-widest">{tempPassword}</span>
+                  </div>
+                  <div className="border-t border-beige-100" />
+                  <div className="flex justify-between items-center">
+                    <span className="text-beige-500">Login URL</span>
+                    <span className="text-teal-600">app.glimmorateam.com</span>
                   </div>
                 </div>
               </div>
 
-              {/* Copy credentials button */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={handleCopyCredentials}
-              >
-                {copied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-teal-500" />
-                    Credentials copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5" />
-                    Copy credentials to clipboard
-                  </>
-                )}
+              <Button variant="outline" size="sm" className="w-full" onClick={handleCopyCredentials}>
+                {copied ? <><Check className="w-3.5 h-3.5 text-teal-500" />Copied!</> : <><Copy className="w-3.5 h-3.5" />Copy credentials</>}
               </Button>
             </div>
 
             <DialogFooter>
-              <Button variant="gradient-primary" size="sm" onClick={() => handleClose(false)}>
-                Done
-              </Button>
+              <Button variant="gradient-primary" size="sm" onClick={() => handleClose(false)}>Done</Button>
             </DialogFooter>
           </>
         )}

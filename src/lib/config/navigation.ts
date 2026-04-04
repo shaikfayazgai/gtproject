@@ -31,6 +31,7 @@ import {
   FileStack,
   Scale,
   BarChart3,
+  Bell,
   type LucideIcon,
 } from "lucide-react";
 
@@ -141,6 +142,7 @@ export const enterpriseNav: ModuleConfig = {
       title: "Audit",
       items: [
         { label: "Audit Log", href: "/enterprise/audit", icon: ScrollText },
+        { label: "Notifications", href: "/enterprise/notifications", icon: Bell },
       ],
     },
   ],

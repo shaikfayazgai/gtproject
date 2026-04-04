@@ -67,8 +67,9 @@ import {
 } from "@/components/ui";
 import { MetricRing } from "@/components/enterprise/metric-ring";
 import { StatusTimeline } from "@/components/enterprise/status-timeline";
-import { mockSOWSections } from "@/mocks/data/enterprise-sow";
+import { mockSOWs, mockSOWSections } from "@/mocks/data/enterprise-sow";
 import { useSowStore, INITIAL_APPROVAL_STAGES } from "@/lib/stores/sow-store";
+import { useSOWPipelineStore } from "@/lib/stores/sow-pipeline-store";
 import { mockProjects } from "@/mocks/data/enterprise-projects";
 import {
   mockSOWClauses,
@@ -271,10 +272,44 @@ export default function SOWDetailPage() {
   const sowId = params.sowId as string;
   const allSows = useSowStore((s) => s.sows);
   const updateSow = useSowStore((s) => s.updateSow);
-  const sow = React.useMemo(
-    () => allSows.find((s) => s.id === sowId) ?? allSows[0],
-    [allSows, sowId]
-  );
+  const updatePipelineSOW = useSOWPipelineStore((s) => s.updateSOW);
+  const pipelineSows = useSOWPipelineStore((s) => s.sows);
+  const sow = React.useMemo(() => {
+    // Try to find the SOW by its actual ID first
+    const exactMatch = allSows.find((s) => s.id === sowId)
+      ?? mockSOWs.find((s) => s.id === sowId);
+    const pipelineMeta = pipelineSows.find((s) => s.id === sowId);
+
+    if (exactMatch) {
+      // Found in a real store — use live data as-is
+      return exactMatch;
+    }
+
+    // SOW only exists in the pipeline store (no mock/store entry).
+    // Build a synthetic record from the pipeline metadata so the correct
+    // approval stage is shown instead of whatever allSows[0] happens to have.
+    if (pipelineMeta) {
+      const stageKeys = ["business", "glimmora_commercial", "legal", "security", "final"] as const;
+      const completed = pipelineMeta.completedStages;
+      const current = pipelineMeta.currentStage;
+      return {
+        ...(allSows[0]),   // use as a shape template for fields like riskScore, pages, etc.
+        id: sowId,
+        title: pipelineMeta.title,
+        client: pipelineMeta.client,
+        status: "approval" as const,
+        approvalStages: stageKeys.map((key, idx) => {
+          const num = idx + 1;
+          if (completed.includes(num)) return { stage: key, status: "approved" as const };
+          if (num === current) return { stage: key, status: "in_review" as const, reviewer: "Enterprise Admin" };
+          return { stage: key, status: "pending" as const };
+        }),
+      };
+    }
+
+    // Last resort fallback
+    return allSows[0];
+  }, [allSows, pipelineSows, sowId]);
   const linkedProject = mockProjects.find((p) => p.sowId === sow.id);
   const sections = mockSOWSections.filter((s) => s.sowId === sow.id);
   const clauses = mockSOWClauses.filter((c) => c.sowId === sow.id);
@@ -307,6 +342,20 @@ export default function SOWDetailPage() {
   const sectionDropdownRef = React.useRef<HTMLDivElement>(null);
   const sectionTriggerRef = React.useRef<HTMLButtonElement>(null);
   const [dropdownCoords, setDropdownCoords] = React.useState({ top: 0, left: 0, width: 0 });
+
+  // Sync the active approval stage index to the first in_review stage whenever
+  // the SOW changes (e.g. navigating from the pipeline page to a SOW at stage 3+).
+  React.useEffect(() => {
+    const idx = sow.approvalStages.findIndex((s) => s.status === "in_review");
+    if (idx >= 0) {
+      setActiveApprovalIdx(idx);
+    } else {
+      // All approved or all pending — fall back to first pending, or last stage
+      const pendingIdx = sow.approvalStages.findIndex((s) => s.status === "pending");
+      setActiveApprovalIdx(pendingIdx >= 0 ? pendingIdx : sow.approvalStages.length);
+    }
+    setApprovalChecked({});
+  }, [sow.id]);
 
   React.useEffect(() => {
     if (!sectionDropdownOpen) return;
@@ -1482,6 +1531,18 @@ export default function SOWDetailPage() {
 
                 toast.warning(`Changes Requested — Stage ${activeApprovalIdx + 1}`, noteText);
                 addSowMessage(sow.id, buildChangesRequestedMessage(sow.id, activeApprovalIdx, sow.title, sow.createdBy, noteText, requestSection));
+
+                // Update SOW status in repository store
+                updateSow(sow.id, { status: "changes_requested" });
+
+                // Flag in pipeline store so it surfaces at the top with notification
+                updatePipelineSOW(sow.id, {
+                  changesRequested: true,
+                  changeRequestReason: noteText,
+                  changeRequestedAt: new Date().toISOString(),
+                  changeRequestedBy: stageName,
+                });
+
                 setShowRequestChanges(false);
               };
 
@@ -1498,9 +1559,19 @@ export default function SOWDetailPage() {
                     </div>
                   )}
                   {isDone && (
-                    <div className="flex items-center gap-3 px-5 py-3.5 bg-forest-50 border-b border-forest-100">
-                      <CheckCircle2 className="w-4 h-4 text-forest-600 shrink-0" />
-                      <p className="text-[13px] text-forest-800 font-medium">All stages approved — SOW is fully signed off.</p>
+                    <div className="flex items-center justify-between gap-3 px-5 py-3.5 bg-forest-50 border-b border-forest-100">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="w-4 h-4 text-forest-600 shrink-0" />
+                        <p className="text-[13px] text-forest-800 font-medium">All stages approved — SOW is fully signed off.</p>
+                      </div>
+                      <Link
+                        href={sow.planId ? `/enterprise/decomposition/${sow.planId}` : `/enterprise/decomposition?sowId=${sow.id}`}
+                        className="flex items-center gap-1.5 shrink-0 px-4 py-2 rounded-xl text-[12px] font-semibold text-white transition-all"
+                        style={{ background: "linear-gradient(135deg,#2A6068,#1D4A50)", boxShadow: "0 2px 8px rgba(42,96,104,0.30)" }}
+                      >
+                        <GitBranch className="w-3.5 h-3.5" />
+                        {sow.planId ? "View Plan" : "Start Decomposition"}
+                      </Link>
                     </div>
                   )}
 

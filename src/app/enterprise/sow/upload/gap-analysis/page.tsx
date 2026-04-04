@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Sparkles,
   X,
+  Ban,
   ChevronDown,
   ChevronUp,
   Shield,
@@ -375,6 +376,7 @@ export default function GapAnalysisPage() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="text-red-500 hover:text-red-600"
                         onClick={() =>
                           setGaps((prev) =>
                             prev.map((g) =>
@@ -383,8 +385,8 @@ export default function GapAnalysisPage() {
                           )
                         }
                       >
-                        <X className="w-3 h-3" />
-                        Dismiss
+                        <Ban className="w-3 h-3" />
+                        Exclude
                       </Button>
                     )}
                   </div>
@@ -583,17 +585,17 @@ export default function GapAnalysisPage() {
               Optional Gaps
             </h2>
             <p className="text-[11px]" style={{ color: "var(--ink-muted)" }}>
-              Nice-to-have improvements. Can be safely dismissed.
+              Nice-to-have improvements. Can be safely excluded.
             </p>
           </div>
           <Button
             variant="ghost"
             size="sm"
-            className="ml-auto"
+            className="ml-auto text-red-500 hover:text-red-600"
             onClick={dismissAllOptional}
           >
-            <X className="w-3 h-3" />
-            Dismiss all optional
+            <Ban className="w-3 h-3" />
+            Exclude all optional
           </Button>
         </div>
         <div className="space-y-3">

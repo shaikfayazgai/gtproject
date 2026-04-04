@@ -797,6 +797,7 @@ export type CommercialSectionKey = keyof CommercialDetailsForm;
 export type CommercialSectionStatus = "not_started" | "in_progress" | "complete" | "pre_populated";
 
 export interface ApprovalAuthorities {
+  sowSubmitter?: string;
   businessOwnerApprover: string;
   finalApprover: string;
   legalReviewer?: string;
