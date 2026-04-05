@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useOnboardingWizard } from "../hooks/useOnboardingWizard";
 import { OnboardingStepProgress } from "./OnboardingStepProgress";
 import { WelcomeScreen } from "./WelcomeScreen";
+import { Step0OrgDetails } from "./Step0OrgDetails";
 import { Step1CompanyVerification } from "./Step1CompanyVerification";
 import { Step2BillingLegal } from "./Step2BillingLegal";
 import { Step3TeamSetup } from "./Step3TeamSetup";
@@ -85,7 +86,25 @@ export default function OnboardingModal() {
                 <WelcomeScreen onBegin={wiz.goToStep1} />
               )}
 
+              {/* Step 1 — Organisation Details (SSO users only) */}
               {wiz.step === 1 && (
+                <Step0OrgDetails
+                  companyName={wiz.companyName}       setCompanyName={wiz.setCompanyName}
+                  country={wiz.country}               setCountry={wiz.setCountry}
+                  orgType={wiz.orgType}               setOrgType={wiz.setOrgType}
+                  industry={wiz.industry}             setIndustry={wiz.setIndustry}
+                  companySize={wiz.companySize}       setCompanySize={wiz.setCompanySize}
+                  adminTitle={wiz.adminTitle}         setAdminTitle={wiz.setAdminTitle}
+                  adminDept={wiz.adminDept}           setAdminDept={wiz.setAdminDept}
+                  website={wiz.website}               setWebsite={wiz.setWebsite}
+                  phone={wiz.phone}                   setPhone={wiz.setPhone}
+                  error={wiz.error}
+                  onContinue={wiz.goToStep1OrgDetails}
+                  onBack={() => { wiz.setStep(0); wiz.setError(""); }}
+                />
+              )}
+
+              {wiz.step === 2 && (
                 <Step1CompanyVerification
                   companyName={wiz.companyName}
                   countryOfIncorporation={wiz.countryOfIncorporation}
@@ -104,7 +123,7 @@ export default function OnboardingModal() {
                 />
               )}
 
-              {wiz.step === 2 && (
+              {wiz.step === 3 && (
                 <Step2BillingLegal
                   billingCurrency={wiz.billingCurrency} setBillingCurrency={wiz.setBillingCurrency}
                   billingContactEmail={wiz.billingContactEmail} setBillingContactEmail={wiz.setBillingContactEmail}
@@ -122,11 +141,11 @@ export default function OnboardingModal() {
                   onVerifyOTP={wiz.verifyEsigOTP}
                   error={wiz.error}
                   onContinue={wiz.goToStep3}
-                  onBack={() => { wiz.setStep(1); wiz.setError(""); }}
+                  onBack={() => { wiz.setStep(2); wiz.setError(""); }}
                 />
               )}
 
-              {wiz.step === 3 && (
+              {wiz.step === 4 && (
                 <Step3TeamSetup
                   teamInvites={wiz.teamInvites}
                   addInviteRow={wiz.addInviteRow}
@@ -135,11 +154,11 @@ export default function OnboardingModal() {
                   error={wiz.error}
                   onContinue={wiz.goToStep4}
                   onSkip={wiz.skipStep3}
-                  onBack={() => { wiz.setStep(2); wiz.setError(""); }}
+                  onBack={() => { wiz.setStep(3); wiz.setError(""); }}
                 />
               )}
 
-              {wiz.step === 4 && (
+              {wiz.step === 5 && (
                 <Step4UploadSOW
                   sowFile={wiz.sowFile} setSowFile={wiz.setSowFile}
                   sowDrag={wiz.sowDrag} setSowDrag={wiz.setSowDrag}
@@ -148,7 +167,7 @@ export default function OnboardingModal() {
                   error={wiz.error}
                   onComplete={wiz.handleComplete}
                   onSkip={wiz.skipStep4}
-                  onBack={() => { wiz.setStep(3); wiz.setError(""); }}
+                  onBack={() => { wiz.setStep(4); wiz.setError(""); }}
                 />
               )}
             </motion.div>

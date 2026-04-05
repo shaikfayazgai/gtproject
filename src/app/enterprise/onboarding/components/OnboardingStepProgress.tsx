@@ -3,10 +3,11 @@
 import { Check } from "lucide-react";
 
 const STEPS = [
-  { n: 1, label: "Verification", optional: false },
-  { n: 2, label: "Billing & Legal", optional: false },
-  { n: 3, label: "Team Setup", optional: true },
-  { n: 4, label: "First SOW", optional: true },
+  { n: 1, label: "Organisation", optional: false },
+  { n: 2, label: "Verification", optional: false },
+  { n: 3, label: "Billing & Legal", optional: false },
+  { n: 4, label: "Team Setup", optional: true },
+  { n: 5, label: "First SOW", optional: true },
 ] as const;
 
 export function OnboardingStepProgress({ step }: { step: number }) {
