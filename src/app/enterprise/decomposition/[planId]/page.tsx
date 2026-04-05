@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Network, Clock, DollarSign, CheckCircle2, ShieldCheck, ChevronDown,
@@ -22,6 +22,7 @@ import type {
 } from "@/types/enterprise";
 import { Gantt } from "@svar-ui/react-gantt";
 import "@svar-ui/react-gantt/style.css";
+import { PaymentReleaseTab } from "@/components/enterprise/decomposition/PaymentReleaseTab";
 
 /* ═══ Badge ═══ */
 
@@ -88,6 +89,7 @@ const tabs = [
 
 export default function PlanDetailPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const planId = params.planId as string;
   const plan = mockPlans.find((p) => p.id === planId) ?? mockPlans[0];
   const sow = mockSOWs.find((s) => s.id === plan.sowId);
@@ -100,7 +102,7 @@ export default function PlanDetailPage() {
   const [expandedTasks, setExpandedTasks] = React.useState<Set<string>>(new Set());
   const [dismissedRecs, setDismissedRecs] = React.useState<Set<string>>(() => new Set(recommendations.filter((r) => r.dismissed).map((r) => r.id)));
   const [viewMode, setViewMode] = React.useState<"list" | "gantt">("list");
-  const [activeTab, setActiveTab] = React.useState("project_plan");
+  const [activeTab, setActiveTab] = React.useState(() => searchParams.get("tab") ?? "project_plan");
 
   const toggleMilestone = (id: string) => setExpandedMilestones((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleTask = (id: string) => setExpandedTasks((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -270,8 +272,18 @@ export default function PlanDetailPage() {
         </div>
       </motion.div>
 
-      {/* ═══ TAB CONTENT — PROJECT PLAN only, others show coming soon ═══ */}
-      {activeTab !== "project_plan" && (
+      {/* ═══ TAB CONTENT ═══ */}
+      {activeTab === "payment_release" && (
+        <motion.div variants={fadeUp} className="mb-8">
+          <PaymentReleaseTab
+            planId={plan.id}
+            planTitle={plan.title}
+            estimatedCost={plan.estimatedCost}
+          />
+        </motion.div>
+      )}
+
+      {activeTab !== "project_plan" && activeTab !== "payment_release" && (
         <motion.div variants={fadeUp} className="card-parchment flex flex-col items-center justify-center py-20 mb-8">
           <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
             {React.createElement(tabs.find(t => t.id === activeTab)?.icon ?? ClipboardList, { className: "w-5 h-5 text-gray-400" })}

@@ -31,6 +31,7 @@ import {
   ShieldAlert,
   FileDown,
   X,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
@@ -58,6 +59,10 @@ import { ActionValidationModal } from "@/components/enterprise/action-validation
 import { mockProjects, mockMilestones, mockDeliverables } from "@/mocks/data/enterprise-projects";
 import { toast } from "@/lib/stores/toast-store";
 import type { Project, ProjectHealth } from "@/types/enterprise";
+import {
+  PaymentConfirmModal, useRazorpayScript,
+  type MilestonePayment, type PaymentStatus,
+} from "@/components/enterprise/decomposition/PaymentReleaseTab";
 
 /* -- Health config -- */
 const healthConfig: Record<
@@ -154,11 +159,13 @@ function QuickActionsMenu({
   onStatusChange,
   onEscalate,
   onValidationModalOpen,
+  onResume,
 }: {
   project: Project;
   onStatusChange: (id: string, status: ProjectHealth) => void;
   onEscalate: (id: string, reason: string) => void;
   onValidationModalOpen: (type: "hold" | "escalate", projectId: string) => void;
+  onResume?: (project: Project) => void;
 }) {
   const handleDownloadReport = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -175,8 +182,10 @@ function QuickActionsMenu({
   const handleResume = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    onStatusChange(project.id, "on_track");
-    toast.success("Project Resumed", `"${project.title}" is now back on track.`);
+    if (onResume) { onResume(project); } else {
+      onStatusChange(project.id, "on_track");
+      toast.success("Project Resumed", `"${project.title}" is now back on track.`);
+    }
   };
 
   const handleEscalate = (e: React.MouseEvent) => {
@@ -256,11 +265,13 @@ function ProjectCard({
   onStatusChange,
   onEscalate,
   onValidationModalOpen,
+  onResume,
 }: {
   project: Project;
   onStatusChange: (id: string, status: ProjectHealth) => void;
   onEscalate: (id: string, reason: string) => void;
   onValidationModalOpen: (type: "hold" | "escalate", projectId: string) => void;
+  onResume?: (project: Project) => void;
 }) {
   const router = useRouter();
   const hc = healthConfig[project.health];
@@ -296,7 +307,7 @@ function ProjectCard({
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  onStatusChange(project.id, "on_track");
+                  if (onResume) { onResume(project); } else { onStatusChange(project.id, "on_track"); }
                 }}
                 className="px-4 py-1.5 rounded-md bg-brown-600 hover:bg-brown-700 text-white text-[11px] font-medium transition-colors"
               >
@@ -335,6 +346,7 @@ function ProjectCard({
                 onStatusChange={onStatusChange}
                 onEscalate={onEscalate}
                 onValidationModalOpen={onValidationModalOpen}
+                onResume={onResume}
               />
             </div>
           </div>
@@ -516,6 +528,80 @@ export default function ProjectsPage() {
     type: "hold" | "escalate";
     projectId: string | null;
   }>({ isOpen: false, type: "hold", projectId: null });
+
+  /* M1 Payment */
+  const scriptLoaded = useRazorpayScript();
+  const [resumeSnackbarProject, setResumeSnackbarProject] = React.useState<Project | null>(null);
+  const [showResumeSnackbar, setShowResumeSnackbar]       = React.useState(false);
+  const [resumePaymentMilestone, setResumePaymentMilestone] = React.useState<MilestonePayment | null>(null);
+  const [resumePaymentStatus, setResumePaymentStatus]     = React.useState<PaymentStatus>("idle");
+
+  const handleResumeClick = React.useCallback((project: Project) => {
+    setResumeSnackbarProject(project);
+    setShowResumeSnackbar(true);
+  }, []);
+
+  const openResumePaymentModal = () => {
+    if (!resumeSnackbarProject) return;
+    const m1Amount = Math.round(resumeSnackbarProject.budget * 0.35);
+    setResumePaymentMilestone({
+      id: "m1", label: "M1 — Project Onboarding",
+      description: "Released before project starts. Unlocks contributor onboarding and team formation.",
+      percent: 35, amount: m1Amount,
+      trigger: "Before project kick-off", status: "pending",
+    });
+    setShowResumeSnackbar(false);
+    setResumePaymentStatus("idle");
+  };
+
+  const handleResumeM1Pay = async () => {
+    if (!resumePaymentMilestone || !resumeSnackbarProject || !scriptLoaded) return;
+    setResumePaymentStatus("creating_order");
+    try {
+      const res = await fetch("/api/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: resumePaymentMilestone.amount, currency: "INR",
+          receipt: `${resumeSnackbarProject.id}-m1`,
+          notes: { planId: resumeSnackbarProject.id, milestone: "m1", planTitle: resumeSnackbarProject.title },
+        }),
+      });
+      const order = await res.json();
+      if (!res.ok || !order.orderId) throw new Error(order.error ?? "Order creation failed");
+      setResumePaymentStatus("processing");
+      const rzp = new window.Razorpay({
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: order.amount, currency: order.currency,
+        name: "GlimmoraTeam",
+        description: `M1 — Project Onboarding — ${resumeSnackbarProject.title}`,
+        order_id: order.orderId,
+        theme: { color: "#A67763" },
+        prefill: { name: "Enterprise Admin", email: "" },
+        handler: () => {
+          handleStatusChange(resumeSnackbarProject.id, "on_track");
+          toast.success("Project Resumed", `"${resumeSnackbarProject.title}" is now back on track.`);
+          setResumePaymentStatus("idle");
+          setResumePaymentMilestone(null);
+          setResumeSnackbarProject(null);
+        },
+        modal: {
+          ondismiss: () => {
+            setResumePaymentStatus("idle");
+            setResumePaymentMilestone(null);
+          },
+        },
+      });
+      rzp.open();
+    } catch (err: any) {
+      console.error("Payment error:", err);
+      setResumePaymentStatus("failed");
+      setTimeout(() => setResumePaymentStatus("idle"), 3000);
+    }
+  };
+
+  const formatResumeAmount = (amt: number) =>
+    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amt);
 
   /* Auto-refresh every 60 seconds */
   React.useEffect(() => {
@@ -861,6 +947,7 @@ export default function ProjectsPage() {
               onStatusChange={handleStatusChange}
               onEscalate={handleEscalate}
               onValidationModalOpen={(type, projectId) => setValidationModal({ isOpen: true, type, projectId })}
+              onResume={handleResumeClick}
             />
           ))}
         </motion.div>
@@ -974,6 +1061,7 @@ export default function ProjectsPage() {
                         onStatusChange={handleStatusChange}
                         onEscalate={handleEscalate}
                         onValidationModalOpen={(type, projectId) => setValidationModal({ isOpen: true, type, projectId })}
+                        onResume={handleResumeClick}
                       />
                     </TableCell>
                   </TableRow>
@@ -1001,6 +1089,55 @@ export default function ProjectsPage() {
         type={validationModal.type}
         projectTitle={projects.find((p) => p.id === validationModal.projectId)?.title || ""}
       />
+
+      {/* M1 Payment Snackbar */}
+      {showResumeSnackbar && resumeSnackbarProject && (
+        <motion.div
+          initial={{ opacity: 0, y: -40 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -40 }}
+          transition={{ type: "spring", stiffness: 300, damping: 28 }}
+          className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-5 py-3.5 rounded-2xl"
+          style={{ minWidth: 420, maxWidth: 560, background: "#ffffff", border: "1px solid #e5e7eb", boxShadow: "0 4px 20px rgba(0,0,0,0.10)" }}
+        >
+          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-brown-50 border border-brown-200 shrink-0">
+            <CreditCard className="w-4 h-4 text-brown-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold text-gray-800 leading-snug">M1 Payment Required to Resume</p>
+            <p className="text-[11.5px] text-gray-500 mt-0.5 leading-snug">
+              Please release the M1 payment to resume <span className="font-medium text-gray-700">{resumeSnackbarProject.title}</span>.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={openResumePaymentModal}
+            className="flex items-center gap-1.5 shrink-0 text-[11.5px] font-semibold text-white bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700 px-3.5 py-2 rounded-xl transition-all"
+          >
+            <CreditCard className="w-3.5 h-3.5" /> Progress M1 Payment
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowResumeSnackbar(false)}
+            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </motion.div>
+      )}
+
+      {/* M1 Payment Modal */}
+      {resumePaymentMilestone && resumeSnackbarProject && (
+        <PaymentConfirmModal
+          milestone={resumePaymentMilestone}
+          planTitle={resumeSnackbarProject.title}
+          currency="INR"
+          formatAmount={formatResumeAmount}
+          status={resumePaymentStatus}
+          onConfirm={handleResumeM1Pay}
+          onClose={() => { setResumePaymentMilestone(null); setResumePaymentStatus("idle"); }}
+        />
+      )}
     </>
   );
 }
