@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
 
     // MFA pending — distinguish between "verify existing TOTP" and "setup required"
     if (isMfaPending(response)) {
-      const mfaFlow = (response as Record<string, unknown>).status;
+      const mfaFlow = (response as unknown as Record<string, unknown>).status;
 
       // MFA setup required but not yet configured — let them through for now
       if (mfaFlow === "mfa_setup_required") {
