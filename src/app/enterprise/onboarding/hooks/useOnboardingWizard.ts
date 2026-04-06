@@ -42,6 +42,7 @@ export function useOnboardingWizard() {
   const router = useRouter();
   const registrationData = useAuthStore((s) => s.registrationData);
   const setOnboardingComplete = useAuthStore((s) => s.setOnboardingComplete);
+  const setPendingOnboarding = useAuthStore((s) => s.setPendingOnboarding);
   const onboardingProgress = useAuthStore((s) => s.onboardingProgress);
   const setOnboardingProgress = useAuthStore((s) => s.setOnboardingProgress);
 
@@ -256,6 +257,7 @@ export function useOnboardingWizard() {
     await new Promise((r) => setTimeout(r, 1500));
     setIsLoading(false);
     setOnboardingComplete(true);
+    setPendingOnboarding(false);
     setOnboardingProgress(null);
     router.push("/enterprise/dashboard");
   }
