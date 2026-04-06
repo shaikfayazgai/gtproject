@@ -6,13 +6,14 @@ import { motion } from "framer-motion";
 import {
   Search, Layers, Clock, CheckCircle2, Sparkles,
   Inbox, GraduationCap, ArrowUp, ArrowDown, X,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Pause, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui";
 import { mockContributorTasks, mockContributorProfile } from "@/mocks/data/contributor";
 import type { ContributorTaskStatus } from "@/types/contributor";
+import { useProjectHoldStore } from "@/lib/stores/project-hold-store";
 
 /* ══════════════════════════════════════════ Pill helper ══════════════════════════════════════════ */
 
@@ -81,6 +82,7 @@ const columns: { field: SortField; label: string; align: string }[] = [
 export default function ContributorTasksPage() {
   const router = useRouter();
   const tasks = mockContributorTasks;
+  const { heldProjects } = useProjectHoldStore();
 
   /* Filter state */
   const [statusFilter, setStatusFilter] = React.useState("all");
@@ -229,6 +231,48 @@ export default function ContributorTasksPage() {
         })}
       </motion.div>
 
+      {/* ═══ PROJECT ON HOLD BANNERS ═══ */}
+      {Object.keys(heldProjects).length > 0 && (() => {
+        const affectedProjects = [
+          ...tasks
+            .filter((t) => Boolean(heldProjects[t.projectId]))
+            .reduce<Map<string, { id: string; title: string; reason: string }>>((map, t) => {
+              if (!map.has(t.projectId)) {
+                map.set(t.projectId, {
+                  id: t.projectId,
+                  title: t.projectTitle,
+                  reason: heldProjects[t.projectId]?.reason ?? "manual",
+                });
+              }
+              return map;
+            }, new Map())
+            .values(),
+        ];
+        if (!affectedProjects.length) return null;
+        return (
+          <motion.div variants={fadeUp} className="space-y-2 mb-5">
+            {affectedProjects.map((proj) => (
+              <div key={proj.id} className="flex items-start gap-3 rounded-xl border border-gold-200 bg-gold-50 px-4 py-3.5">
+                <div className="w-8 h-8 rounded-lg bg-gold-100 border border-gold-200 flex items-center justify-center shrink-0 mt-0.5">
+                  <Pause className="w-3.5 h-3.5 text-gold-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-semibold text-gold-800">
+                    {proj.title} — Tasks Temporarily Paused
+                  </p>
+                  <p className="text-[11.5px] text-gold-700 mt-0.5 leading-relaxed">
+                    {proj.reason === "payment_overdue"
+                      ? "This project has been placed on hold due to a pending milestone payment (M2). Your tasks remain saved and will resume automatically once the enterprise releases the M2 payment. No action is required from you at this time."
+                      : "This project has been temporarily placed on hold by your enterprise administrator. Your work is saved and you will be notified when the project resumes. Please check back later or contact your project manager for details."}
+                  </p>
+                </div>
+                <AlertTriangle className="w-4 h-4 text-gold-500 shrink-0 mt-0.5" />
+              </div>
+            ))}
+          </motion.div>
+        );
+      })()}
+
       {/* ═══ STUDENT TRACK BANNER ═══ */}
       {mockContributorProfile.track === "student" && (
         <motion.div variants={fadeUp} className="flex items-center gap-3 bg-teal-50 rounded-xl px-4 py-3 mb-5">
@@ -348,10 +392,15 @@ export default function ContributorTasksPage() {
                 const days = daysUntil(task.dueDate);
                 const isOverdue = days < 0;
                 const isUrgent = days >= 0 && days <= 3;
+                const isProjectHeld = Boolean(heldProjects[task.projectId]);
 
                 return (
-                  <tr key={task.id} onClick={() => router.push(`/contributor/tasks/${task.id}`)}
-                    className="group cursor-pointer transition-colors hover:bg-black/[0.02]"
+                  <tr key={task.id}
+                    onClick={() => !isProjectHeld && router.push(`/contributor/tasks/${task.id}`)}
+                    className={cn(
+                      "group transition-colors",
+                      isProjectHeld ? "opacity-50 cursor-not-allowed bg-gold-50/40" : "cursor-pointer hover:bg-black/[0.02]",
+                    )}
                     style={{ borderBottom: "1px solid var(--border-hair)" }}>
 
                     {/* TASK */}
@@ -377,7 +426,9 @@ export default function ContributorTasksPage() {
 
                     {/* STATUS */}
                     <td style={{ padding: "13px 16px" }}>
-                      <Pill bg={sc.bg} color={sc.color}>{sc.label}</Pill>
+                      {isProjectHeld
+                        ? <Pill bg="var(--color-gold-50)" color="var(--color-gold-700)"><Pause className="w-2.5 h-2.5" /> Project On Hold</Pill>
+                        : <Pill bg={sc.bg} color={sc.color}>{sc.label}</Pill>}
                     </td>
 
                     {/* PRIORITY */}

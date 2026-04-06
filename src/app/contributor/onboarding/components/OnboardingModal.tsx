@@ -100,7 +100,7 @@ export default function OnboardingModal() {
                 ) : (
                   <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
                     <span className="text-lg font-bold text-white/60">
-                      {ob.firstName?.[0]?.toUpperCase() ?? "?"}
+                      {mounted ? (ob.firstName?.[0]?.toUpperCase() ?? "?") : "?"}
                     </span>
                   </div>
                 )}
