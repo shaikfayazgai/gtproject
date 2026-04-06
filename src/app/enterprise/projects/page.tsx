@@ -34,7 +34,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
+import { fadeUp, stagger } from "@/lib/utils/motion-variants";
 import {
   Badge,
   Progress,
@@ -60,9 +60,10 @@ import { mockProjects, mockMilestones, mockDeliverables } from "@/mocks/data/ent
 import { toast } from "@/lib/stores/toast-store";
 import type { Project, ProjectHealth } from "@/types/enterprise";
 import {
-  PaymentConfirmModal, useRazorpayScript,
-  type MilestonePayment, type PaymentStatus,
+  useRazorpayScript,
 } from "@/components/enterprise/decomposition/PaymentReleaseTab";
+import { useProjectHoldStore } from "@/lib/stores/project-hold-store";
+import { MilestonePaymentModal } from "@/components/enterprise/decomposition/MilestonePaymentModal";
 
 /* -- Health config -- */
 const healthConfig: Record<
@@ -233,6 +234,136 @@ function QuickActionsMenu({
   );
 }
 
+/* ── Resume Confirm Modal (for manual holds) ── */
+function ResumeConfirmModal({
+  project,
+  holdNote,
+  onConfirm,
+  onClose,
+}: {
+  project: Project;
+  holdNote?: string;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(15,15,15,0.50)", backdropFilter: "blur(6px)" }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 340, damping: 30 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[420px] rounded-3xl overflow-hidden bg-white"
+        style={{ boxShadow: "0 32px 80px rgba(0,0,0,0.20), 0 0 0 1px rgba(0,0,0,0.06)" }}
+      >
+        <div className="h-1 w-full bg-gradient-to-r from-forest-400 to-forest-600" />
+
+        <div className="px-6 pt-5 pb-4 flex items-start justify-between border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-forest-100 flex items-center justify-center shrink-0">
+              <Play className="w-4 h-4 text-forest-600" />
+            </div>
+            <div>
+              <p className="text-[14px] font-bold text-gray-900">Resume Project</p>
+              <p className="text-[11.5px] text-gray-400 mt-0.5 truncate max-w-[260px]">{project.title}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          <p className="text-[13px] text-gray-600 leading-relaxed">
+            Resuming this project will reactivate all contributor tasks and restore normal project operations.
+          </p>
+          {holdNote && (
+            <div className="rounded-xl bg-beige-50 border border-beige-200 px-4 py-3">
+              <p className="text-[10px] font-semibold text-beige-500 uppercase tracking-widest mb-1">Hold Reason</p>
+              <p className="text-[12px] text-beige-700 leading-relaxed">{holdNote}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 pb-5 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-[12.5px] font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-forest-500 to-forest-700 hover:from-forest-600 hover:to-forest-800 text-white text-[12.5px] font-semibold transition-all shadow-sm"
+          >
+            Confirm Resume
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+/* -- Hold Overlay component (reads hold reason from store) -- */
+function HoldOverlay({
+  project,
+  onResume,
+  onStatusChange,
+}: {
+  project: Project;
+  onResume?: (project: Project) => void;
+  onStatusChange: (id: string, status: ProjectHealth) => void;
+}) {
+  const { heldProjects } = useProjectHoldStore();
+  const holdInfo = heldProjects[project.id];
+  const isPaymentHold = holdInfo?.reason === "payment_overdue";
+
+  return (
+    <div className="absolute inset-0 rounded-2xl bg-white/75 backdrop-blur-[3px] z-10 flex flex-col items-center justify-center gap-2 px-6 text-center">
+      {/* Icon */}
+      <div className={cn(
+        "w-10 h-10 rounded-full border-2 flex items-center justify-center",
+        isPaymentHold ? "border-gold-300 bg-gold-50" : "border-beige-300 bg-beige-50",
+      )}>
+        {isPaymentHold
+          ? <CreditCard className="w-4 h-4 text-gold-500" strokeWidth={1.5} />
+          : <Pause className="w-4 h-4 text-beige-400" strokeWidth={1.5} />}
+      </div>
+
+      {/* Label */}
+      <div>
+        <h4 className="text-[12px] font-bold text-brown-900 uppercase tracking-widest">
+          Project On Hold
+        </h4>
+        <p className="text-[10.5px] text-beige-500 mt-1 leading-relaxed max-w-[200px]">
+          {isPaymentHold
+            ? "M2 payment overdue. Activities suspended until payment is released."
+            : "Paused pending stakeholder decision."}
+        </p>
+      </div>
+
+      {/* CTA */}
+      <button
+        onClick={(e) => { e.stopPropagation(); e.preventDefault(); onResume?.(project); }}
+        className={cn(
+          "flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-semibold text-white transition-colors mt-1",
+          isPaymentHold
+            ? "bg-gold-500 hover:bg-gold-600"
+            : "bg-forest-500 hover:bg-forest-600",
+        )}
+      >
+        {isPaymentHold
+          ? <><CreditCard className="w-3 h-3" /> Release Payment</>
+          : <><Play className="w-3 h-3" /> Resume Project</>}
+      </button>
+    </div>
+  );
+}
+
 /* -- Days remaining color logic -- */
 function getDaysRemainingColor(days: number): string {
   if (days < 7) return "text-danger bg-danger/10";
@@ -262,64 +393,54 @@ function getCommercialBadge(project: Project): { label: string; variant: "danger
 /* -- Project Card (Grid View) -- */
 function ProjectCard({
   project,
+  index,
   onStatusChange,
   onEscalate,
   onValidationModalOpen,
   onResume,
 }: {
   project: Project;
+  index: number;
   onStatusChange: (id: string, status: ProjectHealth) => void;
   onEscalate: (id: string, reason: string) => void;
   onValidationModalOpen: (type: "hold" | "escalate", projectId: string) => void;
   onResume?: (project: Project) => void;
 }) {
   const router = useRouter();
+  const { heldProjects } = useProjectHoldStore();
   const hc = healthConfig[project.health];
   const budgetPct = Math.round((project.spent / project.budget) * 100);
   const daysLeft = Math.max(0, Math.ceil((new Date(project.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
   const commercialBadge = getCommercialBadge(project);
-  
-  // Get current milestone info
+  const isManualHold = project.health === "on_hold" && heldProjects[project.id]?.reason === "manual";
+
   const projectMilestones = mockMilestones.filter((m) => m.projectId === project.id);
   const currentMilestone = projectMilestones.find((m) => m.status === "in_progress") || projectMilestones[0];
-  const milestoneProgress = currentMilestone?.progress || 0;
-  const milestoneTasks = currentMilestone 
+  const milestoneProgress = currentMilestone?.progress ?? 0;
+  const milestoneTasks = currentMilestone
     ? `${currentMilestone.tasksCompleted}/${currentMilestone.tasksTotal}`
     : "0/0";
 
   return (
-    <TooltipProvider delayDuration={200}>
-      <motion.div variants={scaleIn}>
-        <div className="group relative rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5 hover:shadow-xl hover:shadow-brown-100/25 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer overflow-hidden">
-          {/* On Hold Overlay - Blurred background with centered content */}
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1], delay: index * 0.05 }}
+    >
+      <TooltipProvider delayDuration={200}>
+        <div
+          className="group relative rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm hover:shadow-xl hover:shadow-brown-100/25 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer overflow-hidden"
+          onClick={() => router.push(`/enterprise/projects/${project.id}`)}
+        >
+          {/* On Hold Overlay */}
           {project.health === "on_hold" && (
-            <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center p-6 text-center">
-              <div className="w-11 h-11 rounded-full border border-beige-300 flex items-center justify-center mb-3">
-                <Pause className="w-4 h-4 text-beige-400" strokeWidth={1.5} />
-              </div>
-              <h4 className="text-[13px] font-bold text-brown-900 uppercase tracking-wide mb-1.5">
-                Project On Hold
-              </h4>
-              <p className="text-[11px] text-beige-400 max-w-[220px] mb-4 leading-relaxed">
-                Project paused pending stakeholder decision.
-              </p>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  if (onResume) { onResume(project); } else { onStatusChange(project.id, "on_track"); }
-                }}
-                className="px-4 py-1.5 rounded-md bg-brown-600 hover:bg-brown-700 text-white text-[11px] font-medium transition-colors"
-              >
-                Resume Project
-              </button>
-            </div>
+            <HoldOverlay project={project} onResume={onResume} onStatusChange={onStatusChange} />
           )}
-          
-          {/* Header */}
-          <div className="flex items-start justify-between gap-3">
-            <Link href={`/enterprise/projects/${project.id}`} className="flex-1 min-w-0">
-              <div>
+
+          <div className="p-5">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <h3 className="text-[14px] font-bold text-brown-900 truncate group-hover:text-brown-700 transition-colors">
@@ -332,71 +453,55 @@ function ProjectCard({
                 </Tooltip>
                 <p className="text-[11px] text-beige-500 mt-0.5">{project.client}</p>
               </div>
-            </Link>
-            <div className="flex items-center gap-2">
-              <MetricRing
-                value={project.apgScore}
-                size={56}
-                strokeWidth={5}
-                color={hc.ring}
-                label="APG"
-              />
-              <QuickActionsMenu
-                project={project}
-                onStatusChange={onStatusChange}
-                onEscalate={onEscalate}
-                onValidationModalOpen={onValidationModalOpen}
-                onResume={onResume}
-              />
+              <div
+                className={cn("flex items-center gap-2 shrink-0", isManualHold ? "relative z-20" : "")}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MetricRing value={project.apgScore} size={48} strokeWidth={4.5} color={hc.ring} label="APG" />
+                <QuickActionsMenu
+                  project={project}
+                  onStatusChange={onStatusChange}
+                  onEscalate={onEscalate}
+                  onValidationModalOpen={onValidationModalOpen}
+                  onResume={onResume}
+                />
+              </div>
             </div>
-          </div>
 
-          <Link href={`/enterprise/projects/${project.id}`}>
-            {/* Health + Milestone Progress */}
-            <div className="mt-4 space-y-3">
+            {/* Health + Overall Progress */}
+            <div className="mt-4 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className={cn("w-2 h-2 rounded-full", hc.dot)} />
+                  <span className={cn("w-2 h-2 rounded-full shrink-0", hc.dot)} />
                   <span className="text-[11px] font-semibold text-brown-700">{hc.label}</span>
-                  {/* Current Milestone Badge */}
                   {currentMilestone && (
-                    <Badge variant={currentMilestone.status === "completed" ? "forest" : currentMilestone.status === "in_progress" ? "teal" : "beige"} size="sm">
+                    <Badge
+                      variant={currentMilestone.status === "completed" ? "forest" : currentMilestone.status === "in_progress" ? "teal" : "beige"}
+                      size="sm"
+                    >
                       {currentMilestone.title}
                     </Badge>
                   )}
                 </div>
-                <span className="text-[11px] font-mono font-bold text-brown-800">
-                  {project.progress}%
-                </span>
+                <span className="text-[11px] font-mono font-bold text-brown-800">{project.progress}%</span>
               </div>
-              
-              {/* Overall Progress */}
               <Progress value={project.progress} size="sm" variant={hc.progress} />
-              
-              {/* Milestone Progress */}
+            </div>
+
+            {/* Milestone Progress */}
+            <div className="mt-3 space-y-1.5">
               <div className="flex items-center justify-between text-[10px]">
-                <span className="text-beige-500">Current Milestone Progress</span>
+                <span className="text-beige-500">Milestone Progress</span>
                 <span className="font-mono text-brown-700">{milestoneProgress}%</span>
               </div>
               <Progress value={milestoneProgress} size="sm" variant="teal" />
             </div>
 
-            {/* Task Progress (Current Milestone) */}
-            <div className="mt-3 flex items-center justify-between">
-              <span className="text-[10px] text-beige-500">Milestone Tasks</span>
-              <span className="text-[11px] font-semibold text-brown-800">{milestoneTasks}</span>
-            </div>
-
-            {/* SLA + Days Remaining + Commercial Badge Row */}
+            {/* Stats row */}
             <div className="mt-4 grid grid-cols-3 gap-2">
               <div className="space-y-0.5">
                 <p className="text-[9px] text-beige-400 uppercase tracking-wider font-medium">SLA</p>
-                <span
-                  className={cn(
-                    "text-[11px] font-bold px-1.5 py-0.5 rounded-md inline-block",
-                    slaColor(project.slaCompliance)
-                  )}
-                >
+                <span className={cn("text-[11px] font-bold px-1.5 py-0.5 rounded-md inline-block", slaColor(project.slaCompliance))}>
                   {project.slaCompliance}%
                 </span>
               </div>
@@ -407,14 +512,11 @@ function ProjectCard({
                 </span>
               </div>
               <div className="space-y-0.5">
-                <p className="text-[9px] text-beige-400 uppercase tracking-wider font-medium">Status</p>
-                {commercialBadge.variant ? (
-                  <Badge variant={commercialBadge.variant} size="sm">
-                    {commercialBadge.label}
-                  </Badge>
-                ) : (
-                  <span className="text-[11px] text-beige-500">—</span>
-                )}
+                <p className="text-[9px] text-beige-400 uppercase tracking-wider font-medium">Tasks</p>
+                <span className="text-[11px] font-bold text-brown-800">
+                  {project.tasksCompleted}
+                  <span className="text-beige-400 font-normal">/{project.tasksTotal}</span>
+                </span>
               </div>
             </div>
 
@@ -427,78 +529,36 @@ function ProjectCard({
                   <span className="text-beige-400"> / ${(project.budget / 1000).toFixed(0)}k</span>
                 </span>
               </div>
-              <span
-                className={cn(
-                  "text-[10px] font-bold px-1.5 py-0.5 rounded-md",
-                  budgetPct > 85 ? "bg-gold-50 text-gold-700" : "bg-beige-100 text-beige-600"
-                )}
-              >
+              <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md", budgetPct > 85 ? "bg-gold-50 text-gold-700" : "bg-beige-100 text-beige-600")}>
                 {budgetPct}%
               </span>
             </div>
 
-            {/* Bottom row: Team + Tasks + SOW link */}
+            {/* Footer */}
             <div className="mt-4 pt-3 border-t border-beige-100/80 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex -space-x-1.5">
-                  {Array.from({ length: Math.min(project.teamSize, 4) }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold text-white"
-                      style={{
-                        background: ["#A67763", "#5B9BA2", "#4D5741", "#D0B060"][i % 4],
-                      }}
-                    >
-                      {String.fromCharCode(65 + i)}
-                    </div>
-                  ))}
-                  {project.teamSize > 4 && (
-                    <div className="w-6 h-6 rounded-full bg-beige-100 border-2 border-white flex items-center justify-center text-[8px] font-bold text-beige-600">
-                      +{project.teamSize - 4}
-                    </div>
-                  )}
-                </div>
-                <span className="text-[10px] text-beige-500">{project.teamSize}</span>
-              </div>
-
-              <div className="text-[11px] text-beige-600">
-                <span className="font-bold text-brown-800">{project.tasksCompleted}</span>
-                <span className="text-beige-400">/{project.tasksTotal}</span>
-                <span className="text-beige-400 ml-0.5">tasks</span>
-              </div>
-            </div>
-
-            {/* SOW Link + Escalations */}
-            <div className="mt-2 flex items-center justify-between">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  router.push(`/enterprise/sow/${project.sowId}`);
-                }}
+                onClick={(e) => { e.stopPropagation(); router.push(`/enterprise/sow/${project.sowId}`); }}
                 className="text-[10px] text-teal-600 font-medium flex items-center gap-1 truncate max-w-[60%] hover:text-teal-700 hover:underline transition-colors"
               >
                 <FileText className="w-3 h-3 shrink-0" />
-                {project.sowTitle}
+                <span className="truncate">{project.sowTitle}</span>
               </button>
-              {project.escalations > 0 && (
-                <span className="flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3 text-gold-600" />
-                  <span className="text-[10px] font-semibold text-gold-700">{project.escalations}</span>
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {project.escalations > 0 && (
+                  <span className="flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 text-gold-600" />
+                    <span className="text-[10px] font-semibold text-gold-700">{project.escalations}</span>
+                  </span>
+                )}
+                {commercialBadge.variant && (
+                  <Badge variant={commercialBadge.variant} size="sm">{commercialBadge.label}</Badge>
+                )}
+              </div>
             </div>
-
-            {/* Hover arrow */}
-            <div className="mt-3 flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="text-[10px] text-teal-600 font-semibold flex items-center gap-1">
-                View Details <ChevronRight className="w-3 h-3" />
-              </span>
-            </div>
-          </Link>
+          </div>
         </div>
-      </motion.div>
-    </TooltipProvider>
+      </TooltipProvider>
+    </motion.div>
   );
 }
 
@@ -508,10 +568,12 @@ function ProjectCard({
 type SortKey = "severity" | "title" | "progress" | "tasks" | "team" | "budget" | "sla" | "startDate";
 
 const healthFilterOptions: { key: ProjectHealth | "all"; label: string; color: string }[] = [
-  { key: "on_track", label: "On Track", color: "bg-forest-500" },
-  { key: "at_risk", label: "At Risk", color: "bg-gold-500" },
-  { key: "behind", label: "Behind", color: "bg-danger" },
-  { key: "on_hold", label: "On Hold", color: "bg-beige-400" },
+  { key: "on_track",  label: "On Track",  color: "bg-forest-500" },
+  { key: "at_risk",   label: "At Risk",   color: "bg-gold-500" },
+  { key: "behind",    label: "Behind",    color: "bg-danger" },
+  { key: "on_hold",   label: "On Hold",   color: "bg-beige-400" },
+  { key: "escalated", label: "Escalated", color: "bg-brown-600" },
+  { key: "completed", label: "Completed", color: "bg-teal-500" },
 ];
 
 export default function ProjectsPage() {
@@ -529,79 +591,42 @@ export default function ProjectsPage() {
     projectId: string | null;
   }>({ isOpen: false, type: "hold", projectId: null });
 
-  /* M1 Payment */
-  const scriptLoaded = useRazorpayScript();
-  const [resumeSnackbarProject, setResumeSnackbarProject] = React.useState<Project | null>(null);
-  const [showResumeSnackbar, setShowResumeSnackbar]       = React.useState(false);
-  const [resumePaymentMilestone, setResumePaymentMilestone] = React.useState<MilestonePayment | null>(null);
-  const [resumePaymentStatus, setResumePaymentStatus]     = React.useState<PaymentStatus>("idle");
+  /* Payment + Hold store */
+  const { heldProjects, holdProject: storeHoldProject, resumeProject: storeResumeProject } = useProjectHoldStore();
+  const [resumePaymentProject, setResumePaymentProject]   = React.useState<Project | null>(null);
+  const [resumeConfirmProject, setResumeConfirmProject]   = React.useState<Project | null>(null);
 
   const handleResumeClick = React.useCallback((project: Project) => {
-    setResumeSnackbarProject(project);
-    setShowResumeSnackbar(true);
+    const reason = heldProjects[project.id]?.reason;
+    if (reason === "payment_overdue") {
+      setResumePaymentProject(project);
+    } else {
+      setResumeConfirmProject(project);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heldProjects]);
+
+  /* Seed demo holds on first load: proj-006 = automatic payment hold, proj-004 = manual hold */
+  React.useEffect(() => {
+    if (!heldProjects["proj-006"]) storeHoldProject("proj-006", "payment_overdue");
+    if (!heldProjects["proj-004"]) storeHoldProject("proj-004", "manual", "Pending stakeholder approval on scope change.");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const openResumePaymentModal = () => {
-    if (!resumeSnackbarProject) return;
-    const m1Amount = Math.round(resumeSnackbarProject.budget * 0.35);
-    setResumePaymentMilestone({
-      id: "m1", label: "M1 — Project Onboarding",
-      description: "Released before project starts. Unlocks contributor onboarding and team formation.",
-      percent: 35, amount: m1Amount,
-      trigger: "Before project kick-off", status: "pending",
-    });
-    setShowResumeSnackbar(false);
-    setResumePaymentStatus("idle");
-  };
+  /* Sync hold store → local project health (e.g. auto-hold from decomposition page) */
+  React.useEffect(() => {
+    setProjects((prev) =>
+      prev.map((p) => {
+        if (heldProjects[p.id] && p.health !== "on_hold") return { ...p, health: "on_hold" };
+        return p;
+      })
+    );
+  }, [heldProjects]);
 
-  const handleResumeM1Pay = async () => {
-    if (!resumePaymentMilestone || !resumeSnackbarProject || !scriptLoaded) return;
-    setResumePaymentStatus("creating_order");
-    try {
-      const res = await fetch("/api/razorpay/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: resumePaymentMilestone.amount, currency: "INR",
-          receipt: `${resumeSnackbarProject.id}-m1`,
-          notes: { planId: resumeSnackbarProject.id, milestone: "m1", planTitle: resumeSnackbarProject.title },
-        }),
-      });
-      const order = await res.json();
-      if (!res.ok || !order.orderId) throw new Error(order.error ?? "Order creation failed");
-      setResumePaymentStatus("processing");
-      const rzp = new window.Razorpay({
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: order.amount, currency: order.currency,
-        name: "GlimmoraTeam",
-        description: `M1 — Project Onboarding — ${resumeSnackbarProject.title}`,
-        order_id: order.orderId,
-        theme: { color: "#A67763" },
-        prefill: { name: "Enterprise Admin", email: "" },
-        handler: () => {
-          handleStatusChange(resumeSnackbarProject.id, "on_track");
-          toast.success("Project Resumed", `"${resumeSnackbarProject.title}" is now back on track.`);
-          setResumePaymentStatus("idle");
-          setResumePaymentMilestone(null);
-          setResumeSnackbarProject(null);
-        },
-        modal: {
-          ondismiss: () => {
-            setResumePaymentStatus("idle");
-            setResumePaymentMilestone(null);
-          },
-        },
-      });
-      rzp.open();
-    } catch (err: any) {
-      console.error("Payment error:", err);
-      setResumePaymentStatus("failed");
-      setTimeout(() => setResumePaymentStatus("idle"), 3000);
-    }
-  };
-
-  const formatResumeAmount = (amt: number) =>
-    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amt);
+  /* Rehydrate persisted store after mount to avoid SSR/client mismatch */
+  React.useEffect(() => {
+    useProjectHoldStore.persist.rehydrate();
+  }, []);
 
   /* Auto-refresh every 60 seconds */
   React.useEffect(() => {
@@ -634,7 +659,10 @@ export default function ProjectsPage() {
     setProjects((prev) =>
       prev.map((p) => (p.id === id ? { ...p, health: "on_hold" } : p))
     );
-    toast.info("Project On Hold", `"${projects.find((p) => p.id === id)?.title}" has been put on hold. Reason: ${reason.substring(0, 50)}...`);
+    storeHoldProject(id, "manual", reason);
+    const title = projects.find((p) => p.id === id)?.title ?? "";
+    toast.info("Project On Hold", `"${title}" has been put on hold. All contributor tasks for this project are now paused.`);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projects]);
 
   /* Toggle health filter (multi-select) */
@@ -761,6 +789,22 @@ export default function ProjectsPage() {
       textColor: "text-beige-600",
       bgColor: "bg-beige-100",
     },
+    {
+      key: "escalated",
+      label: "Escalated",
+      value: projects.filter((p) => p.health === "escalated").length,
+      color: "bg-brown-600",
+      textColor: "text-brown-700",
+      bgColor: "bg-brown-50",
+    },
+    {
+      key: "completed",
+      label: "Completed",
+      value: projects.filter((p) => p.health === "completed").length,
+      color: "bg-teal-500",
+      textColor: "text-teal-700",
+      bgColor: "bg-teal-50",
+    },
   ];
 
   return (
@@ -832,7 +876,7 @@ export default function ProjectsPage() {
         </motion.div>
 
         {/* Summary Stats - Clickable to apply filters */}
-        <motion.div variants={fadeUp} className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <motion.div variants={fadeUp} className="grid grid-cols-3 md:grid-cols-6 gap-3">
           {summaryStats.map((stat) => (
             <button
               key={stat.key}
@@ -939,18 +983,19 @@ export default function ProjectsPage() {
 
       {/* Grid View */}
       {viewMode === "grid" && filtered.length > 0 && (
-        <motion.div variants={stagger} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {sorted.map((project) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          {sorted.map((project, index) => (
             <ProjectCard
               key={project.id}
               project={project}
+              index={index}
               onStatusChange={handleStatusChange}
               onEscalate={handleEscalate}
               onValidationModalOpen={(type, projectId) => setValidationModal({ isOpen: true, type, projectId })}
               onResume={handleResumeClick}
             />
           ))}
-        </motion.div>
+        </div>
       )}
 
       {/* Table View */}
@@ -1090,54 +1135,38 @@ export default function ProjectsPage() {
         projectTitle={projects.find((p) => p.id === validationModal.projectId)?.title || ""}
       />
 
-      {/* M1 Payment Snackbar */}
-      {showResumeSnackbar && resumeSnackbarProject && (
-        <motion.div
-          initial={{ opacity: 0, y: -40 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -40 }}
-          transition={{ type: "spring", stiffness: 300, damping: 28 }}
-          className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-5 py-3.5 rounded-2xl"
-          style={{ minWidth: 420, maxWidth: 560, background: "#ffffff", border: "1px solid #e5e7eb", boxShadow: "0 4px 20px rgba(0,0,0,0.10)" }}
-        >
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-brown-50 border border-brown-200 shrink-0">
-            <CreditCard className="w-4 h-4 text-brown-500" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-semibold text-gray-800 leading-snug">M1 Payment Required to Resume</p>
-            <p className="text-[11.5px] text-gray-500 mt-0.5 leading-snug">
-              Please release the M1 payment to resume <span className="font-medium text-gray-700">{resumeSnackbarProject.title}</span>.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={openResumePaymentModal}
-            className="flex items-center gap-1.5 shrink-0 text-[11.5px] font-semibold text-white bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700 px-3.5 py-2 rounded-xl transition-all"
-          >
-            <CreditCard className="w-3.5 h-3.5" /> Progress M1 Payment
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowResumeSnackbar(false)}
-            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </motion.div>
-      )}
-
-      {/* M1 Payment Modal */}
-      {resumePaymentMilestone && resumeSnackbarProject && (
-        <PaymentConfirmModal
-          milestone={resumePaymentMilestone}
-          planTitle={resumeSnackbarProject.title}
-          currency="INR"
-          formatAmount={formatResumeAmount}
-          status={resumePaymentStatus}
-          onConfirm={handleResumeM1Pay}
-          onClose={() => { setResumePaymentMilestone(null); setResumePaymentStatus("idle"); }}
+      {/* Resume Confirm Modal (manual hold) */}
+      {resumeConfirmProject && (
+        <ResumeConfirmModal
+          project={resumeConfirmProject}
+          holdNote={heldProjects[resumeConfirmProject.id]?.note}
+          onConfirm={() => {
+            handleStatusChange(resumeConfirmProject.id, "on_track");
+            storeResumeProject(resumeConfirmProject.id);
+            toast.success("Project Resumed", `"${resumeConfirmProject.title}" is now back on track.`);
+            setResumeConfirmProject(null);
+          }}
+          onClose={() => setResumeConfirmProject(null)}
         />
       )}
+
+      {/* Milestone Payment Modal (payment overdue hold) */}
+      {resumePaymentProject && (
+        <MilestonePaymentModal
+          title={resumePaymentProject.title}
+          budget={resumePaymentProject.budget}
+          pendingId="m2"
+          entityId={resumePaymentProject.id}
+          onSuccess={() => {
+            handleStatusChange(resumePaymentProject.id, "on_track");
+            storeResumeProject(resumePaymentProject.id);
+            toast.success("Payment Confirmed & Project Resumed", `"${resumePaymentProject.title}" is back on track. M2 released.`);
+            setResumePaymentProject(null);
+          }}
+          onClose={() => setResumePaymentProject(null)}
+        />
+      )}
+
     </>
   );
 }
