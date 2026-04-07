@@ -760,7 +760,7 @@ function ContributorRegisterContent() {
 
   /* ── Auth options + form: logo top-left, form centered ── */
   return (
-    <div className="w-full mx-auto flex flex-col py-8 max-w-5xl">
+    <div className="w-full mx-auto flex flex-col py-8 max-w-xl">
       <div className="mb-8">{logo}</div>
       {formBody}
     </div>

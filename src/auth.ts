@@ -4,7 +4,7 @@ import Google from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { authApi, isMfaPending } from "@/lib/api/auth";
 
-export type UserRole = "contributor" | "enterprise" | "admin" | "reviewer";
+export type UserRole = "contributor" | "enterprise" | "admin" | "reviewer" | "mentor";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   // Make the secret explicit to avoid env-resolution issues across runtimes/bundlers.
