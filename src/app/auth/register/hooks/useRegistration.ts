@@ -66,6 +66,7 @@ export function useRegistration(ssoData?: SSOData | null) {
 
   const [ndaAccepted,     setNdaAccepted]     = useState(false);
   const [ndaSignature,    setNdaSignature]    = useState("");
+  const [ndaSignedFile,   setNdaSignedFile]   = useState<File | null>(null);
 
   const [resumeFile,      setResumeFile]      = useState<File | null>(null);
   const [resumeDrag,      setResumeDrag]      = useState(false);
@@ -75,10 +76,6 @@ export function useRegistration(ssoData?: SSOData | null) {
   const [acceptFee,       setAcceptFee]       = useState(false);
   const [acceptAhp,       setAcceptAhp]       = useState(false);
   const [marketingOptIn,  setMarketingOptIn]  = useState(false);
-
-  useEffect(() => {
-    if (email) setVerificationEmail(prev => prev || email);
-  }, [email]);
 
   useEffect(() => {
     if (step !== 3 || !country) return;
@@ -209,12 +206,21 @@ export function useRegistration(ssoData?: SSOData | null) {
     if (primarySkills.length < 1) { setError("Please add at least one primary skill"); return; }
     if (!availability) { setError("Please enter your weekly availability (hours)"); return; }
     setError("");
+    if (!verificationEmail) setVerificationEmail(email);
     setStep(3);
   }
 
   function goToStep4() {
-    if (!ndaAccepted || !ndaSignature.trim()) {
-      setError("You must read, sign, and accept the NDA & Disclosure Agreement to continue");
+    if (!ndaSignedFile) {
+      setError("Please upload the signed NDA document to continue");
+      return;
+    }
+    if (!ndaSignature.trim()) {
+      setError("Please enter your full legal name as a digital signature");
+      return;
+    }
+    if (!ndaAccepted) {
+      setError("You must read and accept the NDA & Disclosure Agreement to continue");
       return;
     }
     if (!phoneVerified || !emailVerified) {
@@ -340,6 +346,7 @@ export function useRegistration(ssoData?: SSOData | null) {
 
     ndaAccepted, setNdaAccepted,
     ndaSignature, setNdaSignature,
+    ndaSignedFile, setNdaSignedFile,
 
     resumeFile, setResumeFile,
     resumeDrag, setResumeDrag,

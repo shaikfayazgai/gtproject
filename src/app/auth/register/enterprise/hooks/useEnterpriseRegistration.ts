@@ -299,7 +299,7 @@ export function useEnterpriseRegistration() {
       await signIn("credentials", {
         email: adminEmail,
         password,
-        callbackUrl: "/enterprise/onboarding",
+        callbackUrl: "/enterprise/dashboard",
       });
     } catch {
       setError("Something went wrong. Please try again.");

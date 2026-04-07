@@ -41,8 +41,6 @@ function LoginPageContent() {
     if (!rawCallbackUrl) return undefined;
     try {
       const url = new URL(rawCallbackUrl, window.location.origin);
-      // Do not allow redirecting to the bare home page after login
-      if (url.pathname === "/" && !url.search && !url.hash) return undefined;
       // Only allow same-origin redirects to avoid open-redirects
       if (url.origin !== window.location.origin) return undefined;
       return `${url.pathname}${url.search}${url.hash}`;

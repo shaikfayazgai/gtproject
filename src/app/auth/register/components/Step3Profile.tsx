@@ -783,35 +783,33 @@ export function Step3Profile({
             </div>
           </div>
 
-          {/* ══ Women Workforce ══ */}
-          {contribType === "women_workforce" && (
-            <div className="space-y-4 p-4 rounded-xl bg-teal-50 border border-teal-200">
-              <div className="flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-teal-600" />
-                <p className="text-sm font-semibold text-teal-800">Schedule Preferences</p>
-                <span className="text-xs text-teal-500 ml-1">(optional)</span>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="ws">Preferred Start Time</Label>
-                  <Input id="ws" type="time" value={workStart} onChange={e => setWorkStart(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="we">Preferred End Time</Label>
-                  <Input id="we" type="time" value={workEnd} onChange={e => setWorkEnd(e.target.value)} />
-                </div>
+          {/* ══ Schedule Preferences ══ */}
+          <div className="space-y-4 p-4 rounded-xl bg-teal-50 border border-teal-200">
+            <div className="flex items-center gap-2">
+              <Briefcase className="w-4 h-4 text-teal-600" />
+              <p className="text-sm font-semibold text-teal-800">Schedule Preferences</p>
+              <span className="text-xs text-teal-500 ml-1">(optional)</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="ws">Preferred Start Time</Label>
+                <Input id="ws" type="time" value={workStart} onChange={e => setWorkStart(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Career Stage</Label>
-                <SearchCombobox
-                  value={careerStage} onChange={setCareerStage}
-                  options={CAREER_OPTIONS}
-                  placeholder="Select your career stage"
-                  searchPlaceholder="Search…"
-                />
+                <Label htmlFor="we">Preferred End Time</Label>
+                <Input id="we" type="time" value={workEnd} onChange={e => setWorkEnd(e.target.value)} />
               </div>
             </div>
-          )}
+            <div className="space-y-2">
+              <Label>Career Stage</Label>
+              <SearchCombobox
+                value={careerStage} onChange={setCareerStage}
+                options={CAREER_OPTIONS}
+                placeholder="Select your career stage"
+                searchPlaceholder="Search…"
+              />
+            </div>
+          </div>
 
           {error && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
