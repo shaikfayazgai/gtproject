@@ -229,19 +229,17 @@ export const sowApi = {
     return sowCall<BaseResponse>(`/api/v1/sow${qs}`);
   },
 
-  uploadSOW(file: File, metadata?: {
-    title?: string;
-    client?: string;
-    tags?: string[];
-    estimated_budget?: number;
+  uploadSOW(file: File, metadata: {
+    projectTitle: string;
+    clientOrganisation: string;
+    linkedSowId?: string | null;
   }): Promise<BaseResponse> {
     return getToken().then(token => {
       const formData = new FormData();
       formData.append("file", file);
-      if (metadata?.title) formData.append("title", metadata.title);
-      if (metadata?.client) formData.append("client", metadata.client);
-      if (metadata?.tags) metadata.tags.forEach(t => formData.append("tags", t));
-      if (metadata?.estimated_budget !== undefined) formData.append("estimated_budget", String(metadata.estimated_budget));
+      formData.append("projectTitle", metadata.projectTitle);
+      formData.append("clientOrganisation", metadata.clientOrganisation);
+      if (metadata.linkedSowId) formData.append("linkedSowId", metadata.linkedSowId);
 
       return fetch(`${BASE_URL}/api/v1/sow/upload`, {
         method: "POST",
@@ -327,15 +325,15 @@ export const sowApi = {
     return sowCall<BaseResponse>(`/api/v1/sow/${sowId}/commercial-details/${section}/validate`, "POST");
   },
 
-  markSectionsComplete(sowId: string, sections: string[]): Promise<BaseResponse> {
-    return sowCall<BaseResponse>(`/api/v1/sow/${sowId}/commercial-details/sections/mark-complete`, "POST", { sections });
+  markSectionComplete(sowId: string, section: string): Promise<BaseResponse> {
+    return sowCall<BaseResponse>(`/api/v1/sow/${sowId}/commercial-details/sections/mark-complete`, "POST", { section });
   },
 
   setApprovalAuthorities(sowId: string, data: {
-    business_owner_approver_id: string;
-    final_approver_id: string;
-    legal_compliance_reviewer_id?: string;
-    security_reviewer_id?: string;
+    business_owner_approver: string;
+    final_approver: string;
+    legal_compliance_reviewer?: string;
+    security_reviewer?: string;
   }): Promise<BaseResponse> {
     return sowCall<BaseResponse>(`/api/v1/sow/${sowId}/approval-authorities`, "PATCH", data);
   },

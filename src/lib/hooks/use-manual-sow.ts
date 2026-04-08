@@ -61,11 +61,10 @@ export function useUploadSOW() {
       metadata,
     }: {
       file: File;
-      metadata?: {
-        title?: string;
-        client?: string;
-        tags?: string[];
-        estimated_budget?: number;
+      metadata: {
+        projectTitle: string;
+        clientOrganisation: string;
+        linkedSowId?: string | null;
       };
     }) => sowApi.uploadSOW(file, metadata),
     onSuccess: () => {
@@ -119,7 +118,7 @@ export function useUploadStatus(sowId: string | null, enabled = true) {
     refetchInterval: (query) => {
       const status = (query.state.data as { data?: { status?: string } } | undefined)?.data?.status;
       // Stop polling once processing is complete or failed
-      if (status === "completed" || status === "failed" || status === "error") return false;
+      if (status === "completed" || status === "complete" || status === "failed" || status === "error") return false;
       return 3000;
     },
   });
@@ -253,13 +252,13 @@ export function useValidateCommercialSection(sowId: string | null) {
   });
 }
 
-export function useMarkSectionsComplete(sowId: string | null) {
+export function useMarkSectionComplete(sowId: string | null) {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (sections: string[]) => {
+    mutationFn: (section: string) => {
       if (!sowId) throw new Error("No SOW id");
-      return sowApi.markSectionsComplete(sowId, sections);
+      return sowApi.markSectionComplete(sowId, section);
     },
     onSuccess: () => {
       if (sowId) {
@@ -276,10 +275,10 @@ export function useSetApprovalAuthorities(sowId: string | null) {
 
   return useMutation({
     mutationFn: (data: {
-      business_owner_approver_id: string;
-      final_approver_id: string;
-      legal_compliance_reviewer_id?: string;
-      security_reviewer_id?: string;
+      business_owner_approver: string;
+      final_approver: string;
+      legal_compliance_reviewer?: string;
+      security_reviewer?: string;
     }) => {
       if (!sowId) throw new Error("No SOW id");
       return sowApi.setApprovalAuthorities(sowId, data);
@@ -301,7 +300,7 @@ export function useGenerationStatus(sowId: string | null, enabled = true) {
     enabled: !!sowId && enabled,
     refetchInterval: (query) => {
       const status = (query.state.data as { data?: { status?: string } } | undefined)?.data?.status;
-      if (status === "completed" || status === "failed" || status === "error") return false;
+      if (status === "completed" || status === "complete" || status === "failed" || status === "error") return false;
       return 4000;
     },
   });
@@ -352,12 +351,21 @@ export function useConfirmAndSubmit(sowId: string | null) {
   });
 }
 
-// ── Approval stages ───────────────────────────────────────────────────────
+// ── Approval pipeline (uses /api/v1/approvals/ endpoints) ────────────────
+
+/** Stage key → 1-based number mapping for the approval API */
+const STAGE_NUMBER: Record<string, number> = {
+  business: 1,
+  glimmora_commercial: 2,
+  legal: 3,
+  security: 4,
+  final: 5,
+};
 
 export function useApprovalStages(sowId: string | null) {
   return useQuery({
     queryKey: manualSowKeys.approvalStages(sowId ?? ""),
-    queryFn: () => sowApi.getApprovalStages(sowId!),
+    queryFn: () => sowApi.getApprovalPipeline(sowId!),
     enabled: !!sowId,
   });
 }
@@ -374,7 +382,11 @@ export function useApproveStage(sowId: string | null) {
       data: { reviewer: string; comments?: string; checklist?: Record<string, boolean> };
     }) => {
       if (!sowId) throw new Error("No SOW id");
-      return sowApi.approveStage(sowId, stageKey, data);
+      const stage = STAGE_NUMBER[stageKey] ?? 1;
+      return sowApi.recordApprovalDecision(sowId, stage, {
+        decision: "approve",
+        comments: data.comments,
+      });
     },
     onSuccess: () => {
       if (sowId) {
@@ -397,7 +409,11 @@ export function useRejectStage(sowId: string | null) {
       data: { reviewer: string; reason: string; specific_feedback?: string };
     }) => {
       if (!sowId) throw new Error("No SOW id");
-      return sowApi.rejectStage(sowId, stageKey, data);
+      const stage = STAGE_NUMBER[stageKey] ?? 1;
+      return sowApi.recordApprovalDecision(sowId, stage, {
+        decision: "request_changes",
+        comments: data.reason,
+      });
     },
     onSuccess: () => {
       if (sowId) {
