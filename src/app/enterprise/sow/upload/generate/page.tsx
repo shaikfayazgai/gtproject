@@ -17,6 +17,8 @@ import { mockPreviewMetrics } from "@/mocks/data/sow-upload-flow";
 import { mockHallucinationLayers } from "@/mocks/data/enterprise-sow-detail";
 import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
 import { useGenerationStatus, useGenerateManualSOW, useHallucinationLayers } from "@/lib/hooks/use-manual-sow";
+import { useMutation } from "@tanstack/react-query";
+import { sowApi } from "@/lib/api/sow";
 
 /* ── Generation stages ── */
 const GEN_STAGES = [
@@ -59,6 +61,14 @@ export default function GeneratePreviewPage({ sowId: sowIdProp }: { sowId?: stri
   const generateMutation = useGenerateManualSOW(sowId);
   const { data: genStatusRes } = useGenerationStatus(sowId, genPhase === "generating");
   const { data: layersRes } = useHallucinationLayers(sowId);
+
+  const [actionError, setActionError] = React.useState("");
+  const sowActionMutation = useMutation({
+    mutationFn: (payload: { action: "submit" | "request_changes" | "reject_regenerate"; change_notes?: string }) => {
+      if (!sowId) throw new Error("No SOW id");
+      return sowApi.sowAction(sowId, payload);
+    },
+  });
 
   type HallucinationLayer = { layer?: number | string; name?: string; status?: string; details?: string };
 
