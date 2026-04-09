@@ -110,37 +110,69 @@ const SECTION_API_KEY: Record<string, string> = {
   "commercial-legal": "commercialLegal",
 };
 
+/** Convert snake_case or kebab-case key to camelCase */
+function toCamel(k: string): string {
+  return k.replace(/[_-]([a-z])/g, (_, c) => c.toUpperCase());
+}
+
+/** Try multiple key names, return first non-null value */
+function pick(obj: Record<string, unknown>, ...keys: string[]): unknown {
+  for (const k of keys) if (obj[k] != null) return obj[k];
+  return undefined;
+}
+
 function mapApiToFormData(payload: Record<string, unknown>): Record<string, Record<string, string>> {
   const result: Record<string, Record<string, string>> = {};
 
-  // Business context — explicit mapping
-  const bc = (payload.businessContext ?? payload.business_context) as Record<string, unknown> | undefined;
+  /* ── Business Context — explicit + generic pass ── */
+  const bc = pick(payload, "businessContext", "business_context") as Record<string, unknown> | undefined;
   if (bc) {
     const fields: Record<string, string> = {};
-    const str = (k1: string, k2: string, fk: string) => { const v = bc[k1] ?? bc[k2]; if (v != null) fields[fk] = String(v); };
-    str("project_vision", "projectVision", "projectVision");
-    str("business_criticality", "businessCriticality", "businessCriticality");
-    str("current_state", "currentState", "currentState");
-    str("desired_future_state", "desiredFutureState", "desiredFutureState");
-    str("project_success_definition", "projectSuccessDefinition", "projectSuccessDefinition");
-    const arr = (k1: string, k2: string, base: string) => {
-      const v = (bc[k1] ?? bc[k2]) as string[] | undefined;
-      if (Array.isArray(v)) v.forEach((item, i) => { fields[`${base}${i + 1}`] = String(item ?? ""); });
+
+    // Explicit string fields (many key variants)
+    const strField = (formKey: string, ...apiKeys: string[]) => {
+      const v = pick(bc, ...apiKeys);
+      if (v != null && !Array.isArray(v) && typeof v !== "object") fields[formKey] = String(v);
     };
-    arr("business_objectives", "businessObjectives", "businessObjective");
-    arr("pain_points", "painPoints", "painPoint");
-    arr("end_user_profiles", "endUserProfiles", "endUserProfile");
-    arr("success_metrics", "successMetrics", "successMetric");
+    strField("projectVision", "project_vision", "projectVision", "vision", "project_vision_statement");
+    strField("businessCriticality", "business_criticality", "businessCriticality", "criticality", "priority");
+    strField("currentState", "current_state", "currentState", "current_situation", "as_is");
+    strField("desiredFutureState", "desired_future_state", "desiredFutureState", "future_state", "target_state", "to_be");
+    strField("projectSuccessDefinition", "project_success_definition", "projectSuccessDefinition", "success_definition", "definition_of_done");
+
+    // Array fields → numbered form keys
+    const arrField = (formBase: string, ...apiKeys: string[]) => {
+      const v = pick(bc, ...apiKeys);
+      if (Array.isArray(v)) v.forEach((item, i) => { fields[`${formBase}${i + 1}`] = String(item ?? ""); });
+    };
+    arrField("businessObjective", "business_objectives", "businessObjectives", "objectives");
+    arrField("painPoint", "pain_points", "painPoints", "challenges");
+    arrField("endUserProfile", "end_user_profiles", "endUserProfiles", "user_profiles", "userProfiles", "users");
+    arrField("successMetric", "success_metrics", "successMetrics", "kpis", "key_metrics");
+
+    // Generic pass — catches flat numbered keys (businessObjective1, painPoint1…)
+    // and any other fields the API returns that weren't explicitly handled above
+    for (const [k, v] of Object.entries(bc)) {
+      const camel = toCamel(k);
+      if (fields[camel] != null || fields[k] != null) continue; // already mapped
+      if (Array.isArray(v)) {
+        v.forEach((item, i) => { fields[`${camel}${i + 1}`] = String(item ?? ""); });
+      } else if (v != null && typeof v !== "object") {
+        fields[camel] = String(v);
+      }
+    }
+
     if (Object.keys(fields).length > 0) result["business-context"] = fields;
   }
 
-  // Other sections — generic flat mapping
+  /* ── Other sections — generic flat mapping ── */
   const flatSection = (apiKey: string, formId: string) => {
-    const sec = (payload[apiKey] ?? payload[apiKey.replace(/([A-Z])/g, (c) => `_${c.toLowerCase()}`)]) as Record<string, unknown> | undefined;
+    const snakeKey = apiKey.replace(/([A-Z])/g, (c) => `_${c.toLowerCase()}`);
+    const sec = (payload[apiKey] ?? payload[snakeKey]) as Record<string, unknown> | undefined;
     if (!sec || typeof sec !== "object") return;
     const fields: Record<string, string> = {};
     for (const [k, v] of Object.entries(sec)) {
-      const camel = k.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+      const camel = toCamel(k);
       if (Array.isArray(v)) { v.forEach((item, i) => { fields[`${camel}${i + 1}`] = String(item ?? ""); }); }
       else if (v != null && typeof v !== "object") { fields[camel] = String(v); }
     }
@@ -242,8 +274,13 @@ export default function CommercialDetailsPage() {
   /* Populate form from API response */
   React.useEffect(() => {
     if (!detailsRes) return;
-    const res = detailsRes as unknown as { data?: unknown };
-    const payload = (res.data ?? detailsRes) as Record<string, unknown>;
+    const res = detailsRes as unknown as Record<string, unknown>;
+    // Handle { success, data: {...} } wrapper or bare payload
+    const inner = res.data as Record<string, unknown> | null;
+    const payload = (inner && typeof inner === "object" ? inner : res) as Record<string, unknown>;
+    if (process.env.NODE_ENV === "development") {
+      console.log("[commercial-details] API payload:", JSON.stringify(payload, null, 2));
+    }
     const mapped = mapApiToFormData(payload);
     if (Object.keys(mapped).length > 0) {
       setFormData((prev) => ({ ...prev, ...mapped }));
