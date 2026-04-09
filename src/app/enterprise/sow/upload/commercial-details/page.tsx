@@ -23,6 +23,8 @@ import {
 import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp, slideInRight } from "@/lib/utils/motion-variants";
 import { Badge, Button, Input, Textarea, Label, ScrollArea } from "@/components/ui";
+import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
+import { useCommercialDetails, useSaveCommercialSection } from "@/lib/hooks/use-manual-sow";
 
 /* ────────────────────────────────────────────────────────────
    Section definitions
@@ -96,7 +98,66 @@ const SECTIONS: WizardSection[] = [
 ];
 
 /* ────────────────────────────────────────────────────────────
-   Mock form data (pre-populated by AI)
+   Section → API key mapping
+   ──────────────────────────────────────────────────────────── */
+const SECTION_API_KEY: Record<string, string> = {
+  "business-context": "businessContext",
+  "delivery-scope": "deliveryScope",
+  "technical-architecture": "techIntegrations",
+  "timeline-team": "timelineTeam",
+  "budget-risk": "budgetRisk",
+  "governance-compliance": "governance",
+  "commercial-legal": "commercialLegal",
+};
+
+function mapApiToFormData(payload: Record<string, unknown>): Record<string, Record<string, string>> {
+  const result: Record<string, Record<string, string>> = {};
+
+  // Business context — explicit mapping
+  const bc = (payload.businessContext ?? payload.business_context) as Record<string, unknown> | undefined;
+  if (bc) {
+    const fields: Record<string, string> = {};
+    const str = (k1: string, k2: string, fk: string) => { const v = bc[k1] ?? bc[k2]; if (v != null) fields[fk] = String(v); };
+    str("project_vision", "projectVision", "projectVision");
+    str("business_criticality", "businessCriticality", "businessCriticality");
+    str("current_state", "currentState", "currentState");
+    str("desired_future_state", "desiredFutureState", "desiredFutureState");
+    str("project_success_definition", "projectSuccessDefinition", "projectSuccessDefinition");
+    const arr = (k1: string, k2: string, base: string) => {
+      const v = (bc[k1] ?? bc[k2]) as string[] | undefined;
+      if (Array.isArray(v)) v.forEach((item, i) => { fields[`${base}${i + 1}`] = String(item ?? ""); });
+    };
+    arr("business_objectives", "businessObjectives", "businessObjective");
+    arr("pain_points", "painPoints", "painPoint");
+    arr("end_user_profiles", "endUserProfiles", "endUserProfile");
+    arr("success_metrics", "successMetrics", "successMetric");
+    if (Object.keys(fields).length > 0) result["business-context"] = fields;
+  }
+
+  // Other sections — generic flat mapping
+  const flatSection = (apiKey: string, formId: string) => {
+    const sec = (payload[apiKey] ?? payload[apiKey.replace(/([A-Z])/g, (c) => `_${c.toLowerCase()}`)]) as Record<string, unknown> | undefined;
+    if (!sec || typeof sec !== "object") return;
+    const fields: Record<string, string> = {};
+    for (const [k, v] of Object.entries(sec)) {
+      const camel = k.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+      if (Array.isArray(v)) { v.forEach((item, i) => { fields[`${camel}${i + 1}`] = String(item ?? ""); }); }
+      else if (v != null && typeof v !== "object") { fields[camel] = String(v); }
+    }
+    if (Object.keys(fields).length > 0) result[formId] = fields;
+  };
+  flatSection("deliveryScope", "delivery-scope");
+  flatSection("techIntegrations", "technical-architecture");
+  flatSection("timelineTeam", "timeline-team");
+  flatSection("budgetRisk", "budget-risk");
+  flatSection("governance", "governance-compliance");
+  flatSection("commercialLegal", "commercial-legal");
+
+  return result;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Default form data (fallback when API has no data)
    ──────────────────────────────────────────────────────────── */
 const PREPOPULATED_DATA: Record<string, Record<string, string>> = {
   "business-context": {
@@ -167,17 +228,39 @@ function ProgressCircle({
    Page component
    ──────────────────────────────────────────────────────────── */
 export default function CommercialDetailsPage() {
+  const store = useSOWUploadStore();
+  const sowId = store.uploadedSowId;
+  const { data: detailsRes } = useCommercialDetails(sowId);
+  const saveMutation = useSaveCommercialSection(sowId);
+
   const [activeSection, setActiveSection] = React.useState(0);
   const [completedSections, setCompletedSections] = React.useState<Set<number>>(new Set());
   const [formData, setFormData] = React.useState<Record<string, Record<string, string>>>(
     PREPOPULATED_DATA
   );
 
+  /* Populate form from API response */
+  React.useEffect(() => {
+    if (!detailsRes) return;
+    const res = detailsRes as unknown as { data?: unknown };
+    const payload = (res.data ?? detailsRes) as Record<string, unknown>;
+    const mapped = mapApiToFormData(payload);
+    if (Object.keys(mapped).length > 0) {
+      setFormData((prev) => ({ ...prev, ...mapped }));
+    }
+  }, [detailsRes]);
+
   const currentSection = SECTIONS[activeSection];
   const isPrePopulated = currentSection.aiConfidence >= 85;
 
   const markComplete = (idx: number) => {
     setCompletedSections((prev) => new Set([...prev, idx]));
+    /* Save section to API */
+    if (sowId) {
+      const sec = SECTIONS[idx];
+      const apiKey = SECTION_API_KEY[sec.id];
+      if (apiKey) saveMutation.mutate({ section: apiKey, data: formData[sec.id] ?? {} });
+    }
   };
 
   const goToNext = () => {
