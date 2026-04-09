@@ -14,7 +14,19 @@ import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui";
 import { mockSOWs, mockSOWSections } from "@/mocks/data/enterprise-sow";
 import { useSowStore } from "@/lib/stores/sow-store";
+import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
 import { useManualSOWList, useDeleteManualSOW } from "@/lib/hooks/use-manual-sow";
+
+/* ── Manual SOW wizard step → route map ── */
+const WIZARD_STEP_ROUTES: Record<number, string> = {
+  1: "/enterprise/sow/upload",
+  2: "/enterprise/sow/upload/report",
+  3: "/enterprise/sow/upload/review",
+  4: "/enterprise/sow/upload/gaps",
+  5: "/enterprise/sow/upload/details",
+  6: "/enterprise/sow/upload/generate",
+  7: "/enterprise/sow/upload/preview-confirm",
+};
 
 /* ══════════════════════════════════════════ Status config (per FSD §7.1.4) ══════════════════════════════════════════ */
 
@@ -209,6 +221,27 @@ function RecentlyViewedPanel({ open, onClose }: { open: boolean; onClose: () => 
 export default function SOWListPage() {
   const router = useRouter();
 
+  /* ── Resume in-progress manual SOW wizard ── */
+  const wizardStep = useSOWUploadStore((s) => s.currentFlowStep);
+  const wizardSowId = useSOWUploadStore((s) => s.uploadedSowId);
+  const wizardFile = useSOWUploadStore((s) => s.uploadedFile);
+
+  // Wait until client-side mount to avoid SSR/client mismatch
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setMounted(true); }, []);
+
+  const shouldRedirect = mounted && (!!wizardSowId || !!wizardFile) && wizardStep >= 2 && wizardStep <= 7;
+
+  React.useEffect(() => {
+    if (shouldRedirect) {
+      const route = WIZARD_STEP_ROUTES[wizardStep];
+      if (route) router.replace(route);
+    }
+  }, [shouldRedirect, wizardStep, router]);
+
+  // Block render until mounted (and during the redirect)
+  if (!mounted || shouldRedirect) return null;
+
   /* Filters — FSD §7.1.3 */
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [intakeFilter, setIntakeFilter] = React.useState("all");
@@ -355,18 +388,6 @@ export default function SOWListPage() {
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="show">
-
-      {/* API loading/error indicator */}
-      {apiSowList.isLoading && (
-        <div className="mb-4 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-100 text-[12px] text-blue-600">
-          <Clock className="w-3.5 h-3.5 animate-spin" /> Loading SOWs from API...
-        </div>
-      )}
-      {apiSowList.error && (
-        <div className="mb-4 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 border border-red-100 text-[12px] text-red-600">
-          <AlertTriangle className="w-3.5 h-3.5" /> API: {(apiSowList.error as Error).message}
-        </div>
-      )}
 
       {/* ═══ HERO — FSD §7.1.1 ═══ */}
       <motion.div variants={fadeUp} className="mb-7">

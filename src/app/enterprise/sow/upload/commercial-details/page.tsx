@@ -18,11 +18,10 @@ import {
   FileSignature,
   ChevronRight,
   Loader2,
-  Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp, slideInRight } from "@/lib/utils/motion-variants";
-import { Badge, Button, Input, Textarea, Label, ScrollArea } from "@/components/ui";
+import { Badge, Button, ScrollArea } from "@/components/ui";
 import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
 import { useCommercialDetails, useSaveCommercialSection } from "@/lib/hooks/use-manual-sow";
 
@@ -232,6 +231,122 @@ const PREPOPULATED_DATA: Record<string, Record<string, string>> = {
 };
 
 /* ────────────────────────────────────────────────────────────
+   Read-only field helpers
+   ──────────────────────────────────────────────────────────── */
+function ReadOnlyField({
+  label,
+  value,
+  multiline = false,
+}: {
+  label: string;
+  value: string;
+  multiline?: boolean;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[12px] font-semibold" style={{ color: "var(--ink-muted)" }}>
+        {label}
+      </p>
+      <div
+        className={cn(
+          "rounded-xl px-4 py-3 text-[13px] leading-relaxed",
+          multiline && "whitespace-pre-wrap min-h-[72px]"
+        )}
+        style={{
+          background: "var(--page-bg)",
+          border: "1px solid var(--border-soft)",
+          color: value ? "var(--ink)" : "var(--ink-faint)",
+        }}
+      >
+        {value || "—"}
+      </div>
+    </div>
+  );
+}
+
+function ReadOnlyListField({ label, items }: { label: string; items: string[] }) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[12px] font-semibold" style={{ color: "var(--ink-muted)" }}>
+        {label}
+      </p>
+      <div className="space-y-2">
+        {items.map((item, i) => (
+          <div key={i} className="flex items-start gap-2">
+            <span
+              className="text-[11px] font-mono shrink-0 w-5 text-center pt-2.5"
+              style={{ color: "var(--ink-faint)" }}
+            >
+              {i + 1}.
+            </span>
+            <div
+              className="flex-1 rounded-xl px-4 py-2.5 text-[13px]"
+              style={{
+                background: "var(--page-bg)",
+                border: "1px solid var(--border-soft)",
+                color: item ? "var(--ink)" : "var(--ink-faint)",
+              }}
+            >
+              {item || "—"}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function toLabel(key: string): string {
+  return key
+    .replace(/(\d+)$/, " $1")
+    .replace(/([A-Z])/g, " $1")
+    .trim()
+    .replace(/^./, (c) => c.toUpperCase());
+}
+
+function DynamicSectionFields({ sectionData }: { sectionData: Record<string, string> }) {
+  const entries = Object.entries(sectionData);
+  if (entries.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 gap-3">
+        <Sparkles className="w-8 h-8 text-forest-300" />
+        <p className="text-[13px]" style={{ color: "var(--ink-muted)" }}>
+          No data available for this section yet.
+        </p>
+      </div>
+    );
+  }
+
+  /* Group numbered keys (e.g. deliverable1, deliverable2) under their base */
+  const groups = new Map<string, { key: string; value: string }[]>();
+  for (const [key, value] of entries) {
+    const hasNum = /\d+$/.test(key);
+    const base = hasNum ? key.replace(/\d+$/, "") : key;
+    if (!groups.has(base)) groups.set(base, []);
+    groups.get(base)!.push({ key, value });
+  }
+
+  return (
+    <div className="space-y-5">
+      {Array.from(groups.entries()).map(([base, items]) => {
+        const sorted = [...items].sort((a, b) =>
+          a.key.localeCompare(b.key, undefined, { numeric: true })
+        );
+        if (items.length === 1 && !/\d+$/.test(items[0].key)) {
+          const isLong = items[0].value.length > 100;
+          return (
+            <ReadOnlyField key={base} label={toLabel(base)} value={items[0].value} multiline={isLong} />
+          );
+        }
+        return (
+          <ReadOnlyListField key={base} label={toLabel(base)} items={sorted.map((i) => i.value)} />
+        );
+      })}
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────
    Progress circle component
    ──────────────────────────────────────────────────────────── */
 function ProgressCircle({
@@ -318,16 +433,6 @@ export default function CommercialDetailsPage() {
 
   const getFieldValue = (field: string) => {
     return formData[currentSection.id]?.[field] || "";
-  };
-
-  const setFieldValue = (field: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [currentSection.id]: {
-        ...(prev[currentSection.id] || {}),
-        [field]: value,
-      },
-    }));
   };
 
   /* ── Flow progress steps ── */
@@ -570,294 +675,36 @@ export default function CommercialDetailsPage() {
                     )}
                   </div>
 
-                  {/* Form Fields */}
+                  {/* Form Fields — read-only */}
                   <div className="p-6 space-y-5">
                     {activeSection === 0 && (
                       <>
-                        {/* Project Vision */}
-                        <div className="space-y-2">
-                          <Label
-                            className="text-[13px] font-semibold"
-                            style={{ color: "var(--ink)" }}
-                          >
-                            Project Vision
-                          </Label>
-                          <Textarea
-                            value={getFieldValue("projectVision")}
-                            onChange={(e) => setFieldValue("projectVision", e.target.value)}
-                            placeholder="Describe the overarching vision for this project..."
-                            className="min-h-[100px]"
-                          />
-                        </div>
-
-                        {/* Business Objectives */}
-                        <div className="space-y-2">
-                          <Label
-                            className="text-[13px] font-semibold"
-                            style={{ color: "var(--ink)" }}
-                          >
-                            Business Objectives
-                          </Label>
-                          {[1, 2, 3].map((i) => (
-                            <div key={i} className="flex items-center gap-2">
-                              <span
-                                className="text-[11px] font-mono shrink-0 w-5 text-center"
-                                style={{ color: "var(--ink-faint)" }}
-                              >
-                                {i}.
-                              </span>
-                              <Input
-                                value={getFieldValue(`businessObjective${i}`)}
-                                onChange={(e) =>
-                                  setFieldValue(`businessObjective${i}`, e.target.value)
-                                }
-                                placeholder={`Business objective ${i}...`}
-                              />
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Pain Points */}
-                        <div className="space-y-2">
-                          <Label
-                            className="text-[13px] font-semibold"
-                            style={{ color: "var(--ink)" }}
-                          >
-                            Pain Points
-                          </Label>
-                          {[1, 2].map((i) => (
-                            <div key={i} className="flex items-center gap-2">
-                              <span
-                                className="text-[11px] font-mono shrink-0 w-5 text-center"
-                                style={{ color: "var(--ink-faint)" }}
-                              >
-                                {i}.
-                              </span>
-                              <Input
-                                value={getFieldValue(`painPoint${i}`)}
-                                onChange={(e) =>
-                                  setFieldValue(`painPoint${i}`, e.target.value)
-                                }
-                                placeholder={`Pain point ${i}...`}
-                              />
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Business Criticality */}
-                        <div className="space-y-2">
-                          <Label
-                            className="text-[13px] font-semibold"
-                            style={{ color: "var(--ink)" }}
-                          >
-                            Business Criticality
-                          </Label>
-                          <select
-                            value={getFieldValue("businessCriticality")}
-                            onChange={(e) =>
-                              setFieldValue("businessCriticality", e.target.value)
-                            }
-                            className="w-full rounded-xl px-4 py-2.5 text-sm"
-                            style={{
-                              background: "var(--page-bg)",
-                              border: "1px solid var(--border-soft)",
-                              color: "var(--ink)",
-                            }}
-                          >
-                            <option value="">Select criticality...</option>
-                            <option value="Critical">Critical</option>
-                            <option value="High">High</option>
-                            <option value="Medium">Medium</option>
-                            <option value="Low">Low</option>
-                          </select>
-                        </div>
-
-                        {/* Current State */}
-                        <div className="space-y-2">
-                          <Label
-                            className="text-[13px] font-semibold"
-                            style={{ color: "var(--ink)" }}
-                          >
-                            Current State
-                          </Label>
-                          <Textarea
-                            value={getFieldValue("currentState")}
-                            onChange={(e) => setFieldValue("currentState", e.target.value)}
-                            placeholder="Describe the current state of systems/processes..."
-                            className="min-h-[80px]"
-                          />
-                        </div>
-
-                        {/* Desired Future State */}
-                        <div className="space-y-2">
-                          <Label
-                            className="text-[13px] font-semibold"
-                            style={{ color: "var(--ink)" }}
-                          >
-                            Desired Future State
-                          </Label>
-                          <Textarea
-                            value={getFieldValue("desiredFutureState")}
-                            onChange={(e) =>
-                              setFieldValue("desiredFutureState", e.target.value)
-                            }
-                            placeholder="Describe the desired future state..."
-                            className="min-h-[80px]"
-                          />
-                        </div>
-
-                        {/* End User Profiles */}
-                        <div className="space-y-2">
-                          <Label
-                            className="text-[13px] font-semibold"
-                            style={{ color: "var(--ink)" }}
-                          >
-                            End User Profiles
-                          </Label>
-                          {[1, 2, 3].map((i) => (
-                            <div key={i} className="flex items-center gap-2">
-                              <span
-                                className="text-[11px] font-mono shrink-0 w-5 text-center"
-                                style={{ color: "var(--ink-faint)" }}
-                              >
-                                {i}.
-                              </span>
-                              <Input
-                                value={getFieldValue(`endUserProfile${i}`)}
-                                onChange={(e) =>
-                                  setFieldValue(`endUserProfile${i}`, e.target.value)
-                                }
-                                placeholder={`User profile ${i}...`}
-                              />
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Success Metrics */}
-                        <div className="space-y-2">
-                          <Label
-                            className="text-[13px] font-semibold"
-                            style={{ color: "var(--ink)" }}
-                          >
-                            Success Metrics
-                          </Label>
-                          {[1, 2, 3].map((i) => (
-                            <div key={i} className="flex items-center gap-2">
-                              <span
-                                className="text-[11px] font-mono shrink-0 w-5 text-center"
-                                style={{ color: "var(--ink-faint)" }}
-                              >
-                                {i}.
-                              </span>
-                              <Input
-                                value={getFieldValue(`successMetric${i}`)}
-                                onChange={(e) =>
-                                  setFieldValue(`successMetric${i}`, e.target.value)
-                                }
-                                placeholder={`Success metric ${i}...`}
-                              />
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Definition of Project Success */}
-                        <div className="space-y-2">
-                          <Label
-                            className="text-[13px] font-semibold"
-                            style={{ color: "var(--ink)" }}
-                          >
-                            Definition of Project Success
-                          </Label>
-                          <Textarea
-                            value={getFieldValue("projectSuccessDefinition")}
-                            onChange={(e) =>
-                              setFieldValue("projectSuccessDefinition", e.target.value)
-                            }
-                            placeholder="Define what constitutes project success..."
-                            className="min-h-[80px]"
-                          />
-                        </div>
+                        <ReadOnlyField label="Project Vision" value={getFieldValue("projectVision")} multiline />
+                        <ReadOnlyListField
+                          label="Business Objectives"
+                          items={[1, 2, 3].map((i) => getFieldValue(`businessObjective${i}`))}
+                        />
+                        <ReadOnlyListField
+                          label="Pain Points"
+                          items={[1, 2].map((i) => getFieldValue(`painPoint${i}`))}
+                        />
+                        <ReadOnlyField label="Business Criticality" value={getFieldValue("businessCriticality")} />
+                        <ReadOnlyField label="Current State" value={getFieldValue("currentState")} multiline />
+                        <ReadOnlyField label="Desired Future State" value={getFieldValue("desiredFutureState")} multiline />
+                        <ReadOnlyListField
+                          label="End User Profiles"
+                          items={[1, 2, 3].map((i) => getFieldValue(`endUserProfile${i}`))}
+                        />
+                        <ReadOnlyListField
+                          label="Success Metrics"
+                          items={[1, 2, 3].map((i) => getFieldValue(`successMetric${i}`))}
+                        />
+                        <ReadOnlyField label="Definition of Project Success" value={getFieldValue("projectSuccessDefinition")} multiline />
                       </>
                     )}
 
-                    {/* Sections 2-7: Show pre-populated summary */}
                     {activeSection > 0 && (
-                      <div className="space-y-4">
-                        {isPrePopulated && (
-                          <div
-                            className="rounded-xl p-5 text-center"
-                            style={{
-                              background: "var(--page-bg)",
-                              border: "1px dashed var(--border-soft)",
-                            }}
-                          >
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-forest-100 to-teal-100 flex items-center justify-center mx-auto mb-3">
-                              <Sparkles className="w-6 h-6 text-forest-500" />
-                            </div>
-                            <h3
-                              className="text-[15px] font-heading font-semibold mb-1"
-                              style={{ color: "var(--ink)" }}
-                            >
-                              Section Pre-Populated by AI
-                            </h3>
-                            <p className="text-[12px] mb-4" style={{ color: "var(--ink-muted)" }}>
-                              AI confidence: {currentSection.aiConfidence}%. Fields have been filled
-                              based on extracted data.
-                            </p>
-                            <div className="flex items-center justify-center gap-3">
-                              <Button variant="outline" size="sm">
-                                <Eye className="w-3.5 h-3.5" />
-                                Review Fields
-                              </Button>
-                              <Button variant="secondary" size="sm" onClick={goToNext}>
-                                Continue
-                                <ArrowRight className="w-3.5 h-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Placeholder fields for other sections */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {Array.from({ length: 4 }).map((_, i) => (
-                            <div key={i} className="space-y-2">
-                              <div
-                                className="h-3 rounded-full"
-                                style={{
-                                  background: "var(--border-soft)",
-                                  width: `${50 + i * 10}%`,
-                                }}
-                              />
-                              <div
-                                className="rounded-xl h-10"
-                                style={{
-                                  background: "var(--page-bg)",
-                                  border: "1px solid var(--border-soft)",
-                                }}
-                              />
-                            </div>
-                          ))}
-                        </div>
-
-                        {activeSection > 0 && (
-                          <div className="space-y-2">
-                            <div
-                              className="h-3 rounded-full"
-                              style={{
-                                background: "var(--border-soft)",
-                                width: "35%",
-                              }}
-                            />
-                            <div
-                              className="rounded-xl h-24"
-                              style={{
-                                background: "var(--page-bg)",
-                                border: "1px solid var(--border-soft)",
-                              }}
-                            />
-                          </div>
-                        )}
-                      </div>
+                      <DynamicSectionFields sectionData={formData[currentSection.id] ?? {}} />
                     )}
                   </div>
 

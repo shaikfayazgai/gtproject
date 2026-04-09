@@ -180,8 +180,22 @@ export default function DecompositionPlansPage() {
   const [sortField, setSortField] = React.useState<SortField>("updated");
   const [sortDir, setSortDir] = React.useState<SortDir>("desc");
   const [paymentPlan, setPaymentPlan] = React.useState<DecompositionPlan | null>(null);
+  const [plans, setPlans] = React.useState<DecompositionPlan[]>(() => [...mockPlans]);
+  const [justPaidIds, setJustPaidIds] = React.useState<Set<string>>(new Set());
 
   const handleKickoff = (plan: DecompositionPlan) => setPaymentPlan(plan);
+
+  const handlePaymentSuccess = (paidPlanId: string) => {
+    setPlans((prev) =>
+      prev.map((p) => p.id === paidPlanId ? { ...p, status: "approved" } : p)
+    );
+    setJustPaidIds((prev) => {
+      const next = new Set(prev);
+      next.add(paidPlanId);
+      return next;
+    });
+    setPaymentPlan(null);
+  };
 
   function handleSort(field: SortField) {
     if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -189,7 +203,7 @@ export default function DecompositionPlansPage() {
   }
 
   const filtered = React.useMemo(() => {
-    let list = [...mockPlans];
+    let list = [...plans];
     if (statusFilter !== "all") list = list.filter((p) => p.status === statusFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -208,13 +222,13 @@ export default function DecompositionPlansPage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [statusFilter, search, sortField, sortDir]);
+  }, [statusFilter, search, sortField, sortDir, plans]);
 
-  const totalPlans = mockPlans.length;
-  const totalMilestones = mockPlans.reduce((s, p) => s + p.totalMilestones, 0);
-  const totalTasks = mockPlans.reduce((s, p) => s + p.totalTasks, 0);
-  const avgConfidence = Math.round(mockPlans.reduce((s, p) => s + p.aiConfidence, 0) / totalPlans);
-  const totalBudget = mockPlans.reduce((s, p) => s + p.estimatedCost, 0);
+  const totalPlans = plans.length;
+  const totalMilestones = plans.reduce((s, p) => s + p.totalMilestones, 0);
+  const totalTasks = plans.reduce((s, p) => s + p.totalTasks, 0);
+  const avgConfidence = Math.round(plans.reduce((s, p) => s + p.aiConfidence, 0) / totalPlans);
+  const totalBudget = plans.reduce((s, p) => s + p.estimatedCost, 0);
 
   const statusOptions = [
     { value: "all", label: "All Status" }, { value: "draft", label: "Draft" },
@@ -233,7 +247,7 @@ export default function DecompositionPlansPage() {
         budget={paymentPlan.estimatedCost}
         pendingId="m1"
         entityId={paymentPlan.id}
-        onSuccess={() => setPaymentPlan(null)}
+        onSuccess={() => handlePaymentSuccess(paymentPlan!.id)}
         onClose={() => setPaymentPlan(null)}
       />
     )}
@@ -393,7 +407,11 @@ export default function DecompositionPlansPage() {
                     <td style={{ padding: "13px 16px", textAlign: "center" }}>
                       <PrimaryActionButton
                         plan={plan}
-                        onClick={(e) => { e.stopPropagation(); router.push(`/enterprise/decomposition/${plan.id}`); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const suffix = justPaidIds.has(plan.id) ? "?ai=generating" : "";
+                          router.push(`/enterprise/decomposition/${plan.id}${suffix}`);
+                        }}
                         onKickoff={() => handleKickoff(plan)}
                       />
                     </td>

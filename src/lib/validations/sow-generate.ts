@@ -165,7 +165,6 @@ const step7Schema = z.object({
 
 const step8Schema = z.object({
   paymentTerms: nonEmptyString("Select payment terms"),
-  warrantyPeriod: nonEmptyString("Select warranty period"),
   ipOwnership: nonEmptyString("Select IP ownership"),
   terminationNoticePeriod: nonEmptyString("Select termination notice period"),
 });
@@ -179,10 +178,6 @@ const step9Schema = z.object({
     .string()
     .transform((s) => s.trim())
     .pipe(z.string().min(1, "Business owner approver is required")),
-  finalApprover: z
-    .string()
-    .transform((s) => s.trim())
-    .pipe(z.string().min(1, "Final approver is required")),
 });
 
 // ---------------------------------------------------------------------------

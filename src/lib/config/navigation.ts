@@ -75,7 +75,6 @@ export const enterpriseNav: ModuleConfig = {
       items: [
         { label: "SOW Repository", href: "/enterprise/sow", icon: FileText },
         { label: "Approval Pipeline", href: "/enterprise/sow/approval", icon: ClipboardCheck },
-        { label: "Archive", href: "/enterprise/sow/archive", icon: History },
       ],
     },
     /* ─── Planning ─── */
@@ -114,23 +113,6 @@ export const enterpriseNav: ModuleConfig = {
       title: "Organization",
       items: [
         { label: "Settings", href: "/enterprise/settings", icon: Settings },
-      ],
-    },
-    {
-      title: "Analytics & Intelligence",
-      items: [
-        { label: "Workforce", href: "/enterprise/analytics", icon: BarChart3 },
-        { label: "Economic", href: "/enterprise/analytics/economic", icon: TrendingUp },
-        { label: "Governance & Risk", href: "/enterprise/analytics/governance", icon: Shield },
-        { label: "Self-service", href: "/enterprise/analytics/reports", icon: PieChart },
-      ],
-    },
-    /* ─── Audit ─── */
-    {
-      title: "Audit",
-      items: [
-        { label: "Audit Log", href: "/enterprise/audit", icon: ScrollText },
-        { label: "Notifications", href: "/enterprise/notifications", icon: Bell },
       ],
     },
   ],
