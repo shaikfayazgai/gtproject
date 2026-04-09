@@ -18,19 +18,7 @@ import { useSession, signOut } from "next-auth/react";
 import { cn } from "@/lib/utils/cn";
 import { useSidebarStore } from "@/lib/stores/sidebar-store";
 import { useSowBadges, useSowAlerts, type SOWAlert } from "@/lib/hooks/use-sow-badges";
-import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
 import type { ModuleConfig } from "@/lib/config/navigation";
-
-/* ── Manual SOW wizard step → route map ── */
-const WIZARD_STEP_ROUTES: Record<number, string> = {
-  1: "/enterprise/sow/upload",
-  2: "/enterprise/sow/upload/report",
-  3: "/enterprise/sow/upload/review",
-  4: "/enterprise/sow/upload/gaps",
-  5: "/enterprise/sow/upload/details",
-  6: "/enterprise/sow/upload/generate",
-  7: "/enterprise/sow/upload/preview-confirm",
-};
 import {
   Tooltip,
   TooltipContent,
@@ -61,23 +49,6 @@ export function Sidebar({ config }: SidebarProps) {
   const userInitials = (session?.user as any)?.initials || userName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
   const dynamicBadges = useSowBadges();
 
-  /* ── Compute resume href for SOW Repository if a manual wizard is in progress ── */
-  const wizardStep = useSOWUploadStore((s) => s.currentFlowStep);
-  const wizardSowId = useSOWUploadStore((s) => s.uploadedSowId);
-  const wizardFile = useSOWUploadStore((s) => s.uploadedFile);
-  const [wizardHydrated, setWizardHydrated] = React.useState(false);
-  React.useEffect(() => {
-    // On client mount, treat the store as hydrated (persist middleware runs before this effect)
-    setWizardHydrated(true);
-  }, []);
-
-  const sowResumeHref = React.useMemo(() => {
-    if (!wizardHydrated) return null;
-    const hasDraft = !!wizardSowId || !!wizardFile;
-    const inProgress = wizardStep >= 2 && wizardStep <= 7;
-    if (hasDraft && inProgress) return WIZARD_STEP_ROUTES[wizardStep] ?? null;
-    return null;
-  }, [wizardHydrated, wizardStep, wizardSowId, wizardFile]);
   const alertMap = useSowAlerts();
   const [openAlertHref, setOpenAlertHref] = React.useState<string | null>(null);
 
@@ -245,8 +216,7 @@ export function Sidebar({ config }: SidebarProps) {
                     >
                       <div className="space-y-0.5">
                         {section.items.map((item) => {
-                          // Override SOW Repository link with wizard-resume href if a draft is in progress
-                          const effectiveHref = (item.href === "/enterprise/sow" && sowResumeHref) ? sowResumeHref : item.href;
+                          const effectiveHref = item.href;
                           const active = isActive(item.href);
                           const Icon = item.icon;
                           const badge = dynamicBadges[item.href] ?? item.badge;

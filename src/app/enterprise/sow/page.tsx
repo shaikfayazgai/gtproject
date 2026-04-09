@@ -14,19 +14,7 @@ import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui";
 import { mockSOWs, mockSOWSections } from "@/mocks/data/enterprise-sow";
 import { useSowStore } from "@/lib/stores/sow-store";
-import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
 import { useManualSOWList, useDeleteManualSOW } from "@/lib/hooks/use-manual-sow";
-
-/* ── Manual SOW wizard step → route map ── */
-const WIZARD_STEP_ROUTES: Record<number, string> = {
-  1: "/enterprise/sow/upload",
-  2: "/enterprise/sow/upload/report",
-  3: "/enterprise/sow/upload/review",
-  4: "/enterprise/sow/upload/gaps",
-  5: "/enterprise/sow/upload/details",
-  6: "/enterprise/sow/upload/generate",
-  7: "/enterprise/sow/upload/preview-confirm",
-};
 
 /* ══════════════════════════════════════════ Status config (per FSD §7.1.4) ══════════════════════════════════════════ */
 
@@ -220,27 +208,6 @@ function RecentlyViewedPanel({ open, onClose }: { open: boolean; onClose: () => 
 
 export default function SOWListPage() {
   const router = useRouter();
-
-  /* ── Resume in-progress manual SOW wizard ── */
-  const wizardStep = useSOWUploadStore((s) => s.currentFlowStep);
-  const wizardSowId = useSOWUploadStore((s) => s.uploadedSowId);
-  const wizardFile = useSOWUploadStore((s) => s.uploadedFile);
-
-  // Wait until client-side mount to avoid SSR/client mismatch
-  const [mounted, setMounted] = React.useState(false);
-  React.useEffect(() => { setMounted(true); }, []);
-
-  const shouldRedirect = mounted && (!!wizardSowId || !!wizardFile) && wizardStep >= 2 && wizardStep <= 7;
-
-  React.useEffect(() => {
-    if (shouldRedirect) {
-      const route = WIZARD_STEP_ROUTES[wizardStep];
-      if (route) router.replace(route);
-    }
-  }, [shouldRedirect, wizardStep, router]);
-
-  // Block render until mounted (and during the redirect)
-  if (!mounted || shouldRedirect) return null;
 
   /* Filters — FSD §7.1.3 */
   const [statusFilter, setStatusFilter] = React.useState("all");
