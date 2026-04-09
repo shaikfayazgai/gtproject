@@ -624,7 +624,7 @@ export default function GeneratePreviewPage({ sowId: sowIdProp }: { sowId?: stri
 
               {activeTab === "risk" && (
                 <div className="space-y-4">
-                  {(riskData?.factors ?? mockRiskAssessment.factors).map((f: any) => (
+                  {riskData.factors.map((f: any) => (
                     <div key={f.factor ?? f.name} className="flex items-center gap-4">
                       <span className="text-[12px] text-gray-600 w-28 shrink-0">{f.factor ?? f.name}</span>
                       <span className="text-[10px] text-gray-400 w-10 shrink-0">{f.weight ?? ""}</span>
@@ -639,10 +639,8 @@ export default function GeneratePreviewPage({ sowId: sowIdProp }: { sowId?: stri
                   <div className="mt-3 px-4 py-3 rounded-xl bg-gray-50 border border-gray-100">
                     <p className="text-[11px] text-gray-500">
                       Overall Risk Level:{" "}
-                      <span className="font-semibold text-gray-700">
-                        {riskData?.risk_level ?? mockRiskAssessment.riskLevel}
-                      </span>{" "}
-                      ({riskData?.risk_score ?? mockRiskAssessment.riskScore}/100)
+                      <span className="font-semibold text-gray-700">{riskData.riskLevel}</span>{" "}
+                      ({riskData.riskScore}/100)
                     </p>
                   </div>
                 </div>
