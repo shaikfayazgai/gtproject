@@ -13,6 +13,7 @@ const bodySchema = z.object({
     "welcome_contributor",
     "welcome_enterprise",
     "otp_email",
+    "reviewer_invitation",
   ]),
   payload: z.record(z.string(), z.string()),
   /** Override recipient; falls back to session user email */

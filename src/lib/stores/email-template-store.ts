@@ -10,7 +10,8 @@ export type EmailTemplateId =
   | "sow_fully_approved"
   | "welcome_contributor"
   | "welcome_enterprise"
-  | "otp_email";
+  | "otp_email"
+  | "reviewer_invitation";
 
 export interface EmailTemplate {
   id: EmailTemplateId;
@@ -167,6 +168,48 @@ export const DEFAULT_TEMPLATES: Record<EmailTemplateId, EmailTemplate> = {
     isActive: true,
     lastEditedAt: new Date().toISOString(),
     variables: ["code", "expiryMinutes"],
+  },
+  reviewer_invitation: {
+    id: "reviewer_invitation",
+    name: "Reviewer Invitation",
+    description: "Sent to invite a reviewer to join a project for deliverable review and quality assurance.",
+    subject: "You're invited to review \"{{projectTitle}}\"",
+    headerColor: "#5B3A29",
+    logoUrl: DEFAULT_LOGO,
+    bodyHtml: `<p>Hi <strong>{{reviewerName}}</strong>,</p>
+<p>You have been invited to serve as a <strong>{{roleName}}</strong> on the project <strong>"{{projectTitle}}"</strong> by <strong>{{inviterName}}</strong> from <strong>{{inviterOrg}}</strong>.</p>
+<p>Your expertise is valued, and your review will be critical in ensuring project quality and governance compliance.</p>
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F9F7F5;border-radius:12px;margin:16px 0 24px;">
+  <tr style="border-bottom:1px solid #EDE8E3;">
+    <td style="padding:12px 20px;font-size:12px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;width:100px;">Project</td>
+    <td style="padding:12px 20px;font-size:14px;font-weight:500;color:#0D1B2A;">{{projectTitle}}</td>
+  </tr>
+  <tr style="border-bottom:1px solid #EDE8E3;">
+    <td style="padding:12px 20px;font-size:12px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Role</td>
+    <td style="padding:12px 20px;font-size:14px;font-weight:500;color:#0D1B2A;">{{roleName}}</td>
+  </tr>
+  <tr>
+    <td style="padding:12px 20px;font-size:12px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Respond By</td>
+    <td style="padding:12px 20px;font-size:14px;font-weight:700;color:#92400E;">{{deadline}}</td>
+  </tr>
+</table>
+
+<p><strong>What you'll be doing:</strong></p>
+<ul style="padding-left:20px;margin:8px 0 24px;color:#374151;font-size:14px;line-height:1.8;">
+  <li>Review deliverables and evidence packs</li>
+  <li>Provide quality assessments and approval decisions</li>
+  <li>Flag rework requests when standards are not met</li>
+  <li>Participate in milestone sign-off workflows</li>
+</ul>
+
+<p style="text-align:center;"><a href="{{acceptUrl}}" style="display:inline-block;background:#5B3A29;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;border-radius:10px;padding:14px 32px;">Accept Invitation →</a></p>
+
+<p style="font-size:13px;color:#9ca3af;text-align:center;margin-top:16px;">This invitation expires in <strong style="color:#374151;">{{deadline}}</strong>.</p>`,
+    footerText: "© Glimmora Technologies Pvt. Ltd. · You received this because you were invited as a reviewer on GlimmoraTeam.",
+    isActive: true,
+    lastEditedAt: new Date().toISOString(),
+    variables: ["reviewerName", "projectTitle", "roleName", "inviterName", "inviterOrg", "deadline", "acceptUrl"],
   },
 };
 
