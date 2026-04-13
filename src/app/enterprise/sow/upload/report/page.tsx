@@ -8,6 +8,7 @@ import {
   LayoutList, Sparkles, ShieldCheck, AlertTriangle, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { Skeleton } from "@/components/ui";
 import { stagger, fadeUp } from "@/lib/utils/motion-variants";
 import { FlowStepProgress } from "@/components/enterprise/sow/FlowStepProgress";
 import { KpiRow } from "@/components/enterprise/sow/KpiRow";
@@ -101,27 +102,60 @@ export default function ExtractionReportPage() {
     router.push("/enterprise/sow/upload");
   };
 
-  // ── Processing / loading state ──
+  // ── Processing / loading skeleton ──
   if (isProcessing || reportLoading) {
     return (
-      <motion.div variants={stagger} initial="hidden" animate="show">
-        <motion.div variants={fadeUp} className="mb-6">
-          <FlowStepProgress currentStep={2} />
-        </motion.div>
-        <motion.div variants={fadeUp} className="card-parchment px-8 py-16 flex flex-col items-center gap-5">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center">
-            <Loader2 className="w-7 h-7 text-white animate-spin" />
+      <div>
+        <div className="mb-6"><FlowStepProgress currentStep={2} /></div>
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-72" />
+            <Skeleton className="h-3.5 w-56" />
           </div>
-          <div className="text-center">
-            <p className="text-[15px] font-semibold text-gray-800">
-              {isProcessing ? "AI is processing your document…" : "Loading extraction report…"}
-            </p>
-            <p className="text-[12px] text-gray-400 mt-1">
-              {uploadStatus ? `Status: ${uploadStatus}` : "This may take a moment"}
-            </p>
+          <Skeleton className="h-6 w-36 rounded-full" />
+        </div>
+        {/* Card */}
+        <div className="card-parchment overflow-hidden">
+          {/* KPI row */}
+          <div className="px-5 py-5 border-b border-gray-100">
+            <div className="grid grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="w-10 h-10 rounded-xl shrink-0" />
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-2.5 w-20" />
+                    <Skeleton className="h-5 w-10" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </motion.div>
-      </motion.div>
+          {/* Context Detection + Sensitive Data */}
+          <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
+            <div className="px-5 py-4 space-y-3">
+              <Skeleton className="h-2.5 w-28" />
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 py-2">
+                  <Skeleton className="w-3.5 h-3.5 rounded shrink-0" />
+                  <Skeleton className="h-3 w-28 flex-1" />
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </div>
+              ))}
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <Skeleton className="h-2.5 w-28" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+              <Skeleton className="h-3 w-40" />
+            </div>
+          </div>
+          {/* Action row */}
+          <div className="px-5 py-4 flex justify-end gap-3">
+            <Skeleton className="h-10 w-32 rounded-xl" />
+            <Skeleton className="h-10 w-40 rounded-xl" />
+          </div>
+        </div>
+      </div>
     );
   }
 

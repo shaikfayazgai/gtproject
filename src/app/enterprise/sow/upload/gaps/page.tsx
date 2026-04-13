@@ -13,6 +13,7 @@ import { FlowStepProgress } from "@/components/enterprise/sow/FlowStepProgress";
 import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
 import { useGapItems } from "@/lib/hooks/use-manual-sow";
 import type { GapItem, GapSeverity } from "@/types/enterprise";
+import { Skeleton } from "@/components/ui";
 
 /* ── Severity config ── */
 
@@ -543,11 +544,19 @@ export default function GapAnalysisPage() {
               </p>
             </div>
             <div className="flex-1 overflow-y-auto p-2.5 space-y-1">
-              {/* Loading state */}
+              {/* Loading skeleton */}
               {gapsLoading && gaps.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                  <Loader2 className="w-5 h-5 animate-spin mb-2" />
-                  <span className="text-[11px]">Loading gaps...</span>
+                <div className="space-y-2 py-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="rounded-lg border border-gray-100 p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-3 w-3/4" />
+                        <Skeleton className="h-4 w-12 rounded-full" />
+                      </div>
+                      <Skeleton className="h-2.5 w-full" />
+                      <Skeleton className="h-2.5 w-2/3" />
+                    </div>
+                  ))}
                 </div>
               )}
               {/* Empty state */}

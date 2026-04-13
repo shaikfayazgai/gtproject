@@ -55,10 +55,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui";
 import { MetricRing } from "@/components/enterprise/metric-ring";
+import { Skeleton } from "@/components/ui";
 import { ActionValidationModal } from "@/components/enterprise/action-validation-modal";
-import { mockProjects, mockMilestones, mockDeliverables } from "@/mocks/data/enterprise-projects";
+import { mockProjects as fallbackProjects, mockMilestones, mockDeliverables } from "@/mocks/data/enterprise-projects";
 import { toast } from "@/lib/stores/toast-store";
-import type { Project, ProjectHealth } from "@/types/enterprise";
+import type { Project, ProjectHealth, PortfolioProject } from "@/types/enterprise";
+import { usePortfolioProjects, usePortfolioSummaryMetrics, useHoldProject, useResumeProject, useUpdateProjectStatus } from "@/lib/hooks/use-portfolio";
 import {
   useRazorpayScript,
 } from "@/components/enterprise/decomposition/PaymentReleaseTab";
@@ -576,6 +578,49 @@ const healthFilterOptions: { key: ProjectHealth | "all"; label: string; color: s
   { key: "completed", label: "Completed", color: "bg-teal-500" },
 ];
 
+/* -- Map API portfolio project to local Project shape -- */
+function mapApiToProject(api: PortfolioProject): Project {
+  // Try to find enrichment from fallback mock data
+  const mock = fallbackProjects.find((m) => m.id === api.id);
+
+  // Map API health string to ProjectHealth type
+  const healthMap: Record<string, ProjectHealth> = {
+    OK: "on_track",
+    ON_TRACK: "on_track",
+    AT_RISK: "at_risk",
+    BEHIND: "behind",
+    ON_HOLD: "on_hold",
+    ESCALATED: "escalated",
+    COMPLETED: "completed",
+  };
+  const health: ProjectHealth =
+    healthMap[api.health?.toUpperCase()] ??
+    (api.status === "completed" ? "completed" : "on_track");
+
+  return {
+    id: api.id,
+    planId: mock?.planId ?? "",
+    sowId: mock?.sowId ?? "",
+    teamId: mock?.teamId ?? "",
+    title: api.name,
+    client: mock?.client ?? api.summary ?? "—",
+    health,
+    progress: api.completion_pct,
+    startDate: mock?.startDate ?? api.updated_at,
+    endDate: mock?.endDate ?? api.updated_at,
+    budget: mock?.budget ?? 0,
+    spent: mock?.spent ?? 0,
+    teamSize: mock?.teamSize ?? 0,
+    milestones: mock?.milestones ?? [],
+    tasksTotal: mock?.tasksTotal ?? 0,
+    tasksCompleted: mock?.tasksCompleted ?? 0,
+    apgScore: mock?.apgScore ?? 0,
+    escalations: mock?.escalations ?? 0,
+    slaCompliance: mock?.slaCompliance ?? 100,
+    sowTitle: mock?.sowTitle ?? api.name,
+  };
+}
+
 export default function ProjectsPage() {
   const [activeFilters, setActiveFilters] = React.useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = React.useState<"grid" | "table">("grid");
@@ -583,8 +628,33 @@ export default function ProjectsPage() {
   const [searchError, setSearchError] = React.useState("");
   const [sortKey, setSortKey] = React.useState<SortKey>("severity");
   const [sortDir, setSortDir] = React.useState<"asc" | "desc">("asc");
-  const [projects, setProjects] = React.useState<Project[]>(mockProjects);
   const [lastRefreshed, setLastRefreshed] = React.useState<Date | null>(null);
+
+  /* Fetch from real API via TanStack Query */
+  const { data: portfolioData, isLoading, isError } = usePortfolioProjects();
+  const { data: metricsData } = usePortfolioSummaryMetrics();
+
+  /* Mutations for project actions */
+  const holdMutation = useHoldProject();
+  const resumeMutation = useResumeProject();
+  const statusMutation = useUpdateProjectStatus();
+
+  /* Map API data → Project[], fallback to mock if API fails */
+  const apiProjects = React.useMemo(() => {
+    if (portfolioData?.projects) {
+      return portfolioData.projects.map(mapApiToProject);
+    }
+    return fallbackProjects;
+  }, [portfolioData]);
+
+  const [projects, setProjects] = React.useState<Project[]>(fallbackProjects);
+
+  /* Sync API data into local state when it arrives */
+  React.useEffect(() => {
+    if (apiProjects.length > 0) {
+      setProjects(apiProjects);
+    }
+  }, [apiProjects]);
   const [validationModal, setValidationModal] = React.useState<{
     isOpen: boolean;
     type: "hold" | "escalate";
@@ -660,6 +730,8 @@ export default function ProjectsPage() {
       prev.map((p) => (p.id === id ? { ...p, health: "on_hold" } : p))
     );
     storeHoldProject(id, "manual", reason);
+    // Call real API (fire-and-forget, UI already updated optimistically)
+    holdMutation.mutate(id);
     const title = projects.find((p) => p.id === id)?.title ?? "";
     toast.info("Project On Hold", `"${title}" has been put on hold. All contributor tasks for this project are now paused.`);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -822,6 +894,22 @@ export default function ProjectsPage() {
                 </span>
               )}
             </p>
+            {metricsData && (
+              <div className="flex items-center gap-3 mt-2">
+                <span className="text-[11px] font-medium text-brown-700 bg-brown-50 px-2 py-0.5 rounded-md">
+                  {metricsData.total_projects} Total
+                </span>
+                <span className="text-[11px] font-medium text-forest-700 bg-forest-50 px-2 py-0.5 rounded-md">
+                  {metricsData.active} Active
+                </span>
+                <span className="text-[11px] font-medium text-beige-600 bg-beige-100 px-2 py-0.5 rounded-md">
+                  {metricsData.draft} Draft
+                </span>
+                <span className="text-[11px] font-medium text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md">
+                  {metricsData.archived} Archived
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {/* Export Button */}
@@ -954,8 +1042,93 @@ export default function ProjectsPage() {
           </div>
         </motion.div>
 
+      {/* Loading Skeleton */}
+      {isLoading && (
+        <>
+          {/* Summary stats skeleton — 6 cards */}
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-beige-200/50 bg-white/70 p-4 flex items-center gap-3">
+                <Skeleton className="w-3 h-3 rounded-full shrink-0" />
+                <div className="space-y-1.5">
+                  <Skeleton className="h-5 w-8" />
+                  <Skeleton className="h-2.5 w-14" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Search bar skeleton */}
+          <Skeleton className="h-10 w-full rounded-xl" />
+
+          {/* Project cards grid skeleton — 4 cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-beige-200/50 bg-white/70 p-5 space-y-4">
+                {/* Header: title + ring */}
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/3" />
+                  </div>
+                  <Skeleton className="w-12 h-12 rounded-full shrink-0" />
+                </div>
+                {/* Health + progress bar */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-3 w-8" />
+                  </div>
+                  <Skeleton className="h-2 w-full" />
+                </div>
+                {/* Milestone progress */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-2.5 w-24" />
+                    <Skeleton className="h-2.5 w-8" />
+                  </div>
+                  <Skeleton className="h-2 w-full" />
+                </div>
+                {/* Stats row */}
+                <div className="grid grid-cols-3 gap-2">
+                  {Array.from({ length: 3 }).map((_, j) => (
+                    <div key={j} className="space-y-1">
+                      <Skeleton className="h-2 w-8" />
+                      <Skeleton className="h-4 w-10" />
+                    </div>
+                  ))}
+                </div>
+                {/* Budget */}
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-4 w-10 rounded-md" />
+                </div>
+                {/* Footer */}
+                <div className="pt-3 border-t border-beige-100/80 flex items-center justify-between">
+                  <Skeleton className="h-3 w-32" />
+                  <Skeleton className="h-3 w-12" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* API Error State */}
+      {isError && !isLoading && (
+        <motion.div
+          variants={fadeUp}
+          className="rounded-2xl border border-gold-200/60 bg-gold-50/50 backdrop-blur-sm p-6 flex items-center gap-3"
+        >
+          <AlertTriangle className="w-5 h-5 text-gold-600 shrink-0" />
+          <p className="text-[13px] text-gold-800">
+            Could not load projects from the server. Showing cached data.
+          </p>
+        </motion.div>
+      )}
+
       {/* Empty State */}
-      {filtered.length === 0 && (
+      {!isLoading && filtered.length === 0 && (
         <motion.div
           variants={fadeUp}
           className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-12 flex flex-col items-center text-center"
@@ -982,7 +1155,7 @@ export default function ProjectsPage() {
       )}
 
       {/* Grid View */}
-      {viewMode === "grid" && filtered.length > 0 && (
+      {!isLoading && viewMode === "grid" && filtered.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
           {sorted.map((project, index) => (
             <ProjectCard
@@ -999,7 +1172,7 @@ export default function ProjectsPage() {
       )}
 
       {/* Table View */}
-      {viewMode === "table" && filtered.length > 0 && (
+      {!isLoading && viewMode === "table" && filtered.length > 0 && (
         <motion.div
           variants={fadeUp}
           className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm overflow-hidden"
@@ -1143,6 +1316,7 @@ export default function ProjectsPage() {
           onConfirm={() => {
             handleStatusChange(resumeConfirmProject.id, "on_track");
             storeResumeProject(resumeConfirmProject.id);
+            resumeMutation.mutate(resumeConfirmProject.id);
             toast.success("Project Resumed", `"${resumeConfirmProject.title}" is now back on track.`);
             setResumeConfirmProject(null);
           }}
@@ -1160,6 +1334,7 @@ export default function ProjectsPage() {
           onSuccess={() => {
             handleStatusChange(resumePaymentProject.id, "on_track");
             storeResumeProject(resumePaymentProject.id);
+            resumeMutation.mutate(resumePaymentProject.id);
             toast.success("Payment Confirmed & Project Resumed", `"${resumePaymentProject.title}" is back on track. M2 released.`);
             setResumePaymentProject(null);
           }}

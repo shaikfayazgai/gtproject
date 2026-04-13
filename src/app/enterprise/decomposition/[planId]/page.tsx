@@ -12,6 +12,7 @@ import {
   ClipboardList, History, Package, RotateCcw, TrendingUp, CreditCard, Users, BarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { Skeleton } from "@/components/ui";
 import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
 import type {
   DecompositionTask, DecompositionPlan, PlanMilestone, PlanStatus, TaskStatus, AIRecommendation,
@@ -601,13 +602,76 @@ export default function PlanDetailPage() {
   const sowTitle = plan?.sowId ?? "";
   const recommendations: AIRecommendation[] = [];
 
-  /* ── Loading state ── */
+  /* ── Loading skeleton ── */
   if (planLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <div className="w-10 h-10 border-3 border-brown-200 border-t-brown-500 rounded-full animate-spin mb-4" />
-        <p className="text-sm font-medium text-gray-600">Loading plan details...</p>
-        <p className="text-xs text-gray-400 mt-1">Plan ID: {planId}</p>
+      <div className="space-y-7">
+        {/* Back link */}
+        <Skeleton className="h-3.5 w-36" />
+
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-3 flex-1">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-5 w-28 rounded-full" />
+              <Skeleton className="h-5 w-16 rounded-full" />
+            </div>
+            <Skeleton className="h-7 w-2/3" />
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-3 w-28" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-24 rounded-xl" />
+            <Skeleton className="h-9 w-28 rounded-xl" />
+          </div>
+        </div>
+
+        {/* KPI row — 6 cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="card-parchment flex items-center gap-4 px-4 py-4">
+              <Skeleton className="w-10 h-10 rounded-xl shrink-0" />
+              <div className="space-y-1.5">
+                <Skeleton className="h-5 w-12" />
+                <Skeleton className="h-2.5 w-16" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-28 rounded-lg" />
+          ))}
+        </div>
+
+        {/* Milestones */}
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="card-parchment p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="w-8 h-8 rounded-lg" />
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                </div>
+                <Skeleton className="h-5 w-20 rounded-full" />
+              </div>
+              <Skeleton className="h-2 w-full" />
+              <div className="grid grid-cols-4 gap-3">
+                {Array.from({ length: 4 }).map((_, j) => (
+                  <Skeleton key={j} className="h-3 w-16" />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

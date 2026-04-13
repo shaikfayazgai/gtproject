@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp, slideInRight, scaleIn } from "@/lib/utils/motion-variants";
-import { Badge, Button } from "@/components/ui";
+import { Badge, Button, Skeleton } from "@/components/ui";
 import { useSOWPipelineStore, type PipelineSOW, type SLAStatus, type ChangeRequestHistoryEntry } from "@/lib/stores/sow-pipeline-store";
 import { useNotificationStore } from "@/lib/stores/notification-store";
 import { useManualSOWList } from "@/lib/hooks/use-manual-sow";
@@ -491,8 +491,82 @@ export default function SOWApprovalPipelinePage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20 text-sm text-gray-400">
-        Loading approval pipeline…
+      <div className="mx-auto w-full max-w-7xl space-y-8 px-6 py-8 lg:px-8">
+        {/* Header skeleton */}
+        <div className="flex items-start justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-80" />
+          </div>
+          <Skeleton className="h-9 w-40 rounded-lg" />
+        </div>
+
+        {/* Pipeline Stage Cards — 5 columns */}
+        <div className="space-y-4">
+          <Skeleton className="h-5 w-32" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                className="rounded-xl p-4 space-y-3"
+                style={{ background: "var(--card-bg)", border: "1px solid var(--border-soft)" }}
+              >
+                <div className="flex items-center gap-2">
+                  <Skeleton className="w-8 h-8 rounded-lg" />
+                  <div className="space-y-1.5 flex-1">
+                    <Skeleton className="h-3.5 w-3/4" />
+                    <Skeleton className="h-2.5 w-1/2" />
+                  </div>
+                </div>
+                <Skeleton className="h-6 w-10" />
+                <Skeleton className="h-2 w-full" />
+                <Skeleton className="h-2.5 w-24" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Filter bar skeleton */}
+        <div
+          className="flex flex-wrap items-center gap-3 rounded-xl p-4"
+          style={{ background: "var(--card-bg)", border: "1px solid var(--border-soft)" }}
+        >
+          <Skeleton className="h-4 w-14" />
+          <Skeleton className="h-9 w-56 rounded-lg" />
+          <div className="flex gap-1.5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-7 w-16 rounded-md" />
+            ))}
+          </div>
+          <Skeleton className="h-9 w-28 rounded-lg ml-auto" />
+        </div>
+
+        {/* SOW cards skeleton */}
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="rounded-xl p-5 space-y-3"
+              style={{ background: "var(--card-bg)", border: "1px solid var(--border-soft)" }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="space-y-1.5 flex-1">
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

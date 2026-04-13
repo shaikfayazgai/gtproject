@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp } from "@/lib/utils/motion-variants";
-import { Checkbox, Textarea } from "@/components/ui";
+import { Checkbox, Textarea, Skeleton } from "@/components/ui";
 import type { ApprovalStage } from "@/types/enterprise";
 import { useManualSOW, useApprovalStages, useApproveStage, useRejectStage } from "@/lib/hooks/use-manual-sow";
 import { useEmailTemplateStore } from "@/lib/stores/email-template-store";
@@ -274,8 +274,56 @@ export default function SOWApprovePage() {
 
   if (sowLoading || stagesLoading) {
     return (
-      <div className="flex items-center justify-center py-20 text-sm text-gray-400">
-        Loading approval pipeline…
+      <div className="space-y-8">
+        {/* Header skeleton */}
+        <div className="mb-8 space-y-3">
+          <div className="flex gap-2">
+            <Skeleton className="h-5 w-24 rounded-full" />
+            <Skeleton className="h-5 w-20 rounded-full" />
+          </div>
+          <Skeleton className="h-7 w-2/3" />
+          <div className="flex gap-2">
+            <Skeleton className="h-3 w-28" />
+            <Skeleton className="h-3 w-12" />
+            <Skeleton className="h-3 w-16" />
+          </div>
+        </div>
+
+        {/* Pipeline stages skeleton */}
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-32" />
+          <div className="card-parchment">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 px-5 py-4" style={{ borderBottom: i < 4 ? "1px solid var(--border-hair)" : undefined }}>
+                <Skeleton className="w-[18px] h-[18px] rounded-full shrink-0" />
+                <Skeleton className="h-3.5 w-40 flex-1" />
+                <Skeleton className="h-5 w-20 rounded-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Checklist skeleton */}
+        <div className="space-y-3">
+          <div className="flex justify-between">
+            <div className="space-y-1">
+              <Skeleton className="h-4 w-36" />
+              <Skeleton className="h-3 w-56" />
+            </div>
+            <Skeleton className="h-5 w-10 rounded-full" />
+          </div>
+          <div className="card-parchment p-5 space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-start gap-3 py-2">
+                <Skeleton className="w-5 h-5 rounded shrink-0" />
+                <div className="space-y-1 flex-1">
+                  <Skeleton className="h-3.5 w-3/4" />
+                  <Skeleton className="h-2.5 w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

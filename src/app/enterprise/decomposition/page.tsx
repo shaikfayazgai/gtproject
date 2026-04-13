@@ -12,7 +12,7 @@ import {
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue, Skeleton } from "@/components/ui";
 import type { DecompositionPlan, PlanStatus } from "@/types/enterprise";
 import { useDecompositionPlans, useKickoff, useWithdraw } from "@/lib/hooks/use-decomposition";
 import {
@@ -306,13 +306,64 @@ export default function DecompositionPlansPage() {
   const formatAmount = (amt: number) =>
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amt);
 
-  /* ── Loading state ── */
+  /* ── Loading skeleton ── */
   if (plansLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <div className="w-10 h-10 border-3 border-brown-200 border-t-brown-500 rounded-full animate-spin mb-4" />
-        <p className="text-sm font-medium text-gray-600">Loading decomposition plans...</p>
-        <p className="text-xs text-gray-400 mt-1">Connecting to API</p>
+      <div className="space-y-7">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-56" />
+            <Skeleton className="h-4 w-80" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-24 rounded-lg" />
+            <Skeleton className="h-10 w-32 rounded-xl" />
+          </div>
+        </div>
+
+        {/* KPI row — 5 cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="card-parchment flex items-center gap-5 px-5 py-5">
+              <Skeleton className="w-12 h-12 rounded-2xl shrink-0" />
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-7 w-14" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Table card */}
+        <div className="card-parchment">
+          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
+            <Skeleton className="h-4 w-44" />
+          </div>
+          <div className="flex items-center gap-3 px-6 py-3" style={{ borderBottom: "1px solid var(--border-hair)" }}>
+            <Skeleton className="h-9 w-56 rounded-lg" />
+            <Skeleton className="h-9 w-36 rounded-lg" />
+          </div>
+          {/* Table header */}
+          <div className="grid grid-cols-5 gap-4 px-6 py-3" style={{ borderBottom: "1px solid var(--border-soft)" }}>
+            {["w-28", "w-24", "w-16", "w-12", "w-16"].map((w, i) => (
+              <Skeleton key={i} className={`h-2.5 ${w}`} />
+            ))}
+          </div>
+          {/* Table rows */}
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="grid grid-cols-5 gap-4 px-6 py-5 items-center" style={{ borderBottom: "1px solid var(--border-hair)" }}>
+              <div className="space-y-1.5">
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-2.5 w-2/3" />
+              </div>
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-3 w-8" />
+              <Skeleton className="h-3 w-8" />
+              <Skeleton className="h-9 w-24 rounded-lg" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

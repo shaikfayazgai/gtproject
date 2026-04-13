@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { Skeleton } from "@/components/ui";
 import { stagger, fadeUp } from "@/lib/utils/motion-variants";
 import { FlowStepProgress } from "@/components/enterprise/sow/FlowStepProgress";
 import { DocumentViewer } from "@/components/enterprise/sow/DocumentViewer";
@@ -216,18 +217,61 @@ export default function ParsedSOWReviewPage() {
     router.push("/enterprise/sow/upload/gaps");
   };
 
-  /* ── Loading state ── */
+  /* ── Loading skeleton ── */
   if (isLoading) {
     return (
-      <motion.div variants={stagger} initial="hidden" animate="show" className="flex flex-col h-full min-h-0">
-        <motion.div variants={fadeUp} className="mb-5"><FlowStepProgress currentStep={3} /></motion.div>
-        <motion.div variants={fadeUp} className="card-parchment px-8 py-16 flex flex-col items-center gap-5">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center">
-            <Loader2 className="w-7 h-7 text-white animate-spin" />
+      <div className="flex flex-col h-full min-h-0">
+        <div className="mb-5"><FlowStepProgress currentStep={3} /></div>
+        {/* Header */}
+        <div className="flex items-start justify-between gap-6 mb-4">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-3.5 w-72" />
           </div>
-          <p className="text-[15px] font-semibold text-gray-800">Loading extracted items…</p>
-        </motion.div>
-      </motion.div>
+        </div>
+        {/* Two-column split */}
+        <div className="flex-1 min-h-0 grid grid-cols-[520px_1fr] gap-5">
+          {/* Document viewer skeleton */}
+          <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden self-start">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+            <div className="p-4 space-y-3">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <Skeleton key={i} className="h-3 w-full" style={{ width: `${60 + Math.random() * 40}%` }} />
+              ))}
+            </div>
+          </div>
+          {/* Extracted items skeleton */}
+          <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-12 rounded-full" />
+              </div>
+              <Skeleton className="h-7 w-32 rounded-lg" />
+            </div>
+            <div className="p-4 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="rounded-xl border border-gray-100 p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-3.5 w-3/4" />
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-2/3" />
+                  <div className="flex gap-2 pt-1">
+                    <Skeleton className="h-7 w-16 rounded-lg" />
+                    <Skeleton className="h-7 w-16 rounded-lg" />
+                    <Skeleton className="h-7 w-16 rounded-lg" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     );
   }
 

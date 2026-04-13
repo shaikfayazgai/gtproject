@@ -852,3 +852,209 @@ export interface RecentUploadItem {
   status: SowStatus;
   uploadedAt: string;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   PORTFOLIO & PROJECT API TYPES (Real API)
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Portfolio ── */
+
+export interface PortfolioProject {
+  id: string;
+  name: string;
+  summary: string | null;
+  status: string;
+  health: string;
+  milestone: string;
+  completion_pct: number;
+  updated_at: string;
+}
+
+export interface PortfolioProjectsResponse {
+  projects: PortfolioProject[];
+}
+
+export interface PortfolioSummaryMetrics {
+  total_projects: number;
+  active: number;
+  draft: number;
+  archived: number;
+}
+
+export interface ProjectCardSummary {
+  id: string;
+  name: string;
+  status: string;
+}
+
+export type PortfolioProjectSort = "completion";
+
+/* ── Project Detail ── */
+
+export interface ProjectDetail {
+  id: string;
+  name: string;
+  summary: string | null;
+  status: string;
+  health: string;
+  milestone: string;
+  completion_pct: number;
+  updated_at: string;
+  on_hold: boolean;
+}
+
+export interface ProjectOverviewResponse {
+  project_id: string;
+  name: string;
+  summary: string | null;
+  status: string;
+  health: string;
+  milestone: string;
+  completion_pct: number;
+  on_hold: boolean;
+  owner: string;
+  highlights: string[];
+}
+
+/* ── Activities ── */
+
+export interface ProjectActivity {
+  id: string;
+  kind: string;
+  title: string;
+  detail: string | null;
+  actor: string;
+  occurred_at: string;
+}
+
+export interface ProjectActivitiesResponse {
+  activities: ProjectActivity[];
+}
+
+/* ── Timeline ── */
+
+export type TimelineView = "gantt" | "list";
+
+export interface TimelineTask {
+  id: string;
+  title: string;
+  start_at: string;
+  end_at: string;
+  status: string;
+  depends_on_task_ids: string[];
+}
+
+export interface TimelineMilestone {
+  id: string;
+  name: string;
+  start_at: string;
+  end_at: string;
+  status: string;
+  tasks: TimelineTask[];
+}
+
+export interface ProjectTimelineResponse {
+  project_id: string;
+  view: TimelineView;
+  milestones: TimelineMilestone[];
+}
+
+/* ── Evidence Packs ── */
+
+export type EvidencePackStatus = "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "REJECTED";
+
+export interface EvidencePack {
+  id: string;
+  title: string;
+  status: EvidencePackStatus;
+  milestone_id: string;
+  milestone_key: string;
+  submitted_at: string;
+}
+
+export interface EvidencePackGroup {
+  milestone_id: string;
+  milestone_key: string;
+  milestone_name: string;
+  evidence_packs: EvidencePack[];
+}
+
+export interface EvidencePacksResponse {
+  project_id: string;
+  page: number;
+  limit: number;
+  total: number;
+  start_date: string | null;
+  end_date: string | null;
+  status_filter: EvidencePackStatus | null;
+  milestone_filter: string | null;
+  groups: EvidencePackGroup[];
+}
+
+/* ── Rework Requests ── */
+
+export type ReworkRequestStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+
+export interface ReworkRequest {
+  id: string;
+  project_id: string;
+  task_id: string;
+  task: string;
+  milestone_id: string;
+  milestone: string;
+  reason: string;
+  deadline: string;
+  round: number;
+  status: ReworkRequestStatus;
+}
+
+export interface ReworkRequestsResponse {
+  project_id: string;
+  page: number;
+  limit: number;
+  total: number;
+  status_filter: ReworkRequestStatus | null;
+  milestone_filter: string | null;
+  round_filter: number | null;
+  task_query: string | null;
+  deadline_from: string | null;
+  deadline_to: string | null;
+  rework_requests: ReworkRequest[];
+}
+
+/* ── Exceptions ── */
+
+export interface ProjectException {
+  id: string;
+  project_id: string;
+  description: string;
+  type: string;
+  severity: string;
+  status: string;
+  created_at: string;
+}
+
+export interface ExceptionsResponse {
+  project_id: string;
+  exceptions: ProjectException[];
+}
+
+export interface ExceptionCreateRequest {
+  description: string;
+  type: string;
+  impact_area: string;
+  requested_by: string;
+}
+
+/* ── Project Actions ── */
+
+export interface ProjectStatusUpdateRequest {
+  status: string;
+  health_indicator?: string;
+  notes?: string;
+}
+
+export interface KickoffCreateRequest {
+  sow_reference: string;
+  [key: string]: unknown;
+}

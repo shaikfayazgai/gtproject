@@ -14,8 +14,17 @@ import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
 import {
   mockProjects, mockTasks, mockTeams, mockMilestones, mockDeliverables,
 } from "@/mocks/data/enterprise-projects";
+import { Skeleton } from "@/components/ui";
 import type { ProjectHealth, MilestoneStatus, TaskStatus } from "@/types/enterprise";
 import { toast } from "@/lib/stores/toast-store";
+import {
+  useProjectOverview,
+  useProjectActivities,
+  useEvidencePacks,
+  useReworkRequests,
+  useHoldProject,
+  useResumeProject,
+} from "@/lib/hooks/use-portfolio";
 
 /* ═══ Badge ═══ */
 
@@ -96,7 +105,31 @@ function trackLabel(track: string) {
 export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = params.projectId as string;
-  const project = mockProjects.find((p) => p.id === projectId) ?? mockProjects[0];
+
+  /* Fetch real API data */
+  const { data: overviewData, isLoading: isOverviewLoading } = useProjectOverview(projectId);
+  const { data: activitiesData } = useProjectActivities(projectId);
+  const { data: evidencePacksData } = useEvidencePacks(projectId);
+  const { data: reworkData } = useReworkRequests(projectId);
+  const holdMutation = useHoldProject();
+  const resumeMutation = useResumeProject();
+
+  /* Build project from API data merged with mock fallback */
+  const mockProject = mockProjects.find((p) => p.id === projectId) ?? mockProjects[0];
+  const project = React.useMemo(() => {
+    if (!overviewData) return mockProject;
+    const healthMap: Record<string, ProjectHealth> = {
+      OK: "on_track", ON_TRACK: "on_track", AT_RISK: "at_risk",
+      BEHIND: "behind", ON_HOLD: "on_hold", ESCALATED: "escalated", COMPLETED: "completed",
+    };
+    return {
+      ...mockProject,
+      title: overviewData.name,
+      health: healthMap[overviewData.health?.toUpperCase()] ?? mockProject.health,
+      progress: overviewData.completion_pct,
+    };
+  }, [overviewData, mockProject]);
+
   const milestones = mockMilestones.filter((m) => m.projectId === project.id);
   const team = mockTeams.find((t) => t.id === project.teamId);
   const tasks = mockTasks.filter((t) => t.planId === project.planId);
@@ -187,12 +220,101 @@ export default function ProjectDetailPage() {
   };
 
   const handlePutOnHold = () => {
+    holdMutation.mutate(projectId);
     toast.info("Project On Hold", `"${project.title}" has been put on hold.`);
   };
 
   const handleResume = () => {
+    resumeMutation.mutate(projectId);
     toast.success("Project Resumed", `"${project.title}" is now back on track.`);
   };
+
+  /* Skeleton while API data is loading */
+  if (isOverviewLoading) {
+    return (
+      <div className="space-y-6">
+        {/* Header skeleton */}
+        <div className="mb-8">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 space-y-3">
+              <Skeleton className="h-5 w-20 rounded-full" />
+              <Skeleton className="h-7 w-2/3" />
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-3 w-36" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Skeleton className="h-9 w-28 rounded-xl" />
+              <Skeleton className="h-9 w-32 rounded-xl" />
+            </div>
+          </div>
+        </div>
+
+        {/* KPI row skeleton — 6 cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="card-parchment flex items-center gap-4 px-4 py-4">
+              <Skeleton className="w-10 h-10 rounded-xl shrink-0" />
+              <div className="space-y-1.5">
+                <Skeleton className="h-5 w-12" />
+                <Skeleton className="h-2.5 w-16" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Team section skeleton */}
+        <div className="card-parchment p-5 space-y-4">
+          <Skeleton className="h-4 w-24" />
+          <div className="flex gap-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex flex-col items-center gap-2">
+                <Skeleton className="w-10 h-10 rounded-full" />
+                <Skeleton className="h-2.5 w-14" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Timeline skeleton */}
+        <div className="card-parchment p-5 space-y-4">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-40 w-full rounded-xl" />
+        </div>
+
+        {/* Tasks skeleton */}
+        <div className="card-parchment p-5 space-y-3">
+          <Skeleton className="h-4 w-20" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 py-2">
+              <Skeleton className="w-5 h-5 rounded" />
+              <Skeleton className="h-3.5 w-2/3" />
+              <Skeleton className="h-5 w-16 rounded-full ml-auto" />
+            </div>
+          ))}
+        </div>
+
+        {/* Deliverables skeleton */}
+        <div className="card-parchment p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-3 w-12" />
+          </div>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between py-3" style={{ borderBottom: i < 2 ? "1px solid var(--border-hair)" : undefined }}>
+              <div className="space-y-1.5 flex-1">
+                <Skeleton className="h-3.5 w-1/2" />
+                <Skeleton className="h-2.5 w-20" />
+              </div>
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="show">
@@ -211,6 +333,12 @@ export default function ProjectDetailPage() {
               <Link href={`/enterprise/sow/${project.sowId}`} className="text-brown-500 hover:text-brown-600 font-medium transition-colors">{project.sowTitle}</Link>
               <span className="w-1 h-1 rounded-full bg-gray-300" />
               <span>{formatDate(project.startDate)} – {formatDate(project.endDate)}</span>
+              {overviewData?.owner && (
+                <>
+                  <span className="w-1 h-1 rounded-full bg-gray-300" />
+                  <span className="text-gray-600 font-medium">Owner: {overviewData.owner}</span>
+                </>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -616,6 +744,80 @@ export default function ProjectDetailPage() {
           </div>
         )}
       </motion.div>
+
+      {/* ═══ EVIDENCE PACKS (API) ═══ */}
+      {evidencePacksData && evidencePacksData.groups.length > 0 && (
+        <motion.div variants={fadeUp} className="card-parchment mb-6">
+          <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
+            <span className="text-sm font-semibold text-gray-800">Evidence Packs</span>
+            <span className="text-[11px] text-gray-400">{evidencePacksData.total} total</span>
+          </div>
+          {evidencePacksData.groups.map((group) => (
+            <div key={group.milestone_id}>
+              <div className="px-5 py-2 bg-gray-50/60 border-b border-gray-100">
+                <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">{group.milestone_key} — {group.milestone_name}</span>
+              </div>
+              {group.evidence_packs.map((ep, i) => {
+                const statusColors: Record<string, { bg: string; text: string }> = {
+                  APPROVED: { bg: "bg-forest-50", text: "text-forest-700" },
+                  PENDING_REVIEW: { bg: "bg-gold-50", text: "text-gold-700" },
+                  REJECTED: { bg: "bg-red-50", text: "text-red-600" },
+                  DRAFT: { bg: "bg-gray-100", text: "text-gray-600" },
+                };
+                const sc = statusColors[ep.status] ?? statusColors.DRAFT;
+                return (
+                  <div key={ep.id} className="flex items-center justify-between px-5 py-3" style={{ borderBottom: i < group.evidence_packs.length - 1 ? "1px solid var(--border-hair)" : undefined }}>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium text-gray-700">{ep.title}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{new Date(ep.submitted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+                    </div>
+                    <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase", sc.bg, sc.text)}>
+                      {ep.status.replace("_", " ")}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </motion.div>
+      )}
+
+      {/* ═══ REWORK REQUESTS (API) ═══ */}
+      {reworkData && reworkData.rework_requests.length > 0 && (
+        <motion.div variants={fadeUp} className="card-parchment mb-6">
+          <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
+            <span className="text-sm font-semibold text-gray-800">Rework Requests</span>
+            <span className="text-[11px] text-gray-400">{reworkData.total} total</span>
+          </div>
+          {reworkData.rework_requests.map((rw, i) => {
+            const rwStatusColors: Record<string, { bg: string; text: string }> = {
+              OPEN: { bg: "bg-red-50", text: "text-red-600" },
+              IN_PROGRESS: { bg: "bg-gold-50", text: "text-gold-700" },
+              RESOLVED: { bg: "bg-forest-50", text: "text-forest-700" },
+              CLOSED: { bg: "bg-gray-100", text: "text-gray-600" },
+            };
+            const sc = rwStatusColors[rw.status] ?? rwStatusColors.OPEN;
+            return (
+              <div key={rw.id} className="px-5 py-3.5" style={{ borderBottom: i < reworkData.rework_requests.length - 1 ? "1px solid var(--border-hair)" : undefined }}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[13px] font-medium text-gray-700">{rw.task}</span>
+                  <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase", sc.bg, sc.text)}>
+                    {rw.status.replace("_", " ")}
+                  </span>
+                </div>
+                <p className="text-[12px] text-gray-500 leading-relaxed">{rw.reason}</p>
+                <div className="flex items-center gap-3 mt-1.5 text-[10px] text-gray-400">
+                  <span>{rw.milestone}</span>
+                  <span className="w-1 h-1 rounded-full bg-gray-300" />
+                  <span>Round {rw.round}</span>
+                  <span className="w-1 h-1 rounded-full bg-gray-300" />
+                  <span>Due {new Date(rw.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                </div>
+              </div>
+            );
+          })}
+        </motion.div>
+      )}
 
       {/* ═══ EXCEPTIONS ═══ */}
       {projectExceptions.length > 0 && (

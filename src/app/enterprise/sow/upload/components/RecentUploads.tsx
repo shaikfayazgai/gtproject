@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FileText, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { Skeleton } from "@/components/ui";
 import { SowBadge, statusVariantMap } from "@/components/enterprise/sow/SowBadge";
 import { useManualSOWList } from "@/lib/hooks/use-manual-sow";
 
@@ -35,9 +36,17 @@ export function RecentUploads() {
       <h3 className="text-[13px] font-semibold text-gray-800 mb-3">Recent Uploads</h3>
 
       {isLoading && (
-        <div className="flex items-center justify-center py-4 text-gray-400">
-          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-          <span className="text-[11px]">Loading...</span>
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg">
+              <Skeleton className="w-8 h-8 rounded-lg shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-3 w-3/4" />
+                <Skeleton className="h-2.5 w-1/2" />
+              </div>
+              <Skeleton className="h-4 w-14 rounded-full" />
+            </div>
+          ))}
         </div>
       )}
 
