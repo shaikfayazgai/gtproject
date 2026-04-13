@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShieldCheck, CheckCircle2, Clock, DollarSign, Layers, Zap, Users,
@@ -179,6 +179,7 @@ export default function ApprovePlanPage() {
   ];
 
   /* ── State ── */
+  const [planStatus, setPlanStatus] = React.useState(plan.status);
   const [checklist, setChecklist] = React.useState<Record<string, boolean>>({ breakdown: false, dependencies: false, estimates: false, budget: false, skills: false });
   const [rejectionOpen, setRejectionOpen] = React.useState(false);
   const [rejectionReason, setRejectionReason] = React.useState("");
@@ -562,7 +563,14 @@ export default function ApprovePlanPage() {
                 </div>
               </div>
               <DialogFooter>
-                <button onClick={() => { setRejectionOpen(false); setRejectionReason(""); }}
+                <button onClick={() => {
+                  const found = mockPlans.find(p => p.id === planId);
+                  if (found) found.status = "draft";
+                  setSubmitted(true);
+                  setRejectionOpen(false);
+                  setRejectionReason("");
+                  setTimeout(() => router.push(`/enterprise/decomposition/${planId}`), 2000);
+                }}
                   className="text-[12px] font-medium text-gray-500 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50">Cancel</button>
                 <button disabled={rejectionReason.trim().length === 0 || revisionMutation.isPending}
                   onClick={() => {
