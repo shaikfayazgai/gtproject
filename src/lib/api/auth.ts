@@ -240,7 +240,7 @@ export const authApi = {
     );
   },
 
-  /** Create a reviewer user and send invitation email with temp password. */
+  /** Create a reviewer user via our server-side route (handles token + permissions). */
   async createReviewer(data: {
     firstName: string;
     lastName: string;
@@ -251,12 +251,11 @@ export const authApi = {
     language: string;
     timeZone: string;
     invitedByName: string;
-    accessToken: string;
-    emailHtml?: string;
+    accessToken?: string;
   }): Promise<{ user_id: string; email: string; temp_password: string }> {
-    return apiCall<{ user_id: string; email: string; temp_password: string }>("/api/v1/users", {
+    const res = await fetch("/api/reviewer/create", {
       method: "POST",
-      token: data.accessToken,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         firstName: data.firstName,
         lastName: data.lastName,
@@ -268,10 +267,13 @@ export const authApi = {
         language: data.language,
         timeZone: data.timeZone,
         invitedByName: data.invitedByName,
-        sendInvitationEmail: true,
-        emailHtml: data.emailHtml,
       }),
     });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(json?.detail || json?.message || json?.error || "Failed to create reviewer");
+    }
+    return json;
   },
 
   /** Register a new enterprise organisation + admin user. */
