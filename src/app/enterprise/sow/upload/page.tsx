@@ -14,9 +14,10 @@ import { FlowStepProgress } from "@/components/enterprise/sow/FlowStepProgress";
 import { WhatHappensNext } from "./components/WhatHappensNext";
 import { RecentUploads } from "./components/RecentUploads";
 import { aiPoweredFeatures } from "@/mocks/data/sow-upload-flow";
-import { mockSOWs } from "@/mocks/data/enterprise-sow";
 import { useSOWUploadStore, setFileObjectUrl } from "@/lib/stores/sow-upload-store";
+import { useManualSOWList } from "@/lib/hooks/use-manual-sow";
 import { validateSOWUploadFields, validateSOWField, type SOWUploadFieldErrors } from "@/lib/validations/sow-upload";
+import { sowApi } from "@/lib/api/sow";
 
 /* ═══ Parsing stages ═══ */
 
@@ -100,7 +101,14 @@ export default function SOWUploadPage() {
     }
   }, [isComplete]);
 
-  const existingSows = mockSOWs.filter((s) => s.status === "draft" || s.status === "review");
+  const { data: sowListRes } = useManualSOWList();
+  const existingSows = React.useMemo(() => {
+    const res = sowListRes as unknown as { data?: unknown } | null;
+    const payload = res?.data as { items?: unknown[] } | unknown[] | null;
+    const items = Array.isArray(payload) ? payload : (payload as { items?: unknown[] } | null)?.items ?? [];
+    return (items as Array<{ id: string; title: string; status: string }>)
+      .filter((s) => s.status === "draft" || s.status === "review");
+  }, [sowListRes]);
 
   const handleFileSelect = (file: File) => {
     const result = validateFile(file);
@@ -139,7 +147,7 @@ export default function SOWUploadPage() {
     setValidationErrors([]);
   };
 
-  const startParsing = () => {
+  const startParsing = async () => {
     if (!selectedFile || isParsing) return;
     /* Validate required fields with Zod */
     const errors = validateSOWUploadFields({ projectTitle, clientOrg, linkedSowId });
@@ -153,8 +161,32 @@ export default function SOWUploadPage() {
     setFileObjectUrl(URL.createObjectURL(selectedFile));
     store.setFlowStep(1);
 
-    const stages: ParsingStage[] = ["uploading", "extracting", "analyzing", "detecting", "scoring", "complete"];
+    /* Animate the local parsing stages while the upload happens in the background */
+    const stages: ParsingStage[] = ["uploading", "extracting", "analyzing", "detecting", "scoring"];
     stages.forEach((stage, i) => { setTimeout(() => setParsingStage(stage), i * 600); });
+
+    /* Call the real upload API */
+    try {
+      const res = await sowApi.uploadSOW(selectedFile, {
+        projectTitle,
+        clientOrganisation: clientOrg,
+        linkedSowId: linkedSowId !== "none" ? linkedSowId : null,
+      });
+      // sow_id may live at top-level or nested inside .data
+      const raw = res as unknown as Record<string, unknown>;
+      const sowId =
+        (raw.sow_id as string | undefined)
+        ?? (raw.id as string | undefined)
+        ?? ((raw.data as Record<string, unknown> | null)?.sow_id as string | undefined)
+        ?? ((raw.data as Record<string, unknown> | null)?.id as string | undefined)
+        ?? null;
+      if (sowId) store.setUploadedSowId(sowId);
+    } catch {
+      /* Non-fatal — store won't have a real ID but the flow can continue without API data */
+    }
+
+    /* Ensure "complete" fires after all stages */
+    setTimeout(() => setParsingStage("complete"), stages.length * 600);
   };
 
   return (

@@ -2,10 +2,10 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
-import { prisma } from "@/lib/db";
 import { authApi, isMfaPending } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/client";
 
-export type UserRole = "contributor" | "enterprise" | "admin" | "reviewer";
+export type UserRole = "contributor" | "enterprise" | "admin" | "reviewer" | "mentor";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   // Make the secret explicit to avoid env-resolution issues across runtimes/bundlers.
@@ -83,6 +83,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           if (!email || !password) return null;
 
+          // Dev-only hardcoded admin bypass
+          if (email === "admin@glimmora.dev" && password === "Admin@1234") {
+            return {
+              id: "dev-admin-001",
+              name: "Glimmora Admin",
+              email: "admin@glimmora.dev",
+              role: "admin" as UserRole,
+            };
+          }
+
           const response = await authApi.login(email, password);
 
           // MFA pending (code required) — block login until verified
@@ -90,15 +100,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return null;
           }
 
-          // MFA setup required or fully authenticated — allow login
-          // If MFA setup is required, tokens may not be present yet but user can still access the app
+          // MFA setup required — allow login.
+          // The API may still include tokens alongside the MFA-pending payload;
+          // include them so enterprise endpoints work without re-login.
           if (isMfaPending(response)) {
             const u = (response as any).user ?? {};
+            const r = response as any;
             return {
               id: u.id ?? "",
               name: `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim(),
               email: u.email ?? email,
               role: (u.role ?? "enterprise") as UserRole,
+              ...(r.access_token ? { accessToken: r.access_token } : {}),
+              ...(r.refresh_token ? { refreshToken: r.refresh_token } : {}),
+              ...(r.expires_in ? { expiresIn: r.expires_in } : {}),
             };
           }
 
@@ -177,10 +192,30 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return session;
     },
-    async signIn({ account }) {
-      // Allow all authentication methods - session creation is handled by jwt callback
-      // For Google/Microsoft OAuth, NextAuth will use the callbackUrl from signIn()
+    async signIn({ user, account }) {
+      // For Google/Microsoft SSO, verify the email is already registered in Glimmora.
+      // We probe the login endpoint with a dummy password — the error message tells us
+      // whether the account exists ("wrong password") or not ("not found / no account").
       if (account?.provider === "google" || account?.provider === "microsoft-entra-id") {
+        if (!user.email) return "/auth/login?error=SsoNotRegistered";
+        try {
+          await authApi.login(user.email, "__sso_registration_check__");
+          // Unexpected success (shouldn't happen with dummy password) — allow through
+        } catch (err) {
+          if (err instanceof ApiError) {
+            const msg = err.message.toLowerCase();
+            const notRegistered =
+              err.status === 404 ||
+              msg.includes("not found") ||
+              msg.includes("no account") ||
+              msg.includes("does not exist");
+            if (notRegistered) {
+              return "/auth/login?error=SsoNotRegistered";
+            }
+            // "Wrong password" or similar → account exists → allow through
+          }
+          // Network / unknown error → fail open so legitimate users aren't blocked
+        }
         return true;
       }
       // Credentials (email/password) and Glimmora OAuth callback

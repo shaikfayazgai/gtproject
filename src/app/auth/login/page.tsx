@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState, useEffect, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signIn, getSession } from "next-auth/react";
@@ -41,10 +42,10 @@ function LoginPageContent() {
     if (!rawCallbackUrl) return undefined;
     try {
       const url = new URL(rawCallbackUrl, window.location.origin);
-      // Do not allow redirecting to the bare home page after login
-      if (url.pathname === "/" && !url.search && !url.hash) return undefined;
       // Only allow same-origin redirects to avoid open-redirects
       if (url.origin !== window.location.origin) return undefined;
+      // Do not redirect back to the home page after login
+      if (url.pathname === "/" && !url.search && !url.hash) return undefined;
       return `${url.pathname}${url.search}${url.hash}`;
     } catch {
       return undefined;
@@ -61,6 +62,7 @@ function LoginPageContent() {
   const redirectTo = callbackUrl || (
     userRole === "contributor" ? "/contributor/dashboard" :
     userRole === "mentor"      ? "/mentor/dashboard" :
+    userRole === "admin"       ? "/admin/dashboard" :
                                  "/enterprise/dashboard"
   );
   const [email, setEmail] = useState("");
@@ -102,6 +104,10 @@ function LoginPageContent() {
           break;
         case "CredentialsSignin":
           setError("The email or password you entered is incorrect. Please verify your credentials and try again.");
+          break;
+        case "SsoNotRegistered":
+          setError("No account found for this Google/Microsoft login. Please register first.");
+          setErrorCode("NO_ACCOUNT");
           break;
         default:
           setError("Something went wrong on our end. Please try again shortly or contact support if the issue persists.");
@@ -189,6 +195,43 @@ function LoginPageContent() {
         return;
       }
 
+      // MFA setup required — create session via glimmora-oauth (no second login call)
+      // and go straight to MFA prompt.
+      if (validateData.mfaSetupRequired) {
+        const u = validateData.user || {};
+        const oauthResult = await signIn("glimmora-oauth", {
+          userId: u.id || "",
+          email: u.email || email.trim().toLowerCase(),
+          firstName: u.firstName || "",
+          lastName: u.lastName || "",
+          role: "enterprise",
+          accessToken: "", // No token yet — MFA blocks issuance
+          refreshToken: "",
+          expiresIn: "0",
+          provider: "credentials",
+          redirect: false,
+        });
+
+        if (oauthResult?.ok) {
+          const dest = callbackUrl || "/enterprise/dashboard";
+          setLoginDest(dest);
+          setUserRole("enterprise");
+
+          // Store pending token for MFA setup page
+          try {
+            if (validateData.mfaSetupPendingToken) {
+              sessionStorage.setItem("_mfa_pending_token", validateData.mfaSetupPendingToken);
+            }
+            sessionStorage.setItem("_mfa_setup_email", email.trim().toLowerCase());
+            sessionStorage.setItem("_mfa_setup_password", password);
+          } catch { /* sessionStorage unavailable */ }
+
+          setStep("mfa-prompt");
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const result = await signIn("credentials", {
         email: email.trim().toLowerCase(),
         password,
@@ -207,14 +250,25 @@ function LoginPageContent() {
 
         setUserRole(role || "enterprise");
 
-        // Login = returning user — send straight to dashboard.
-        // Onboarding wizard is only for first-time SSO users (handled in auth.ts signIn callback).
         const dest = callbackUrl || (
           role === "contributor" ? "/contributor/dashboard" :
           role === "mentor"      ? "/mentor/dashboard" :
+          role === "admin"       ? "/admin/dashboard" :
                                    "/enterprise/dashboard"
         );
         setLoginDest(dest);
+
+        // Admin role skips MFA prompt — navigate directly to dashboard.
+        if (role === "admin") {
+          window.location.href = dest;
+          return;
+        }
+
+        // Store credentials for MFA setup page
+        try {
+          sessionStorage.setItem("_mfa_setup_email", email.trim().toLowerCase());
+          sessionStorage.setItem("_mfa_setup_password", password);
+        } catch { /* sessionStorage unavailable */ }
 
         setStep("mfa-prompt");
         setIsLoading(false);
@@ -251,7 +305,8 @@ function LoginPageContent() {
   const handleSSO = (provider: "google" | "microsoft") => {
     setError("");
     setSsoLoading(provider);
-    const redirectAfter = callbackUrl || "/enterprise/dashboard";
+    // Fall back to /auth/redirect which reads the session role and routes accordingly
+    const redirectAfter = callbackUrl || "/auth/redirect";
     // Use NextAuth's built-in OAuth instead of Glimmora's endpoints
     // Glimmora's callback is locked to glimmora-api.onrender.com and can't redirect back
     signIn(provider, { callbackUrl: redirectAfter });
@@ -406,22 +461,31 @@ function LoginPageContent() {
 
             {/* Form */}
             <form onSubmit={handleCredentials} className="space-y-5">
-              {error && (
-                <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <div>
-                    <p>{error}</p>
-                    {errorCode === "NO_ACCOUNT" && (
-                      <Link
-                        href="/auth/register"
-                        className="inline-flex items-center gap-1 mt-1.5 text-teal-600 hover:text-teal-700 font-semibold transition-colors"
-                      >
-                        Create an account <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              )}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    key="login-error"
+                    initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <div>
+                      <p>{error}</p>
+                      {errorCode === "NO_ACCOUNT" && (
+                        <Link
+                          href="/auth/register"
+                          className="inline-flex items-center gap-1 mt-1.5 text-teal-600 hover:text-teal-700 font-semibold transition-colors"
+                        >
+                          Create an account <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <div className="space-y-1.5">
                 <Label htmlFor="email" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Email</Label>
@@ -618,12 +682,21 @@ function LoginPageContent() {
                 </div>
               </div>
 
-              {error && (
-                <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  {error}
-                </div>
-              )}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    key="mfa-error"
+                    initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    {error}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {isLoading && (
                 <div className="flex items-center justify-center gap-2 py-2 text-sm text-gray-500">
@@ -701,12 +774,21 @@ function LoginPageContent() {
                 <p className="text-xs text-gray-400 text-center">Format: XXXXX-XXXXX</p>
               </div>
 
-              {error && (
-                <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  {error}
-                </div>
-              )}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    key="recovery-error"
+                    initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    {error}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <Button type="submit" variant="gradient-cta" size="lg" className="w-full" disabled={isLoading}>
                 {isLoading ? (

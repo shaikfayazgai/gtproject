@@ -48,6 +48,7 @@ export function Sidebar({ config }: SidebarProps) {
   const userEmail = session?.user?.email || "";
   const userInitials = (session?.user as any)?.initials || userName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
   const dynamicBadges = useSowBadges();
+
   const alertMap = useSowAlerts();
   const [openAlertHref, setOpenAlertHref] = React.useState<string | null>(null);
 
@@ -215,6 +216,7 @@ export function Sidebar({ config }: SidebarProps) {
                     >
                       <div className="space-y-0.5">
                         {section.items.map((item) => {
+                          const effectiveHref = item.href;
                           const active = isActive(item.href);
                           const Icon = item.icon;
                           const badge = dynamicBadges[item.href] ?? item.badge;
@@ -225,7 +227,7 @@ export function Sidebar({ config }: SidebarProps) {
                           const link = (
                             <Link
                               key={item.href}
-                              href={item.href}
+                              href={effectiveHref}
                               onClick={() => closeMobile()}
                               className={cn(
                                 "group/item relative flex items-center gap-2.5 rounded-xl transition-colors duration-150",
@@ -421,7 +423,7 @@ export function Sidebar({ config }: SidebarProps) {
               )}
             </Tooltip>
 
-            <DropdownMenuContent side="right" align="end" className="w-82 mb-1">
+            <DropdownMenuContent side="right" align="end" className="w-64 mb-1" style={{ background: "#ffffff", border: "1px solid rgba(0,0,0,0.08)" }}>
               {/* Role Toggle */}
               <DropdownMenuLabel>
                 <div className="flex items-center justify-between gap-2 py-1">
@@ -451,7 +453,6 @@ export function Sidebar({ config }: SidebarProps) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-
               <DropdownMenuLabel>
                 <div className="flex items-center gap-3">
                   <div
@@ -462,7 +463,7 @@ export function Sidebar({ config }: SidebarProps) {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-800">{userName}</p>
-                    <p className="text-xs text-gray-400">{userEmail}</p>
+                    <p className="text-xs text-gray-400 lowercase">{userEmail}</p>
                   </div>
                 </div>
               </DropdownMenuLabel>

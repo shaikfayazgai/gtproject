@@ -88,17 +88,23 @@ interface SOWUploadState {
   currentFlowStep: number; // 1=Upload 2=Report 3=Review 4=Gaps 5=Details 6=Generate 7=Preview
   setFlowStep: (step: number) => void;
 
+  /* Last section the user was on inside the Commercial Details page */
+  activeCommercialSection: CommercialSectionKey;
+  setActiveCommercialSection: (key: CommercialSectionKey) => void;
+
   /* Upload */
   uploadedFile: UploadedFileInfo | null;
   projectTitle: string;
   clientOrganisation: string;
   linkedSowId: string | null;
+  uploadedSowId: string | null;
   processingState: UploadProcessingState;
   setFile: (f: UploadedFileInfo) => void;
   clearFile: () => void;
   setProjectTitle: (v: string) => void;
   setClientOrganisation: (v: string) => void;
   setLinkedSowId: (v: string | null) => void;
+  setUploadedSowId: (v: string | null) => void;
   setProcessingState: (s: UploadProcessingState) => void;
 
   /* Extraction Intelligence Report */
@@ -150,17 +156,23 @@ export const useSOWUploadStore = create<SOWUploadState>()(
       currentFlowStep: 1,
       setFlowStep: (step) => set({ currentFlowStep: step }),
 
+      /* Active section within Commercial Details */
+      activeCommercialSection: "businessContext",
+      setActiveCommercialSection: (key) => set({ activeCommercialSection: key }),
+
       /* Upload */
       uploadedFile: null,
       projectTitle: "",
       clientOrganisation: "",
       linkedSowId: null,
       processingState: "idle",
+      uploadedSowId: null,
       setFile: (f) => set({ uploadedFile: f }),
       clearFile: () => set({ uploadedFile: null, processingState: "idle" }),
       setProjectTitle: (v) => set({ projectTitle: v }),
       setClientOrganisation: (v) => set({ clientOrganisation: v }),
       setLinkedSowId: (v) => set({ linkedSowId: v }),
+      setUploadedSowId: (v) => set({ uploadedSowId: v }),
       setProcessingState: (s) => set({ processingState: s }),
 
       /* Extraction Report */
@@ -236,10 +248,12 @@ export const useSOWUploadStore = create<SOWUploadState>()(
         clearFileObjectUrl();
         return set({
           currentFlowStep: 1,
+          activeCommercialSection: "businessContext",
           uploadedFile: null,
           projectTitle: "",
           clientOrganisation: "",
           linkedSowId: null,
+          uploadedSowId: null,
           processingState: "idle",
           extractionReport: null,
           extractionItems: [],
