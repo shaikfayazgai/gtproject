@@ -231,14 +231,14 @@ export default function AdminSOWApprovePage() {
 
   function handleApprove() {
     setApprovalSubmitted(true);
-    setShowRejectForm(false);
+    setPanelMode("checklist");
     setTimeout(() => router.push("/admin/sow"), 2200);
   }
 
   function handleReject() {
     if (!rejectionReason.trim()) return;
     setRejectionSubmitted(true);
-    setShowRejectForm(false);
+    setPanelMode("checklist");
     setTimeout(() => router.push("/admin/sow"), 2500);
   }
 
