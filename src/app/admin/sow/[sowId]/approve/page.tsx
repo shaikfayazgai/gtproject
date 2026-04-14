@@ -234,6 +234,7 @@ export default function AdminSOWApprovePage() {
   const [rejectionReason, setRejectionReason]       = React.useState("");
   const [approvalSubmitted, setApprovalSubmitted]   = React.useState(false);
   const [rejectionSubmitted, setRejectionSubmitted] = React.useState(false);
+  const [followUpSent, setFollowUpSent]             = React.useState(false);
 
   const checkedCount = COMMERCIAL_CHECKLIST.filter((item) => checked[item.id]).length;
   const allChecked   = checkedCount === COMMERCIAL_CHECKLIST.length;
@@ -266,11 +267,17 @@ export default function AdminSOWApprovePage() {
   const isFollowUp = isChangesRequested && !!glimmoraStage?.enterpriseReply;
 
   function handleReject() {
-    // In follow-up mode allow sending without text — defaults to acknowledgment
     if (!isFollowUp && !rejectionReason.trim()) return;
-    setRejectionSubmitted(true);
-    setPanelMode("checklist");
-    setTimeout(() => router.push("/admin/sow"), 2500);
+    if (isFollowUp) {
+      // Follow-up: stay on page, clear reply from header, return to checklist
+      setFollowUpSent(true);
+      setRejectionReason("");
+      setPanelMode("checklist");
+    } else {
+      setRejectionSubmitted(true);
+      setPanelMode("checklist");
+      setTimeout(() => router.push("/admin/sow"), 2500);
+    }
   }
 
   /* ── Success screens ── */
@@ -406,8 +413,8 @@ export default function AdminSOWApprovePage() {
               </div>
             </div>
 
-            {/* Enterprise reply row */}
-            {glimmoraStage.enterpriseReply && (
+            {/* Enterprise reply row — hidden once admin has replied */}
+            {glimmoraStage.enterpriseReply && !followUpSent && (
               <div className="flex items-start gap-3 bg-white px-4 py-3.5 border-t border-amber-100">
                 <div className="flex flex-col items-center shrink-0">
                   <CornerDownRight className="w-3.5 h-3.5 text-beige-300 mt-1" />
@@ -786,8 +793,8 @@ export default function AdminSOWApprovePage() {
                         </div>
                       </div>
 
-                      {/* Enterprise reply bubble */}
-                      {glimmoraStage.enterpriseReply ? (
+                      {/* Enterprise reply bubble — hidden after admin replies */}
+                      {glimmoraStage.enterpriseReply && !followUpSent ? (
                         <div className="flex items-start gap-2.5">
                           <div className="w-6 h-6 rounded-full bg-teal-100 flex items-center justify-center shrink-0 mt-0.5">
                             <Building2 className="w-3 h-3 text-teal-600" />
