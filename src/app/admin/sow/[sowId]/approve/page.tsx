@@ -853,7 +853,7 @@ export default function AdminSOWApprovePage() {
                         )}
                       >
                         <Send className="w-3.5 h-3.5" />
-                        {isFollowUp ? "Send Follow-up" : "Send Request"}
+                        Send
                       </button>
                     </div>
                   </div>
