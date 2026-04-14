@@ -714,7 +714,7 @@ function CheckboxGroup({ values, onChange, options }: {
    ══════════════════════════════════════════ */
 const SOW_STORAGE_KEY = "sow-generator-draft";
 
-const SOW_DRAFT_VERSION = 7; // Increment when FormData structure changes
+const SOW_DRAFT_VERSION = 8; // Increment when FormData structure changes
 
 function loadDraft(): { formData: FormData; currentStep: number; skippedSteps: number[] } | null {
   if (typeof window === "undefined") return null;
