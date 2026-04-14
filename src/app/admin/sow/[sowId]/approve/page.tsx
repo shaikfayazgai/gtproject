@@ -316,15 +316,24 @@ export default function AdminSOWApprovePage() {
 
   /* ── Main layout ── */
   return (
-    <div className="flex flex-col gap-0 -mx-6 -mt-2">
+    <div className="flex flex-col gap-0 -mx-6 -mt-2 min-h-screen bg-[#faf9f7]">
 
-      {/* ════════════════════════════════ HEADER BAND ════════════════════════════════ */}
-      <div className="px-6 pt-6 pb-5 border-b border-beige-100 bg-white">
+      {/* ════════════════════ HEADER ════════════════════ */}
+      <div className="bg-white border-b border-beige-100 px-6 pt-5 pb-0">
 
-        <div className="flex items-start justify-between gap-6 flex-wrap">
-          {/* Title block */}
+        {/* Back nav */}
+        <Link
+          href="/admin/sow"
+          className="inline-flex items-center gap-1.5 text-[11px] font-medium text-beige-400 hover:text-brown-700 transition-colors mb-4"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" /> Back to SOW Oversight
+        </Link>
+
+        {/* Title row */}
+        <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
+            {/* Status badges */}
+            <div className="flex flex-wrap items-center gap-1.5 mb-2">
               <span className={cn(
                 "inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full border",
                 isChangesRequested ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-gold-50 text-gold-700 border-gold-200",
@@ -333,7 +342,9 @@ export default function AdminSOWApprovePage() {
                 {isChangesRequested ? "Changes Requested" : "Awaiting Commercial Review"}
               </span>
               {sow.riskScore.overall > 0 && (
-                <span className={cn("inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full border", risk.bg, risk.text,
+                <span className={cn(
+                  "inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full border",
+                  risk.bg, risk.text,
                   sow.riskScore.overall <= 25 ? "border-forest-100" : sow.riskScore.overall <= 50 ? "border-gold-100" : "border-red-100",
                 )}>
                   <Shield className="w-3 h-3" />
@@ -349,66 +360,60 @@ export default function AdminSOWApprovePage() {
               </span>
             </div>
 
-            <h1 className="font-heading text-[22px] font-bold text-brown-950 tracking-tight leading-snug">
+            <h1 className="font-heading text-[24px] font-bold text-brown-950 tracking-tight leading-tight">
               {sow.title}
             </h1>
-            <div className="flex items-center gap-2 mt-1.5 text-[12px] text-beige-500 flex-wrap">
+            <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[12px] text-beige-400">
               <Building2 className="w-3.5 h-3.5 shrink-0" />
               <span className="font-medium text-gray-600">{sow.client}</span>
-              {sow.industry && <><span className="text-beige-300">·</span><span>{sow.industry}</span></>}
-              <span className="text-beige-300">·</span>
-              <span>Submitted by <span className="font-medium text-gray-600">{sow.createdBy}</span></span>
-              <span className="text-beige-300">·</span>
+              {sow.industry && <><span>·</span><span>{sow.industry}</span></>}
+              <span>·</span>
+              <span>By <span className="font-medium text-gray-600">{sow.createdBy}</span></span>
+              <span>·</span>
               <span>{formatDate(sow.updatedAt)}</span>
             </div>
           </div>
 
-          {/* Key stats strip */}
-          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+          {/* Stats strip */}
+          <div className="flex items-center gap-2 shrink-0">
             {[
-              { icon: DollarSign, label: "Value",       value: formatBudget(sow.estimatedBudget) },
-              { icon: Calendar,   label: "Duration",    value: sow.estimatedDuration },
-              { icon: BookOpen,   label: "Pages",       value: String(sow.pages) },
-              { icon: Gauge,      label: "AI Conf.",    value: `${sow.aiConfidence}%` },
+              { icon: DollarSign, label: "Value",    value: formatBudget(sow.estimatedBudget) },
+              { icon: Calendar,   label: "Duration", value: sow.estimatedDuration },
+              { icon: BookOpen,   label: "Pages",    value: String(sow.pages) },
+              { icon: Gauge,      label: "AI Conf.", value: `${sow.aiConfidence}%` },
             ].map(({ icon: Icon, label, value }) => (
-              <div key={label} className="text-center px-4 py-2.5 rounded-xl bg-beige-50 border border-beige-100 min-w-[72px]">
-                <Icon className="w-3.5 h-3.5 text-beige-400 mx-auto mb-1" />
-                <p className="text-[14px] font-bold text-brown-950 leading-none">{value}</p>
+              <div key={label} className="flex flex-col items-center px-3.5 py-2.5 rounded-xl bg-beige-50 border border-beige-100 min-w-[68px]">
+                <Icon className="w-3 h-3 text-beige-400 mb-1" />
+                <p className="text-[13px] font-bold text-brown-950 leading-none">{value}</p>
                 <p className="text-[9px] font-semibold uppercase tracking-wide text-beige-400 mt-0.5">{label}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Change request thread banner */}
+        {/* Change request thread — shown inline below title */}
         {isChangesRequested && glimmoraStage?.comments && (
-          <div className="mt-4 rounded-2xl border border-amber-200 overflow-hidden">
-            {/* Glimmora request row */}
-            <div className="flex items-start gap-3 bg-amber-50 px-4 py-3.5">
-              <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+          <div className="mb-4 rounded-xl border border-amber-200 overflow-hidden">
+            {/* Glimmora request */}
+            <div className="flex items-start gap-3 bg-amber-50 px-4 py-3">
+              <div className="w-6 h-6 rounded-full bg-amber-200 flex items-center justify-center shrink-0 mt-0.5">
+                <AlertTriangle className="w-3 h-3 text-amber-700" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-[11px] font-bold text-amber-800">GlimmoraTeam Admin</span>
-                  <span className="text-[10px] text-amber-500">·</span>
-                  <span className="text-[10px] text-amber-500">
-                    {glimmoraStage.reviewedAt ? formatDate(glimmoraStage.reviewedAt) : ""}
-                  </span>
-                  <span className="ml-auto text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-200 text-amber-700">
-                    Changes Requested
-                  </span>
+                  <span className="text-[11px] font-bold text-amber-900">GlimmoraTeam Admin</span>
+                  <span className="text-[10px] text-amber-400">·</span>
+                  <span className="text-[10px] text-amber-500">{glimmoraStage.reviewedAt ? formatDate(glimmoraStage.reviewedAt) : ""}</span>
+                  <span className="ml-auto text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-200 text-amber-800">Changes Requested</span>
                 </div>
                 <p className="text-[12px] text-amber-900 leading-relaxed">{glimmoraStage.comments}</p>
               </div>
             </div>
 
-            {/* Enterprise reply row — hidden once admin has replied */}
+            {/* Enterprise reply — hidden after admin replies */}
             {glimmoraStage.enterpriseReply && !followUpSent && (
-              <div className="flex items-start gap-3 bg-white px-4 py-3.5 border-t border-amber-100">
-                <div className="flex flex-col items-center shrink-0">
-                  <CornerDownRight className="w-3.5 h-3.5 text-beige-300 mt-1" />
-                </div>
+              <div className="flex items-start gap-3 bg-white px-4 py-3 border-t border-amber-100">
+                <CornerDownRight className="w-3.5 h-3.5 text-beige-300 shrink-0 mt-1" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <div className="w-5 h-5 rounded-full bg-teal-100 flex items-center justify-center shrink-0">
@@ -416,15 +421,12 @@ export default function AdminSOWApprovePage() {
                     </div>
                     <span className="text-[11px] font-bold text-gray-800">Enterprise Admin</span>
                     <span className="text-[10px] text-gray-400">·</span>
-                    <span className="text-[10px] text-gray-400">
-                      {glimmoraStage.enterpriseRepliedAt ? formatDate(glimmoraStage.enterpriseRepliedAt) : ""}
-                    </span>
+                    <span className="text-[10px] text-gray-400">{glimmoraStage.enterpriseRepliedAt ? formatDate(glimmoraStage.enterpriseRepliedAt) : ""}</span>
                     <button
                       onClick={() => setPanelMode("reject")}
-                      className="ml-auto inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-100 hover:bg-teal-100 hover:border-teal-200 transition-colors cursor-pointer"
+                      className="ml-auto inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-100 hover:bg-teal-100 transition-colors"
                     >
-                      <MessageSquare className="w-2.5 h-2.5" />
-                      Reply
+                      <MessageSquare className="w-2.5 h-2.5" /> Reply
                     </button>
                   </div>
                   <p className="text-[12px] text-gray-700 leading-relaxed">{glimmoraStage.enterpriseReply}</p>
@@ -433,39 +435,34 @@ export default function AdminSOWApprovePage() {
             )}
           </div>
         )}
+
+        {/* Tab bar */}
+        <div className="flex items-center gap-0">
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-3 text-[12px] font-semibold border-b-2 transition-all",
+                tab === id ? "border-brown-600 text-brown-950" : "border-transparent text-beige-400 hover:text-brown-700",
+              )}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {label}
+              {id === "sections" && sections.length > 0 && (
+                <span className="ml-1 px-1.5 text-[9px] font-bold rounded-full bg-beige-100 text-beige-500">{sections.length}</span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* ════════════════════════════════ BODY — two columns ════════════════════════════════ */}
-      <div className="flex gap-0 flex-1 min-h-0">
+      {/* ════════════════════ BODY — two columns ════════════════════ */}
+      <div className="flex flex-1 min-h-0">
 
         {/* ── LEFT: scrollable content ── */}
         <div className="flex-1 min-w-0 overflow-y-auto">
-
-          {/* Tab bar */}
-          <div className="flex items-center gap-0 px-6 pt-0 border-b border-beige-100 bg-white sticky top-0 z-10">
-            {TABS.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => setTab(id)}
-                className={cn(
-                  "flex items-center gap-1.5 px-4 py-3.5 text-[12px] font-semibold border-b-2 transition-all",
-                  tab === id
-                    ? "border-brown-600 text-brown-950"
-                    : "border-transparent text-beige-400 hover:text-brown-700",
-                )}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {label}
-                {id === "sections" && sections.length > 0 && (
-                  <span className="ml-1 px-1.5 text-[9px] font-bold rounded-full bg-beige-100 text-beige-500">
-                    {sections.length}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          <div className="px-6 py-6 space-y-6">
+          <div className="px-6 py-6 space-y-5">
 
             {/* ── OVERVIEW TAB ── */}
             {tab === "overview" && (
@@ -637,14 +634,17 @@ export default function AdminSOWApprovePage() {
         </div>
 
         {/* ── RIGHT: sticky approval panel ── */}
-        <div className="w-[320px] shrink-0 border-l border-beige-100 bg-white">
-          <div className="sticky top-0">
+        <div className="w-[340px] shrink-0 border-l border-beige-100 bg-white">
+          <div className="sticky top-0 max-h-screen overflow-y-auto">
 
             {/* Panel header */}
-            <div className="px-5 py-4 border-b border-beige-100">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-beige-400 mb-0.5">Commercial Review</p>
-              <p className="text-[13px] font-semibold text-brown-950">Stage 2 of 5</p>
-              <p className="text-[11px] text-beige-500 mt-0.5">Validate rate cards, budget viability, and commercial terms</p>
+            <div className="px-5 py-4 border-b border-beige-100 bg-white">
+              <div className="flex items-center justify-between mb-0.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-beige-400">Commercial Review</p>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gold-50 text-gold-700 border border-gold-100">Stage 2 of 5</span>
+              </div>
+              <p className="text-[13px] font-semibold text-brown-950 mt-1">GlimmoraTeam Commercial</p>
+              <p className="text-[11px] text-beige-400 mt-0.5 leading-snug">Rate cards, budget viability, and commercial terms</p>
             </div>
 
             <AnimatePresence mode="wait">
