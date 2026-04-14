@@ -381,75 +381,6 @@ const initialFormData: FormData = {
   securityReviewer: "",
 };
 
-/* ══════════════════════════════════════════ Mock test data ══════════════════════════════════════════ */
-
-const MOCK_FORM_DATA: Partial<FormData> = {
-  projectVision: "Build a cloud-native workforce management platform that enables enterprises to source, onboard, and govern distributed AI-verified talent at scale.",
-  businessObjectives: [{ objective: "Reduce time-to-hire by 40%", measurableTarget: "Average hire in < 5 days", timeline: "Q3 2025" }],
-  painPoints: [{ problemDescription: "Manual contractor vetting is slow and error-prone", whoExperiences: "HR and Procurement teams" }],
-  businessCriticality: "high",
-  strategicContext: "Part of a 3-year digital transformation roadmap; aligns with the Board's AI-first talent strategy.",
-  currentState: "Spreadsheet-based tracking and email approvals; 4-week average onboarding cycle.",
-  currentStateType: "manual_process",
-  desiredFutureState: "Fully automated AI-governed platform with real-time dashboards and zero-touch compliance.",
-  previousAttempts: "Piloted an off-the-shelf HR tool in 2023 — poor API coverage and no SOW-to-payment automation.",
-  endUserProfiles: [{ roleName: "Enterprise Admin", count: "12", ageRange: "30-50", techLiteracy: "high", primaryDevice: "desktop", geography: "Global", accessibilityNeeds: "None" }],
-  languageRequirements: ["English"],
-  userExpectations: ["Sub-second page loads", "Mobile-responsive UI", "Role-based dashboards"],
-  successMetrics: [{ metricName: "Onboarding time", baseline: "28 days", target: "3 days", measurementMethod: "Platform analytics", timeframe: "6 months post-launch" }],
-  enterpriseExpectations: "Full audit trail, SOC 2 compliance, and 99.9% uptime SLA.",
-  definitionOfSuccess: "100 enterprises onboarded, 10,000 contributors active, zero critical security incidents in Year 1.",
-  title: "GlimmoraTeam Workforce Platform v2",
-  client: "Glimmora Enterprises Ltd.",
-  industry: "technology",
-  projectCategory: "platform",
-  platformType: "web_mobile",
-  existingTechLandscape: "Legacy monolith on AWS EC2, PostgreSQL RDS, no CI/CD pipeline.",
-  featureModules: [{ moduleName: "Talent Marketplace", description: "AI-matched contributor discovery and shortlisting", priority: "high" }],
-  userRoles: [{ roleName: "Enterprise Admin", primaryActions: "Create SOWs, manage teams, view analytics" }],
-  businessWorkflows: [{ name: "Reviewer Onboarding", steps: "1. Admin invites reviewer 2. Reviewer accepts 3. KYC verified 4. Profile activated", outcome: "Reviewer ready to evaluate submissions" }],
-  estimatedScreenCount: "45",
-  criticalBusinessRules: ["Reviewers must pass KYC before accessing deliverables", "SOWs require 5-stage approval before activation"],
-  outOfScope: ["Native mobile apps (Phase 2)", "Payroll integration"],
-  assumptions: ["Client provides SSO credentials within 2 weeks of project start"],
-  constraints: ["Must comply with GDPR and India DPDP Act"],
-  techStack: "Next.js 16, TypeScript, PostgreSQL, Prisma ORM, Redis, AWS ECS, Vercel, NextAuth v5",
-  scalabilityRequirements: "Support 50,000 concurrent users; auto-scale on ECS Fargate.",
-  deploymentScope: "cloud",
-  deploymentProvider: "aws",
-  deploymentContainerisation: true,
-  deploymentEnvironments: ["development", "staging", "production"],
-  startDate: "2025-07-01",
-  endDate: "2026-01-31",
-  phasingStrategy: "3 phases: Foundation (MVP), Growth (marketplace), Scale (AI governance)",
-  milestones: [{ name: "MVP Launch", targetDate: "2025-10-01", acceptanceCriteria: "Core SOW + reviewer flows live with 10 beta clients" }],
-  teamSize: "12",
-  workModel: "hybrid",
-  roles: [{ roleName: "Full-Stack Engineer", seniority: "senior" }],
-  testingTypes: ["unit", "integration", "e2e", "performance"],
-  uatPeriod: "3",
-  budgetMin: "250000",
-  budgetMax: "350000",
-  currency: "USD",
-  pricingModel: "fixed_price",
-  breakdownPreference: "milestone",
-  knownRisks: ["Third-party API instability may delay integration milestones"],
-  projectConstraints: "Fixed deadline driven by Series B investor milestone.",
-  contingencyBudget: "15",
-  codingStandards: "Airbnb ESLint, Prettier, Conventional Commits",
-  testCoverageTarget: "80",
-  accessibilityStandard: "WCAG 2.1 AA",
-  reportingFrequency: "weekly",
-  projectMethodology: "agile",
-  complianceStandards: ["gdpr", "soc2"],
-  paymentTerms: "Net 30",
-  warrantyPeriod: "90",
-  ipOwnership: "client",
-  governingLaw: "England & Wales",
-  businessOwnerApprover: "Sarah Chen, CTO",
-  finalApprover: "Marcus Webb, CEO",
-};
-
 /* ══════════════════════════════════════════ Step transition ══════════════════════════════════════════ */
 
 const stepTransition = {
@@ -1379,23 +1310,13 @@ function SOWGenerateWizardPageInner() {
               Walk through 10 structured steps — our AI crafts a verified Statement of Work from your parameters.
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setFormData((prev) => ({ ...prev, ...MOCK_FORM_DATA }))}
-              className="inline-flex items-center gap-1.5 rounded-lg transition-colors"
-              style={{ padding: '5px 12px', background: 'rgba(77,87,65,0.07)', border: '1px dashed rgba(77,87,65,0.25)', fontSize: 11, fontWeight: 600, color: '#4D5741' }}
-            >
-              <Sparkles style={{ width: 11, height: 11 }} /> Fill Test Data
-            </button>
-            <div className="rounded-lg" style={{
-              padding: '6px 14px',
-              background: 'rgba(166,119,99,0.06)',
-              border: '1px solid rgba(166,119,99,0.12)',
-              fontSize: 12, fontWeight: 600, color: '#A67763',
-            }}>
-              Step {currentStep + 1} of {STEPS.length}
-            </div>
+          <div className="shrink-0 rounded-lg" style={{
+            padding: '6px 14px',
+            background: 'rgba(166,119,99,0.06)',
+            border: '1px solid rgba(166,119,99,0.12)',
+            fontSize: 12, fontWeight: 600, color: '#A67763',
+          }}>
+            Step {currentStep + 1} of {STEPS.length}
           </div>
         </div>
       </motion.div>
