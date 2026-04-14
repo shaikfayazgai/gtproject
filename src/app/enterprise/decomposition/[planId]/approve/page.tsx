@@ -564,12 +564,8 @@ export default function ApprovePlanPage() {
               </div>
               <DialogFooter>
                 <button onClick={() => {
-                  const found = mockPlans.find(p => p.id === planId);
-                  if (found) found.status = "draft";
-                  setSubmitted(true);
                   setRejectionOpen(false);
                   setRejectionReason("");
-                  setTimeout(() => router.push(`/enterprise/decomposition/${planId}`), 2000);
                 }}
                   className="text-[12px] font-medium text-gray-500 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50">Cancel</button>
                 <button disabled={rejectionReason.trim().length === 0 || revisionMutation.isPending}
