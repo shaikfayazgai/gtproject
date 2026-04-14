@@ -730,8 +730,6 @@ export default function PlanDetailPage() {
 
     const timer = setTimeout(() => {
       setAiGenerating(false);
-      // Promote plan out of "draft" so the task breakdown renders
-      setPlan((p) => p.status === "draft" ? { ...p, status: "pending_review" } : p);
 
       // In-app notification
       pushNotification({
