@@ -9,6 +9,7 @@ import {
 } from "@/lib/validations/registration";
 import { sendEmail, buildEmailHtml } from "@/lib/email";
 import { DEFAULT_TEMPLATES } from "@/lib/stores/email-template-store";
+import { getBaseUrl } from "@/lib/utils/base-url";
 
 export type ActionResult = { success: true } | { success: false; error: string };
 
@@ -57,7 +58,7 @@ export async function registerContributor(data: unknown): Promise<ActionResult> 
       marketingOptIn:          v.marketingOptIn,
     });
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "https://app.glimmora.com";
+    const baseUrl = getBaseUrl();
     const contributorTpl = DEFAULT_TEMPLATES.welcome_contributor;
     sendEmail({
       to: v.email.toLowerCase(),
@@ -224,7 +225,7 @@ export async function registerEnterprise(data: unknown): Promise<ActionResult> {
       marketingOptIn:       v.marketingOptIn,
     });
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "https://app.glimmora.com";
+    const baseUrl = getBaseUrl();
     const enterpriseTpl = DEFAULT_TEMPLATES.welcome_enterprise;
     sendEmail({
       to: v.adminEmail.toLowerCase(),
