@@ -4705,6 +4705,9 @@ function Step9ReviewGenerate({ formData, updateField, aiConfidence, isStepComple
 }
 
 export default function SOWGenerateWizardPage() {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setMounted(true); }, []);
+  if (!mounted) return null;
   return (
     <React.Suspense fallback={null}>
       <SOWGenerateWizardPageInner />
