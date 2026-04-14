@@ -1,4 +1,4 @@
-import { apiCall } from "./client";
+import { apiCall, ApiError } from "./client";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -120,12 +120,16 @@ export const authApi = {
     });
   },
 
-  /** Initiate the forgot-password / OTP reset flow for the given email. */
-  async requestPasswordReset(email: string, role?: string): Promise<unknown> {
-    return apiCall("/api/v1/auth/password/forgot", {
+  /** Initiate the forgot-password flow — triggers email via Next.js route. */
+  async requestPasswordReset(email: string, _role?: string): Promise<unknown> {
+    const res = await fetch("/api/auth/forgot-password", {
       method: "POST",
-      body: JSON.stringify({ email, ...(role ? { role } : {}) }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
     });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(res.status, data?.message ?? "Failed to send reset email");
+    return data;
   },
 
   /** Start TOTP enrollment — returns the QR URI and manual secret. */
