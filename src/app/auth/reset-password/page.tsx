@@ -9,6 +9,7 @@ import {
 import {
   GlassCard, GlassCardContent, Button, Input, Label,
 } from "@/components/ui";
+import { fetchInternal } from "@/lib/api/client";
 
 function getStrength(pw: string): { score: number; label: string; color: string } {
   let score = 0;
@@ -83,7 +84,7 @@ function ResetPasswordContent() {
     setError("");
     setIsLoading(true);
     try {
-    const res = await fetch("/api/auth/password/change", {
+    const res = await fetchInternal("/api/auth/password/change", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, new_password: password }),

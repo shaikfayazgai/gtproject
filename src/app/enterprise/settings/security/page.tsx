@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import {
   Shield,
   ShieldCheck,
@@ -32,7 +31,8 @@ import {
   Badge,
 } from "@/components/ui";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { authApi, type UserSessionRecord } from "@/lib/api/auth";
+import { type UserSessionRecord } from "@/lib/api/auth";
+import { useSessions, useRevokeSession, useRevokeAllSessions } from "@/lib/hooks/use-auth";
 
 /* ── Recovery code generator (same logic as mfa-setup) ── */
 function generateRecoveryCodes(): string[] {
@@ -103,9 +103,6 @@ function SessionsSkeleton() {
 
 export default function SecuritySettingsPage() {
   const router = useRouter();
-  const { data: session } = useSession();
-  const accessToken = (session?.user as { accessToken?: string })?.accessToken;
-
   const isMfaEnabled = useAuthStore((s) => s.isMfaEnabled);
   const setMfaEnabled = useAuthStore((s) => s.setMfaEnabled);
 
@@ -119,30 +116,12 @@ export default function SecuritySettingsPage() {
   const [disableLoading, setDisableLoading] = useState(false);
   const [disableError, setDisableError] = useState("");
 
-  // Sessions state
-  const [sessions, setSessions] = useState<ReturnType<typeof normalizeSession>[]>([]);
-  const [sessionsLoading, setSessionsLoading] = useState(true);
-  const [sessionsError, setSessionsError] = useState("");
-  const [revokingId, setRevokingId] = useState<string | null>(null);
-  const [revokingAll, setRevokingAll] = useState(false);
+  const { data: rawSessions, isLoading: sessionsLoading, isError: sessionsIsError, refetch: reloadSessions } = useSessions();
+  const revokeSession = useRevokeSession();
+  const revokeAll = useRevokeAllSessions();
 
-  const loadSessions = useCallback(async () => {
-    if (!accessToken) return;
-    setSessionsLoading(true);
-    setSessionsError("");
-    try {
-      const data = await authApi.getSessions(accessToken);
-      setSessions(data.map(normalizeSession));
-    } catch {
-      setSessionsError("Failed to load sessions. Please try again.");
-    } finally {
-      setSessionsLoading(false);
-    }
-  }, [accessToken]);
-
-  useEffect(() => {
-    loadSessions();
-  }, [loadSessions]);
+  const sessions = (rawSessions ?? []).map(normalizeSession);
+  const sessionsError = sessionsIsError ? "Failed to load sessions. Please try again." : "";
 
   const handleCopyCodes = () => {
     navigator.clipboard.writeText(recoveryCodes.join("\n")).catch(() => {});
@@ -172,32 +151,8 @@ export default function SecuritySettingsPage() {
     setDisablePassword("");
   };
 
-  const handleRevokeSession = async (id: string) => {
-    if (!accessToken) return;
-    setRevokingId(id);
-    try {
-      await authApi.revokeSession(id, accessToken);
-      setSessions((prev) => prev.filter((s) => s.id !== id));
-    } catch {
-      // silently keep session in list on error
-    } finally {
-      setRevokingId(null);
-    }
-  };
-
-  const handleRevokeAll = async () => {
-    if (!accessToken) return;
-    setRevokingAll(true);
-    try {
-      await authApi.logoutAllSessions(accessToken);
-      // Keep only current session in the list
-      setSessions((prev) => prev.filter((s) => s.current));
-    } catch {
-      // ignore
-    } finally {
-      setRevokingAll(false);
-    }
-  };
+  const handleRevokeSession = (id: string) => revokeSession.mutate(id);
+  const handleRevokeAll = () => revokeAll.mutate();
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 p-6">
@@ -405,10 +360,10 @@ export default function SecuritySettingsPage() {
                   variant="outline"
                   size="sm"
                   className="shrink-0 text-red-500 border-red-200 hover:bg-red-50 hover:border-red-300"
-                  disabled={revokingAll}
+                  disabled={revokeAll.isPending}
                   onClick={handleRevokeAll}
                 >
-                  {revokingAll ? (
+                  {revokeAll.isPending ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                   ) : (
                     <LogOut className="w-3.5 h-3.5" />
@@ -426,7 +381,7 @@ export default function SecuritySettingsPage() {
                 {sessionsError}
                 <button
                   type="button"
-                  onClick={loadSessions}
+                  onClick={() => reloadSessions()}
                   className="ml-auto text-xs font-medium underline"
                 >
                   Retry
@@ -465,10 +420,10 @@ export default function SecuritySettingsPage() {
                         variant="outline"
                         size="sm"
                         className="shrink-0 text-red-500 border-red-200 hover:bg-red-50 hover:border-red-300"
-                        disabled={revokingId === s.id || revokingAll}
+                        disabled={revokeSession.isPending || revokeAll.isPending}
                         onClick={() => handleRevokeSession(s.id)}
                       >
-                        {revokingId === s.id ? (
+                        {revokeSession.isPending && revokeSession.variables === s.id ? (
                           <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                         ) : (
                           <LogOut className="w-3.5 h-3.5" />
