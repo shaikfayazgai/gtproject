@@ -1395,24 +1395,20 @@ function SOWGenerateWizardPageInner() {
   }, [formData, currentStep, skippedSteps]);
 
   const updateField = <K extends keyof FormData>(key: K, value: FormData[K]) => {
-    setFormData((prev) => {
-      const next = { ...prev, [key]: value };
-      // Re-validate ALL touched fields so remaining errors stay visible
-      if (touchedFields.size > 0) {
-        const allErrors = validateStep(currentStep, next);
-        setStepErrors(() => {
-          // Only show errors for fields that have been touched
-          const filtered: StepErrors = {};
-          for (const [field, msg] of Object.entries(allErrors)) {
-            if (touchedFields.has(field)) {
-              filtered[field] = msg;
-            }
-          }
-          return filtered;
-        });
+    // Compute next state outside the setter so we can also update errors
+    // without calling setStepErrors inside setFormData's updater (React violation).
+    const next = { ...formData, [key]: value };
+    setFormData(next);
+    // Re-validate touched fields with the new value so error messages
+    // appear immediately after the user types or selects.
+    if (touchedFields.size > 0) {
+      const allErrors = validateStep(currentStep, next);
+      const filtered: StepErrors = {};
+      for (const [field, msg] of Object.entries(allErrors)) {
+        if (touchedFields.has(field)) filtered[field] = msg;
       }
-      return next;
-    });
+      setStepErrors(filtered);
+    }
   };
 
   const blurField = (field: string) => {
@@ -1432,34 +1428,30 @@ function SOWGenerateWizardPageInner() {
     setFormData((prev) => ({ ...prev, [key]: [...(prev[key] as string[]), ""] }));
   };
   const removeListItem = (key: keyof FormData, idx: number) => {
-    setFormData((prev) => {
-      const next = { ...prev, [key]: (prev[key] as string[]).filter((_: string, i: number) => i !== idx) };
-      if (touchedFields.has(key as string)) {
-        const err = validateField(currentStep, key as string, next);
-        setStepErrors((prev) => {
-          const updated = { ...prev };
-          if (err) updated[key as string] = err;
-          else delete updated[key as string];
-          return updated;
-        });
-      }
-      return next;
-    });
+    const next = { ...formData, [key]: (formData[key] as string[]).filter((_: string, i: number) => i !== idx) };
+    setFormData(next);
+    if (touchedFields.has(key as string)) {
+      const err = validateField(currentStep, key as string, next);
+      setStepErrors((prev) => {
+        const updated = { ...prev };
+        if (err) updated[key as string] = err;
+        else delete updated[key as string];
+        return updated;
+      });
+    }
   };
   const updateListItem = (key: keyof FormData, idx: number, value: string) => {
-    setFormData((prev) => {
-      const next = { ...prev, [key]: (prev[key] as string[]).map((item: string, i: number) => (i === idx ? value : item)) };
-      if (touchedFields.has(key as string)) {
-        const err = validateField(currentStep, key as string, next);
-        setStepErrors((prev) => {
-          const updated = { ...prev };
-          if (err) updated[key as string] = err;
-          else delete updated[key as string];
-          return updated;
-        });
-      }
-      return next;
-    });
+    const next = { ...formData, [key]: (formData[key] as string[]).map((item: string, i: number) => (i === idx ? value : item)) };
+    setFormData(next);
+    if (touchedFields.has(key as string)) {
+      const err = validateField(currentStep, key as string, next);
+      setStepErrors((prev) => {
+        const updated = { ...prev };
+        if (err) updated[key as string] = err;
+        else delete updated[key as string];
+        return updated;
+      });
+    }
   };
 
   /* ── Confidence calculation ── */
