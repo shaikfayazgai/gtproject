@@ -457,6 +457,17 @@ export default function SOWDetailPage() {
   // Use pipeline API stages for the stepper display; fall back to sow.approvalStages
   const displayStages = pipelineResolvedStages ?? sow?.approvalStages ?? DEFAULT_APPROVAL_STAGES;
 
+  // Derive the effective active stage index from the pipeline API (when available),
+  // so checklist + form reflect the real in_review stage, not just local clicks.
+  const effectiveActiveIdx = React.useMemo(() => {
+    if (!pipelineResolvedStages) return null;
+    const inReviewIdx = pipelineResolvedStages.findIndex((s) => s.status === "in_review");
+    if (inReviewIdx >= 0) return inReviewIdx;
+    const pendingIdx = pipelineResolvedStages.findIndex((s) => s.status === "pending");
+    if (pendingIdx >= 0) return pendingIdx;
+    return pipelineResolvedStages.length; // all approved
+  }, [pipelineResolvedStages]);
+
   const clauses = sow ? mockSOWClauses.filter((c) => c.sowId === sow.id) : [];
   const versions = sow ? generateVersionHistory(sow) : [];
   const auditTrail = sow ? generateAuditTrail(sow) : [];
@@ -509,6 +520,15 @@ export default function SOWDetailPage() {
     }
     setApprovalChecked({});
   }, [sow?.id]);
+
+  // When the pipeline API resolves and reports an in_review stage different
+  // from our local index, advance the local index to match. This keeps the
+  // checklist/form in sync with the real pipeline state across refetches.
+  React.useEffect(() => {
+    if (effectiveActiveIdx === null) return;
+    setActiveApprovalIdx((prev) => (prev === effectiveActiveIdx ? prev : effectiveActiveIdx));
+    setApprovalChecked({});
+  }, [effectiveActiveIdx]);
 
   React.useEffect(() => {
     if (!sectionDropdownOpen) return;
