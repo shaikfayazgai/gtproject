@@ -14,8 +14,17 @@ import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
 import {
   mockProjects, mockTasks, mockTeams, mockMilestones, mockDeliverables,
 } from "@/mocks/data/enterprise-projects";
+import { Skeleton } from "@/components/ui";
 import type { ProjectHealth, MilestoneStatus, TaskStatus } from "@/types/enterprise";
 import { toast } from "@/lib/stores/toast-store";
+import {
+  useProjectOverview,
+  useProjectActivities,
+  useEvidencePacks,
+  useReworkRequests,
+  useHoldProject,
+  useResumeProject,
+} from "@/lib/hooks/use-portfolio";
 
 /* ═══ Badge ═══ */
 
@@ -96,7 +105,31 @@ function trackLabel(track: string) {
 export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = params.projectId as string;
-  const project = mockProjects.find((p) => p.id === projectId) ?? mockProjects[0];
+
+  /* Fetch real API data */
+  const { data: overviewData, isLoading: isOverviewLoading } = useProjectOverview(projectId);
+  const { data: activitiesData } = useProjectActivities(projectId);
+  const { data: evidencePacksData } = useEvidencePacks(projectId);
+  const { data: reworkData } = useReworkRequests(projectId);
+  const holdMutation = useHoldProject();
+  const resumeMutation = useResumeProject();
+
+  /* Build project from API data merged with mock fallback */
+  const mockProject = mockProjects.find((p) => p.id === projectId) ?? mockProjects[0];
+  const project = React.useMemo(() => {
+    if (!overviewData) return mockProject;
+    const healthMap: Record<string, ProjectHealth> = {
+      OK: "on_track", ON_TRACK: "on_track", AT_RISK: "at_risk",
+      BEHIND: "behind", ON_HOLD: "on_hold", ESCALATED: "escalated", COMPLETED: "completed",
+    };
+    return {
+      ...mockProject,
+      title: overviewData.name,
+      health: healthMap[overviewData.health?.toUpperCase()] ?? mockProject.health,
+      progress: overviewData.completion_pct,
+    };
+  }, [overviewData, mockProject]);
+
   const milestones = mockMilestones.filter((m) => m.projectId === project.id);
   const team = mockTeams.find((t) => t.id === project.teamId);
   const tasks = mockTasks.filter((t) => t.planId === project.planId);
@@ -110,10 +143,53 @@ export default function ProjectDetailPage() {
   }>({ isOpen: false, type: null, itemId: null });
   const [releasedPayments, setReleasedPayments] = React.useState<Set<string>>(new Set());
   const [uatSigned, setUatSigned] = React.useState(false);
+  const [tlTooltip, setTlTooltip] = React.useState<{ x: number; y: number; content: React.ReactNode } | null>(null);
+  const [todayClient, setTodayClient] = React.useState<Date | null>(null);
+  React.useEffect(() => { setTodayClient(new Date()); }, []);
 
   const daysLeft = Math.max(0, Math.ceil((new Date(project.endDate).getTime() - Date.now()) / 86400000));
   const completedTasks = tasks.filter((t) => t.status === "accepted").length;
   const completionPct = tasks.length ? Math.round((completedTasks / tasks.length) * 100) : 0;
+
+  const timelineData = React.useMemo(() => {
+    if (!milestones.length) return { rows: [], months: [], toPct: (_d: Date) => 0, rangeStart: new Date(0), rangeEnd: new Date(0) };
+    const sorted = [...milestones].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    const rangeStart = new Date(project.startDate);
+    const rangeEnd   = new Date(sorted[sorted.length - 1].dueDate);
+    rangeEnd.setDate(rangeEnd.getDate() + 14);
+    const totalMs = rangeEnd.getTime() - rangeStart.getTime();
+    const toPct = (d: Date) => Math.min(100, Math.max(0, (d.getTime() - rangeStart.getTime()) / totalMs * 100));
+
+    const palette: Record<MilestoneStatus, { track: string; fill: string; border: string; label: string }> = {
+      completed:   { track: "rgba(22,163,74,0.15)",  fill: "#16a34a", border: "#16a34a", label: "#15803d" },
+      in_progress: { track: "rgba(13,148,136,0.15)", fill: "#0d9488", border: "#0d9488", label: "#0f766e" },
+      upcoming:    { track: "rgba(148,163,184,0.2)", fill: "#94a3b8", border: "#94a3b8", label: "#64748b" },
+      overdue:     { track: "rgba(180,83,9,0.15)",   fill: "#b45309", border: "#b45309", label: "#92400e" },
+    };
+
+    const rows = sorted.map((ms, i) => {
+      const start = i === 0 ? new Date(rangeStart) : new Date(sorted[i - 1].dueDate);
+      const end   = new Date(ms.dueDate);
+      if (start.getTime() >= end.getTime()) end.setDate(start.getDate() + 7);
+      const bLeft  = toPct(start);
+      const bWidth = Math.max(4, toPct(end) - bLeft);
+      return { ms, start, end, bLeft, bWidth, c: palette[ms.status] };
+    });
+
+    const months: string[] = [];
+    const c = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
+    while (c <= rangeEnd) {
+      months.push(c.toLocaleDateString("en-US", { month: "short", year: "2-digit" }));
+      c.setMonth(c.getMonth() + 1);
+    }
+
+    return { rows, months, toPct, rangeStart, rangeEnd };
+  }, [milestones, project.startDate]);
+
+  const todayPct = todayClient ? timelineData.toPct(todayClient) : 0;
+  const todayVisible = todayClient
+    ? todayClient >= timelineData.rangeStart && todayClient <= timelineData.rangeEnd
+    : false;
 
   const projectExceptions = [
     ...(project.escalations > 0 ? [{ id: "pe-1", type: "escalation", description: "Client escalation: deliverable review cycle exceeding SLA threshold.", severity: "critical" as const, date: "2 hours ago", status: "open" as const }] : []),
@@ -144,12 +220,101 @@ export default function ProjectDetailPage() {
   };
 
   const handlePutOnHold = () => {
+    holdMutation.mutate(projectId);
     toast.info("Project On Hold", `"${project.title}" has been put on hold.`);
   };
 
   const handleResume = () => {
+    resumeMutation.mutate(projectId);
     toast.success("Project Resumed", `"${project.title}" is now back on track.`);
   };
+
+  /* Skeleton while API data is loading */
+  if (isOverviewLoading) {
+    return (
+      <div className="space-y-6">
+        {/* Header skeleton */}
+        <div className="mb-8">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 space-y-3">
+              <Skeleton className="h-5 w-20 rounded-full" />
+              <Skeleton className="h-7 w-2/3" />
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-3 w-36" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Skeleton className="h-9 w-28 rounded-xl" />
+              <Skeleton className="h-9 w-32 rounded-xl" />
+            </div>
+          </div>
+        </div>
+
+        {/* KPI row skeleton — 6 cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="card-parchment flex items-center gap-4 px-4 py-4">
+              <Skeleton className="w-10 h-10 rounded-xl shrink-0" />
+              <div className="space-y-1.5">
+                <Skeleton className="h-5 w-12" />
+                <Skeleton className="h-2.5 w-16" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Team section skeleton */}
+        <div className="card-parchment p-5 space-y-4">
+          <Skeleton className="h-4 w-24" />
+          <div className="flex gap-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex flex-col items-center gap-2">
+                <Skeleton className="w-10 h-10 rounded-full" />
+                <Skeleton className="h-2.5 w-14" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Timeline skeleton */}
+        <div className="card-parchment p-5 space-y-4">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-40 w-full rounded-xl" />
+        </div>
+
+        {/* Tasks skeleton */}
+        <div className="card-parchment p-5 space-y-3">
+          <Skeleton className="h-4 w-20" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 py-2">
+              <Skeleton className="w-5 h-5 rounded" />
+              <Skeleton className="h-3.5 w-2/3" />
+              <Skeleton className="h-5 w-16 rounded-full ml-auto" />
+            </div>
+          ))}
+        </div>
+
+        {/* Deliverables skeleton */}
+        <div className="card-parchment p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-3 w-12" />
+          </div>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between py-3" style={{ borderBottom: i < 2 ? "1px solid var(--border-hair)" : undefined }}>
+              <div className="space-y-1.5 flex-1">
+                <Skeleton className="h-3.5 w-1/2" />
+                <Skeleton className="h-2.5 w-20" />
+              </div>
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="show">
@@ -168,6 +333,12 @@ export default function ProjectDetailPage() {
               <Link href={`/enterprise/sow/${project.sowId}`} className="text-brown-500 hover:text-brown-600 font-medium transition-colors">{project.sowTitle}</Link>
               <span className="w-1 h-1 rounded-full bg-gray-300" />
               <span>{formatDate(project.startDate)} – {formatDate(project.endDate)}</span>
+              {overviewData?.owner && (
+                <>
+                  <span className="w-1 h-1 rounded-full bg-gray-300" />
+                  <span className="text-gray-600 font-medium">Owner: {overviewData.owner}</span>
+                </>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -220,7 +391,7 @@ export default function ProjectDetailPage() {
           <div className={cn("h-full rounded-full transition-all duration-700", completionPct === 100 ? "bg-forest-500" : "bg-gradient-to-r from-brown-400 to-brown-500")} style={{ width: `${completionPct}%` }} />
         </div>
         <div className="flex items-center gap-4 flex-wrap">
-          {(["backlog", "in_progress", "in_review", "rework", "accepted"] as TaskStatus[]).map((key) => {
+          {(["in_progress", "in_review", "accepted"] as TaskStatus[]).map((key) => {
             const count = tasks.filter((t) => t.status === key).length;
             const cfg = taskStatusMap[key];
             return (
@@ -230,6 +401,12 @@ export default function ProjectDetailPage() {
               </div>
             );
           })}
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-brown-400" />
+            <span className="text-[11px] text-gray-600">
+              <span className="font-semibold">{tasks.filter((t) => t.status === "rework").length}</span> In Clarification / Rework
+            </span>
+          </div>
         </div>
       </motion.div>
 
@@ -240,8 +417,8 @@ export default function ProjectDetailPage() {
           <span className="text-[11px] text-gray-400">{tasks.length} total</span>
         </div>
         <div className="hidden lg:grid items-center px-5 py-2.5"
-          style={{ gridTemplateColumns: "1fr 100px 80px 80px 60px 20px", borderBottom: "1px solid var(--border-soft)", background: "color-mix(in srgb, var(--color-gray-100) 40%, white)", fontSize: 10, color: "var(--color-gray-400)", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-          <span>Task</span><span>Status</span><span>Priority</span><span>Hours</span><span>Phase</span><span />
+          style={{ gridTemplateColumns: "1fr 100px 80px 80px 20px", borderBottom: "1px solid var(--border-soft)", background: "color-mix(in srgb, var(--color-gray-100) 40%, white)", fontSize: 10, color: "var(--color-gray-400)", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+          <span>Task</span><span>Status</span><span>Priority</span><span>Hours</span><span />
         </div>
         {tasks.map((task, i) => {
           const ts = taskStatusMap[task.status];
@@ -249,7 +426,7 @@ export default function ProjectDetailPage() {
           return (
             <Link key={task.id} href={`/enterprise/projects/${projectId}/tasks/${task.id}`}>
               <div className="group flex lg:grid items-center px-5 py-3.5 transition-colors hover:bg-black/[0.02]"
-                style={{ gridTemplateColumns: "1fr 100px 80px 80px 60px 20px", borderBottom: i < tasks.length - 1 ? "1px solid var(--border-hair)" : undefined }}>
+                style={{ gridTemplateColumns: "1fr 100px 80px 80px 20px", borderBottom: i < tasks.length - 1 ? "1px solid var(--border-hair)" : undefined }}>
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] font-medium text-gray-700 truncate">{task.title}</div>
                   <div className="text-[11px] text-gray-400 truncate mt-0.5">{task.description}</div>
@@ -257,7 +434,6 @@ export default function ProjectDetailPage() {
                 <div className="hidden lg:block"><Badge variant={ts.variant}>{ts.label}</Badge></div>
                 <div className="hidden lg:block">{pr && <Badge variant={pr.variant}>{pr.label}</Badge>}</div>
                 <div className="hidden lg:block text-[12px] font-mono text-gray-600">{task.estimatedHours}h</div>
-                <div className="hidden lg:block text-[11px] text-gray-400">Phase {task.phase}</div>
                 <div className="hidden lg:flex justify-end">
                   <ChevronRight className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
@@ -373,77 +549,153 @@ export default function ProjectDetailPage() {
       </motion.div>
 
       {/* ═══ TIMELINE ═══ */}
-      {milestones.length > 0 && (
-        <motion.div variants={fadeUp} className="card-parchment mb-6">
-          <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
-            <span className="text-sm font-semibold text-gray-800">Timeline</span>
-            <span className="text-[11px] text-gray-400">{formatDate(project.startDate)} – {formatDate(project.endDate)}</span>
-          </div>
-          <div className="p-5">
-            {/* Month labels */}
-            <div className="flex items-center mb-4">
-              <div className="w-[180px] shrink-0" />
-              <div className="flex-1 flex items-center justify-between px-1">
-                {(() => {
-                  const start = new Date(project.startDate);
-                  const end = new Date(project.endDate);
-                  const months: string[] = [];
-                  const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-                  while (cursor <= end) {
-                    months.push(cursor.toLocaleDateString("en-US", { month: "short", year: "2-digit" }));
-                    cursor.setMonth(cursor.getMonth() + 1);
-                  }
-                  return months.map((m) => (
-                    <span key={m} className="text-[9px] text-gray-400 font-medium uppercase tracking-wider">{m}</span>
-                  ));
-                })()}
+      {milestones.length > 0 && (() => {
+        const { rows, months } = timelineData;
+        const LEFT_W = 220;
+        const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        const fmtShort = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        return (
+          <motion.div variants={fadeUp} className="card-parchment mb-6 overflow-hidden">
+            {/* Fixed tooltip */}
+            {tlTooltip && (
+              <div className="fixed z-[9999] pointer-events-none" style={{ left: tlTooltip.x + 14, top: tlTooltip.y - 10 }}>
+                {tlTooltip.content}
+              </div>
+            )}
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-semibold text-gray-800">Milestone Timeline</span>
+                <div className="hidden sm:flex items-center gap-3">
+                  {([
+                    { s: "completed",   color: "#16a34a", label: "Completed"   },
+                    { s: "in_progress", color: "#0d9488", label: "In Progress" },
+                    { s: "upcoming",    color: "#94a3b8", label: "Upcoming"    },
+                    { s: "overdue",     color: "#b45309", label: "Overdue"     },
+                  ]).map(({ s, color, label }) => (
+                    <div key={s} className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} />
+                      <span className="text-[10px] text-gray-400">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {todayVisible && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block w-px h-3.5 bg-teal-500" />
+                    <span className="text-[10px] text-gray-400">Today</span>
+                  </div>
+                )}
+                <span className="text-[11px] text-gray-400">{formatDate(project.startDate)} – {formatDate(project.endDate)}</span>
               </div>
             </div>
-            {/* Milestone bars */}
-            {milestones.map((ms) => {
-              const msC = msStatusColors[ms.status];
-              const projStart = new Date(project.startDate).getTime();
-              const projEnd = new Date(project.endDate).getTime();
-              const totalDur = projEnd - projStart;
-              const msIdx = milestones.indexOf(ms);
-              const barStart = msIdx === 0 ? projStart : new Date(milestones[msIdx - 1].dueDate).getTime();
-              const barEnd = new Date(ms.dueDate).getTime();
-              const leftPct = Math.max(0, ((barStart - projStart) / totalDur) * 100);
-              const widthPct = Math.max(5, ((barEnd - barStart) / totalDur) * 100);
 
-              return (
-                <div key={ms.id} className="flex items-center mb-1">
-                  <div className="w-[180px] shrink-0 pr-3">
-                    <p className="text-[12px] font-medium text-gray-700 truncate">{ms.title}</p>
-                    <p className="text-[10px] text-gray-400">Due {formatShortDate(ms.dueDate)}</p>
-                  </div>
-                  <div className="flex-1 h-8 relative">
-                    <div className="absolute inset-0 border-l border-gray-100" />
-                    <div className="absolute top-1 h-6 rounded-md overflow-hidden"
-                      style={{ left: `${leftPct}%`, width: `${widthPct}%` }}>
-                      <div className={cn("absolute inset-0 opacity-20", msC.bg)} />
-                      <div className={cn("absolute inset-y-0 left-0 rounded-md opacity-50", msC.dot)} style={{ width: `${ms.progress}%` }} />
-                      <div className={cn("absolute inset-0 rounded-md border", msC.border)} />
-                      <div className="absolute inset-0 flex items-center px-2">
-                        <span className={cn("text-[10px] font-semibold", msC.text)}>{ms.progress}%</span>
+            {/* Chart */}
+            <div className="overflow-x-auto">
+              {/* Month header */}
+              <div className="flex min-w-[640px]" style={{ borderBottom: "1px solid var(--border-soft)", background: "rgba(0,0,0,0.018)" }}>
+                <div className="shrink-0 flex items-end px-4 py-2.5" style={{ width: LEFT_W }}>
+                  <span className="text-[9px] font-semibold tracking-widest uppercase text-gray-400">Milestone</span>
+                </div>
+                <div className="flex-1 flex">
+                  {months.map((m, i) => (
+                    <div key={m} className="flex-1 py-2.5 text-center"
+                      style={{ background: i % 2 === 1 ? "rgba(0,0,0,0.016)" : "transparent", borderLeft: "1px solid var(--border-hair)" }}>
+                      <span className="text-[9px] font-semibold uppercase tracking-widest text-gray-400">{m}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Milestone rows */}
+              <div className="min-w-[640px]">
+                {rows.map(({ ms, start, end, bLeft, bWidth, c }, idx) => {
+                  const sc = msStatusColors[ms.status];
+                  return (
+                    <div key={ms.id}
+                      className="flex items-center"
+                      style={{ background: idx % 2 === 0 ? "transparent" : "rgba(0,0,0,0.012)", borderBottom: "1px solid var(--border-hair)" }}>
+
+                      {/* Left: label */}
+                      <div className="shrink-0 px-4 py-3.5 flex items-center gap-3" style={{ width: LEFT_W }}>
+                        <span className={cn("w-2 h-2 rounded-full shrink-0", sc.dot)} />
+                        <div className="min-w-0">
+                          <p className="text-[12px] font-semibold text-gray-800 truncate leading-snug">{ms.title}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full border", sc.bg, sc.text, sc.border)}>
+                              {ms.status.replace("_", " ")}
+                            </span>
+                            <span className="text-[9.5px] text-gray-400">{ms.tasksCompleted}/{ms.tasksTotal} tasks</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: bar */}
+                      <div className="flex-1 relative h-14 overflow-hidden">
+                        {/* Column shading */}
+                        {months.map((_, i) => (
+                          <div key={i} className="absolute inset-y-0"
+                            style={{ left: `${(i / months.length) * 100}%`, width: `${100 / months.length}%`, background: i % 2 === 1 ? "rgba(0,0,0,0.016)" : "transparent", borderLeft: "1px solid var(--border-hair)" }} />
+                        ))}
+                        {/* Today line */}
+                        {todayVisible && (
+                          <div className="absolute inset-y-0 w-px z-10" style={{ left: `${todayPct}%`, background: c.border, opacity: 0.5 }} />
+                        )}
+
+                        {/* Bar */}
+                        <div
+                          className="absolute top-1/2 -translate-y-1/2 h-8 rounded-xl overflow-hidden cursor-pointer z-10"
+                          style={{ left: `${bLeft}%`, width: `${bWidth}%`, background: c.track }}
+                          onMouseEnter={(e) => setTlTooltip({ x: e.clientX, y: e.clientY, content: (
+                            <div className="rounded-xl px-3 py-2.5 shadow-xl min-w-[190px]" style={{ background: "#1c1917", border: "1px solid rgba(255,255,255,0.08)" }}>
+                              <p className="text-[12px] font-semibold text-white mb-1.5">{ms.title}</p>
+                              <div className="space-y-1 text-[10.5px] text-gray-400">
+                                <div className="flex justify-between gap-4"><span>Start</span><span className="text-gray-200">{fmt(start)}</span></div>
+                                <div className="flex justify-between gap-4"><span>Due</span><span className="text-gray-200">{fmt(end)}</span></div>
+                                <div className="flex justify-between gap-4"><span>Tasks</span><span className="text-gray-200">{ms.tasksCompleted}/{ms.tasksTotal}</span></div>
+                                <div className="flex justify-between gap-4"><span>Budget</span><span className="text-gray-200">₹{ms.budget?.toLocaleString("en-IN") ?? "—"}</span></div>
+                                <div className="flex justify-between gap-4 pt-1 border-t border-white/10">
+                                  <span>Progress</span><span style={{ color: c.fill }} className="font-semibold">{ms.progress}%</span>
+                                </div>
+                              </div>
+                            </div>
+                          )})}
+                          onMouseMove={(e) => setTlTooltip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null)}
+                          onMouseLeave={() => setTlTooltip(null)}
+                        >
+                          {/* Progress fill */}
+                          <motion.div className="h-full rounded-xl"
+                            initial={{ width: 0 }} animate={{ width: `${ms.progress}%` }}
+                            transition={{ duration: 0.8, ease: "easeOut" }}
+                            style={{ background: c.fill, opacity: 0.85 }} />
+                          {/* Label inside bar */}
+                          {bWidth > 12 && (
+                            <div className="absolute inset-0 flex items-center px-3">
+                              <span className="text-[10px] font-semibold text-white truncate" style={{ textShadow: "0 1px 2px rgba(0,0,0,0.3)" }}>
+                                {ms.progress > 0 ? `${ms.progress}%` : "Not started"}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Date chips */}
+                        <div className="absolute z-10" style={{ left: `${bLeft}%`, bottom: 3, transform: "translateX(-2px)" }}>
+                          <span className="text-[8px] text-gray-400">{fmtShort(start)}</span>
+                        </div>
+                        <div className="absolute z-10" style={{ left: `${Math.min(bLeft + bWidth, 97)}%`, bottom: 3 }}>
+                          <span className="text-[8px] text-gray-400">{fmtShort(end)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              );
-            })}
-            {/* Legend */}
-            <div className="flex items-center gap-4 mt-4 pt-3 border-t border-gray-100">
-              {(["completed", "in_progress", "upcoming", "overdue"] as MilestoneStatus[]).map((status) => (
-                <div key={status} className="flex items-center gap-1.5">
-                  <span className={cn("w-2 h-2 rounded-sm", msStatusColors[status].dot)} />
-                  <span className="text-[10px] text-gray-500 capitalize">{status.replace("_", " ")}</span>
-                </div>
-              ))}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        </motion.div>
-      )}
+          </motion.div>
+        );
+      })()}
 
       {/* ═══ DELIVERABLES ═══ */}
       <motion.div variants={fadeUp} className="card-parchment mb-6">
@@ -492,6 +744,80 @@ export default function ProjectDetailPage() {
           </div>
         )}
       </motion.div>
+
+      {/* ═══ EVIDENCE PACKS (API) ═══ */}
+      {evidencePacksData && evidencePacksData.groups.length > 0 && (
+        <motion.div variants={fadeUp} className="card-parchment mb-6">
+          <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
+            <span className="text-sm font-semibold text-gray-800">Evidence Packs</span>
+            <span className="text-[11px] text-gray-400">{evidencePacksData.total} total</span>
+          </div>
+          {evidencePacksData.groups.map((group) => (
+            <div key={group.milestone_id}>
+              <div className="px-5 py-2 bg-gray-50/60 border-b border-gray-100">
+                <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">{group.milestone_key} — {group.milestone_name}</span>
+              </div>
+              {group.evidence_packs.map((ep, i) => {
+                const statusColors: Record<string, { bg: string; text: string }> = {
+                  APPROVED: { bg: "bg-forest-50", text: "text-forest-700" },
+                  PENDING_REVIEW: { bg: "bg-gold-50", text: "text-gold-700" },
+                  REJECTED: { bg: "bg-red-50", text: "text-red-600" },
+                  DRAFT: { bg: "bg-gray-100", text: "text-gray-600" },
+                };
+                const sc = statusColors[ep.status] ?? statusColors.DRAFT;
+                return (
+                  <div key={ep.id} className="flex items-center justify-between px-5 py-3" style={{ borderBottom: i < group.evidence_packs.length - 1 ? "1px solid var(--border-hair)" : undefined }}>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium text-gray-700">{ep.title}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{new Date(ep.submitted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+                    </div>
+                    <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase", sc.bg, sc.text)}>
+                      {ep.status.replace("_", " ")}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </motion.div>
+      )}
+
+      {/* ═══ REWORK REQUESTS (API) ═══ */}
+      {reworkData && reworkData.rework_requests.length > 0 && (
+        <motion.div variants={fadeUp} className="card-parchment mb-6">
+          <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
+            <span className="text-sm font-semibold text-gray-800">Rework Requests</span>
+            <span className="text-[11px] text-gray-400">{reworkData.total} total</span>
+          </div>
+          {reworkData.rework_requests.map((rw, i) => {
+            const rwStatusColors: Record<string, { bg: string; text: string }> = {
+              OPEN: { bg: "bg-red-50", text: "text-red-600" },
+              IN_PROGRESS: { bg: "bg-gold-50", text: "text-gold-700" },
+              RESOLVED: { bg: "bg-forest-50", text: "text-forest-700" },
+              CLOSED: { bg: "bg-gray-100", text: "text-gray-600" },
+            };
+            const sc = rwStatusColors[rw.status] ?? rwStatusColors.OPEN;
+            return (
+              <div key={rw.id} className="px-5 py-3.5" style={{ borderBottom: i < reworkData.rework_requests.length - 1 ? "1px solid var(--border-hair)" : undefined }}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[13px] font-medium text-gray-700">{rw.task}</span>
+                  <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase", sc.bg, sc.text)}>
+                    {rw.status.replace("_", " ")}
+                  </span>
+                </div>
+                <p className="text-[12px] text-gray-500 leading-relaxed">{rw.reason}</p>
+                <div className="flex items-center gap-3 mt-1.5 text-[10px] text-gray-400">
+                  <span>{rw.milestone}</span>
+                  <span className="w-1 h-1 rounded-full bg-gray-300" />
+                  <span>Round {rw.round}</span>
+                  <span className="w-1 h-1 rounded-full bg-gray-300" />
+                  <span>Due {new Date(rw.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                </div>
+              </div>
+            );
+          })}
+        </motion.div>
+      )}
 
       {/* ═══ EXCEPTIONS ═══ */}
       {projectExceptions.length > 0 && (

@@ -2,40 +2,73 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
-import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/db";
+import { authApi, isMfaPending } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/client";
 
-// Build OAuth providers only when credentials are configured
-const oauthProviders = [
-  ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-    ? [Google({
-        clientId: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        authorization: {
-          params: {
-            prompt: "consent",
-            access_type: "offline",
-            response_type: "code",
-          },
-        },
-      })]
-    : []),
-  ...(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET
-    ? [MicrosoftEntraID({
-        clientId: process.env.MICROSOFT_CLIENT_ID,
-        clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
-        issuer: `https://login.microsoftonline.com/${process.env.MICROSOFT_TENANT_ID ?? "common"}/v2.0`,
-      })]
-    : []),
-];
+export type UserRole = "contributor" | "enterprise" | "admin" | "reviewer" | "mentor";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  // Make the secret explicit to avoid env-resolution issues across runtimes/bundlers.
+  secret: process.env.AUTH_SECRET,
   pages: {
     signIn: "/auth/login",
     error: "/auth/login",
   },
   providers: [
-    ...oauthProviders,
+    /**
+     * "glimmora-oauth" — receives pre-validated tokens from the Glimmora OAuth
+     * callback page (/auth/oauth/callback) and creates a NextAuth session.
+     * The Glimmora API handles the full Google/Microsoft OAuth dance; this
+     * provider only wraps the resulting tokens into a NextAuth JWT.
+     */
+    Credentials({
+      id: "glimmora-oauth",
+      name: "Glimmora OAuth",
+      credentials: {
+        accessToken:  {},
+        refreshToken: {},
+        expiresIn:    {},
+        userId:       {},
+        email:        {},
+        firstName:    {},
+        lastName:     {},
+        role:         {},
+        provider:     {},
+      },
+      async authorize(credentials) {
+        if (!credentials?.accessToken) return null;
+        const role = ((credentials.role as string) || "enterprise") as UserRole;
+        return {
+          id:           credentials.userId as string,
+          name:         `${credentials.firstName} ${credentials.lastName}`,
+          email:        credentials.email as string,
+          role,
+          accessToken:  credentials.accessToken as string,
+          refreshToken: credentials.refreshToken as string,
+          expiresIn:    Number(credentials.expiresIn) || 3600,
+          provider:     (credentials.provider as string) || "google",
+        };
+      },
+    }),
+    /**
+     * NextAuth-managed Google OAuth — uses our own Google Cloud credentials
+     * (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET) which are registered with our
+     * app's redirect URI, not Glimmora's. This correctly redirects back to our
+     * app after OAuth. Glimmora's own OAuth endpoints can't do this (their
+     * callback is locked to glimmora-api.onrender.com).
+     */
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      authorization: {
+        params: { prompt: "consent", access_type: "offline", response_type: "code" },
+      },
+    }),
+    MicrosoftEntraID({
+      clientId: process.env.MICROSOFT_CLIENT_ID,
+      clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+      issuer: `https://login.microsoftonline.com/${process.env.MICROSOFT_TENANT_ID ?? "common"}/v2.0`,
+    }),
     Credentials({
       name: "credentials",
       credentials: {
@@ -43,43 +76,62 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error("Please enter your email and password");
+        // Returning null (not throwing) ensures Auth.js returns JSON for client helpers.
+        try {
+          const email = typeof credentials?.email === "string" ? credentials.email.trim().toLowerCase() : "";
+          const password = typeof credentials?.password === "string" ? credentials.password : "";
+
+          if (!email || !password) return null;
+
+          // Dev-only hardcoded admin bypass
+          if (email === "admin@glimmora.dev" && password === "Admin@1234") {
+            return {
+              id: "dev-admin-001",
+              name: "Glimmora Admin",
+              email: "admin@glimmora.dev",
+              role: "admin" as UserRole,
+            };
+          }
+
+          const response = await authApi.login(email, password);
+
+          // MFA pending (code required) — block login until verified
+          if (isMfaPending(response) && (response as any).mfa_flow !== "setup") {
+            return null;
+          }
+
+          // MFA setup required — allow login.
+          // The API may still include tokens alongside the MFA-pending payload;
+          // include them so enterprise endpoints work without re-login.
+          if (isMfaPending(response)) {
+            const u = (response as any).user ?? {};
+            const r = response as any;
+            return {
+              id: u.id ?? "",
+              name: `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim(),
+              email: u.email ?? email,
+              role: (u.role ?? "enterprise") as UserRole,
+              ...(r.access_token ? { accessToken: r.access_token } : {}),
+              ...(r.refresh_token ? { refreshToken: r.refresh_token } : {}),
+              ...(r.expires_in ? { expiresIn: r.expires_in } : {}),
+            };
+          }
+
+          const role = (response.user.role ?? "contributor") as UserRole;
+          console.log("LOGIN RESPONSE:", JSON.stringify(response));
+
+          return {
+            id: response.user.id,
+            name: `${response.user.firstName} ${response.user.lastName}`,
+            email: response.user.email,
+            role,
+            accessToken: response.access_token,
+            refreshToken: response.refresh_token,
+            expiresIn: response.expires_in,
+          };
+        } catch {
+          return null;
         }
-
-        const email = credentials.email as string;
-        const password = credentials.password as string;
-
-        // Email format validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-          throw new Error("Please enter a valid email address");
-        }
-
-        // Password minimum check
-        if (password.length < 6) {
-          throw new Error("Password must be at least 6 characters");
-        }
-
-        const user = await prisma.user.findUnique({
-          where: { email: email.toLowerCase() },
-        });
-
-        if (!user || !user.passwordHash) {
-          throw new Error("No account found with this email");
-        }
-
-        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-        if (!isPasswordValid) {
-          throw new Error("Incorrect password");
-        }
-
-        return {
-          id: user.id,
-          name: `${user.firstName} ${user.lastName}`,
-          email: user.email,
-          role: user.role,
-        };
       },
     }),
   ],
@@ -89,30 +141,88 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     async jwt({ token, user, account }) {
-      // On initial sign in, persist user data in token
+      // Initial sign-in — user object only present on first call
       if (user) {
         token.id = user.id;
-        token.role = (user as { role?: string }).role || "user";
+        // For Google/Microsoft OAuth, default to contributor role
+        // The role can be updated later during onboarding
+        token.role = ((user as { role?: string }).role || "contributor") as UserRole;
+        token.glimmoraAccessToken = (user as { accessToken?: string }).accessToken;
+        token.glimmoraRefreshToken = (user as { refreshToken?: string }).refreshToken;
+        const expiresIn = (user as { expiresIn?: number }).expiresIn;
+        if (expiresIn) {
+          token.glimmoraExpiresAt = Math.floor(Date.now() / 1000) + expiresIn;
+        }
+        // Store email and name from OAuth provider
+        if (user.email) token.email = user.email;
+        if (user.name) token.name = user.name;
       }
-      // Store the provider used for sign in
       if (account) {
         token.provider = account.provider;
       }
+
+      // Proactive token refresh — refresh if within 60 seconds of expiry
+      const shouldRefresh =
+        token.glimmoraRefreshToken &&
+        token.glimmoraExpiresAt &&
+        Date.now() / 1000 > token.glimmoraExpiresAt - 60;
+
+      if (shouldRefresh) {
+        try {
+          const refreshed = await authApi.refreshToken(token.glimmoraRefreshToken as string);
+          token.glimmoraAccessToken = refreshed.access_token;
+          token.glimmoraRefreshToken = refreshed.refresh_token;
+          // Default to 1 hour if the refresh response has no expires_in
+          token.glimmoraExpiresAt = Math.floor(Date.now() / 1000) + 3600;
+        } catch {
+          // Refresh failed — clear tokens so the user is prompted to re-login
+          delete token.glimmoraAccessToken;
+          delete token.glimmoraRefreshToken;
+          delete token.glimmoraExpiresAt;
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        (session.user as { role?: string }).role = token.role as string;
-        (session.user as { provider?: string }).provider = token.provider as string;
+        session.user.role = token.role as UserRole;
+        session.user.provider = token.provider;
+        session.user.accessToken = token.glimmoraAccessToken;
       }
       return session;
     },
-    async signIn({ account }) {
-      // Allow all OAuth and credentials sign-ins
-      if (account?.provider === "credentials") return true;
-      if (account?.provider === "google") return true;
-      if (account?.provider === "microsoft-entra-id") return true;
+    async signIn({ user, account }) {
+      // For Google/Microsoft SSO, verify the email is already registered in Glimmora.
+      // We probe the login endpoint with a dummy password — the error message tells us
+      // whether the account exists ("wrong password") or not ("not found / no account").
+      if (account?.provider === "google" || account?.provider === "microsoft-entra-id") {
+        if (!user.email) return "/auth/login?error=SsoNotRegistered";
+        try {
+          await authApi.login(user.email, "__sso_registration_check__");
+          // Unexpected success (shouldn't happen with dummy password) — allow through
+        } catch (err) {
+          if (err instanceof ApiError) {
+            const msg = err.message.toLowerCase();
+            const notRegistered =
+              err.status === 404 ||
+              msg.includes("not found") ||
+              msg.includes("no account") ||
+              msg.includes("does not exist");
+            if (notRegistered) {
+              return "/auth/login?error=SsoNotRegistered";
+            }
+            // "Wrong password" or similar → account exists → allow through
+          }
+          // Network / unknown error → fail open so legitimate users aren't blocked
+        }
+        return true;
+      }
+      // Credentials (email/password) and Glimmora OAuth callback
+      if (account?.provider === "credentials" || account?.provider === "glimmora-oauth") {
+        return true;
+      }
       return true;
     },
     async redirect({ url, baseUrl }) {

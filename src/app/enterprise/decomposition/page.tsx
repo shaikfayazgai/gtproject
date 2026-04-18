@@ -3,17 +3,22 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import {
   Network, Clock, Layers, ArrowRight, Boxes, Sparkles, Download,
   Milestone as MilestoneIcon, BrainCircuit, CheckCircle2, Search, X,
-  ChevronRight, ChevronLeft, ArrowUp, ArrowDown,
+  ChevronRight, ChevronLeft, ArrowUp, ArrowDown, ExternalLink,
+  AlertTriangle,
 } from "lucide-react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui";
-import { mockPlans, mockTasks } from "@/mocks/data/enterprise-projects";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue, Skeleton } from "@/components/ui";
 import type { DecompositionPlan, PlanStatus } from "@/types/enterprise";
+import { useDecompositionPlans, useKickoff, useWithdraw } from "@/lib/hooks/use-decomposition";
+import {
+  useRazorpayScript,
+} from "@/components/enterprise/decomposition/PaymentReleaseTab";
+import { MilestonePaymentModal } from "@/components/enterprise/decomposition/MilestonePaymentModal";
 
 /* ═══ Badge ═══ */
 
@@ -39,12 +44,117 @@ const statusMap: Record<PlanStatus, { variant: string; label: string }> = {
   completed: { variant: "brown", label: "Completed" },
 };
 
-const complexityMap: Record<string, { variant: string; label: string }> = {
-  low: { variant: "forest", label: "Low" }, medium: { variant: "teal", label: "Medium" },
-  high: { variant: "gold", label: "High" }, critical: { variant: "brown", label: "Critical" },
-};
-
 function formatCost(n: number) { return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 0 }).format(n); }
+
+/* ═══ Primary Action Button ═══ */
+function PrimaryActionButton({ plan, onClick, onKickoff, onWithdraw }: { plan: DecompositionPlan; onClick: (e: React.MouseEvent) => void; onKickoff?: (e: React.MouseEvent) => void; onWithdraw?: (planId: string) => void }) {
+  const [showWithdrawModal, setShowWithdrawModal] = React.useState(false);
+  const [showConfirmModal, setShowConfirmModal] = React.useState(false);
+  const [showToast, setShowToast] = React.useState(false);
+  if (plan.status === "draft") {
+    return (
+      <button
+        onClick={(e) => { e.stopPropagation(); onKickoff?.(e); }}
+        className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-bold text-white bg-teal-500 hover:bg-teal-600 transition-all shadow-sm">
+        Kick-off
+      </button>
+    );
+  }
+  if (plan.status === "pending_review") {
+    return (
+      <button onClick={onClick}
+        className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-bold text-white bg-gold-500 hover:bg-gold-600 transition-all shadow-sm">
+        Review Plan
+      </button>
+    );
+  }
+  if (plan.status === "in_progress") {
+    return (
+      <>
+        {showWithdrawModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowWithdrawModal(false)}>
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-[380px] mx-4"
+              onClick={(e) => e.stopPropagation()}>
+              <div className="flex flex-col items-center gap-3 mb-3 text-center">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                  <span className="text-red-600 text-lg">⚠️</span>
+                </div>
+                <div>
+                  <p className="text-[14px] font-bold text-gray-900">Withdraw Plan?</p>
+                  <p className="text-[12px] text-gray-500">This action cannot be undone.</p>
+                </div>
+              </div>
+              <p className="text-[12px] text-gray-600 mb-5 leading-relaxed">
+                By clicking this your onboarding project will be off-boarded.And this will be removed from the active project.
+              </p>
+              <div className="flex items-center gap-2 justify-end">
+                <button
+                  onClick={() => setShowWithdrawModal(false)}
+                  className="px-4 py-2 rounded-lg text-[12px] font-medium text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setShowWithdrawModal(false);
+                    setShowConfirmModal(true);
+                  }}
+                  className="px-4 py-2 rounded-lg text-[12px] font-semibold text-white bg-red-500 hover:bg-red-600 transition-all">
+                  Yes, Withdraw
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {showToast && (
+          <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-gray-900 text-white px-4 py-3 rounded-xl shadow-lg">
+            <span className="text-green-400 text-lg">✓</span>
+            <span className="text-[13px] font-medium">Plan has been successfully off-boarded.</span>
+          </div>
+        )}
+        {showConfirmModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowConfirmModal(false)}>
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-[340px] mx-4 text-center"
+              onClick={(e) => e.stopPropagation()}>
+              <p className="text-[15px] font-bold text-gray-900 mb-2">Are you sure?</p>
+              <p className="text-[12px] text-gray-500 mb-5">This will permanently off-board the project.</p>
+              <div className="flex items-center gap-2 justify-center">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="px-4 py-2 rounded-lg text-[12px] font-medium text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all">
+                  No
+                </button>
+                <button
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    onWithdraw?.(plan.id);
+                    setShowToast(true);
+                    setTimeout(() => setShowToast(false), 3000);
+                  }}
+                  className="px-4 py-2 rounded-lg text-[12px] font-semibold text-white bg-red-500 hover:bg-red-600 transition-all">
+                  Yes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        <button
+          onClick={(e) => { e.stopPropagation(); setShowWithdrawModal(true); }}
+          className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-semibold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 transition-all">
+          Withdraw
+        </button>
+      </>
+    );
+  }
+  // covers: revision_in_progress, approved, completed
+  return (
+    <button onClick={onClick}
+      className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-semibold text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 transition-all">
+      View Plan
+    </button>
+  );
+}
 
 /* ═══ Sort ═══ */
 
@@ -52,12 +162,12 @@ type SortField = "title" | "status" | "tasks" | "confidence" | "cost" | "updated
 type SortDir = "asc" | "desc";
 
 const columns = [
-  { field: "title" as SortField, label: "Plan", align: "left" },
-  { field: "status" as SortField, label: "Status", align: "left" },
+  { field: "title" as SortField, label: "Project Name", align: "left" },
+  
+  { field: "updated" as SortField, label: "SOW Reference", align: "left" },
+  { field: "confidence" as SortField, label: "Milestones", align: "center" },
   { field: "tasks" as SortField, label: "Tasks", align: "center" },
-  { field: "confidence" as SortField, label: "AI Confidence", align: "left" },
-  { field: "cost" as SortField, label: "Cost", align: "right" },
-  { field: "updated" as SortField, label: "Updated", align: "left" },
+  { field: "cost" as SortField, label: "Action", align: "center" },
 ];
 
 /* ═══ PAGE ═══ */
@@ -69,6 +179,90 @@ export default function DecompositionPlansPage() {
   const [searchFocused, setSearchFocused] = React.useState(false);
   const [sortField, setSortField] = React.useState<SortField>("updated");
   const [sortDir, setSortDir] = React.useState<SortDir>("desc");
+  const [paymentPlan, setPaymentPlan] = React.useState<DecompositionPlan | null>(null);
+  const [plans, setPlans] = React.useState<DecompositionPlan[]>([]);
+  const [justPaidIds, setJustPaidIds] = React.useState<Set<string>>(new Set());
+
+  // ── API data & mutations ──
+  const { data: apiPlansRes, isLoading: plansLoading, isError: plansError, error: plansErrorObj } = useDecompositionPlans();
+  const kickoffMutation = useKickoff();
+  const withdrawMutation = useWithdraw();
+
+  // Map backend status strings to frontend PlanStatus
+  const normalizeStatus = (s: string): PlanStatus => {
+    const map: Record<string, PlanStatus> = {
+      PLAN_REVIEW_REQUIRED: "pending_review",
+      PENDING_KICKOFF: "draft",
+      NEW: "draft",
+      PLAN_CONFIRMED: "approved",
+      PLAN_LOCKED: "in_progress",
+      REVISION_IN_PROGRESS: "revision_in_progress",
+      COMPLETED: "completed",
+      WITHDRAWN: "completed",
+    };
+    return map[s] ?? (s as PlanStatus);
+  };
+
+  // Map API plans to DecompositionPlan interface
+  const allPlans: DecompositionPlan[] = React.useMemo(() => {
+    // Handle both: direct array OR {data: [...]} OR {data: {plans: [...]}}
+    const resp = apiPlansRes as unknown;
+    let rawArr: Record<string, unknown>[] | null = null;
+
+    if (Array.isArray(resp)) {
+      rawArr = resp;
+    } else if (resp && typeof resp === "object") {
+      const obj = resp as Record<string, unknown>;
+      const inner = obj.data ?? obj;
+      if (Array.isArray(inner)) {
+        rawArr = inner;
+      } else if (inner && typeof inner === "object") {
+        const nested = (inner as Record<string, unknown>).plans ?? (inner as Record<string, unknown>).items;
+        if (Array.isArray(nested)) rawArr = nested;
+      }
+    }
+
+    if (!rawArr || rawArr.length === 0) return [];
+
+    return rawArr.map((p) => ({
+      id: (p._id ?? p.id ?? p.plan_id ?? "") as string,
+      sowId: (p.sow_id ?? p.sowId ?? p.sow_reference ?? "") as string,
+      title: (p.title ?? p.project_name ?? "Untitled Plan") as string,
+      status: normalizeStatus((p.status ?? "draft") as string),
+      createdAt: (p.created_at ?? p.createdAt ?? new Date().toISOString()) as string,
+      updatedAt: (p.updated_at ?? p.updatedAt ?? new Date().toISOString()) as string,
+      totalTasks: Number(p.total_tasks ?? p.totalTasks ?? p.task_count ?? 0),
+      totalSubtasks: Number(p.total_subtasks ?? p.totalSubtasks ?? 0),
+      totalMilestones: Number(p.total_milestones ?? p.totalMilestones ?? p.milestone_count ?? 0),
+      estimatedHours: Number(p.estimated_hours ?? p.estimatedHours ?? 0),
+      estimatedCost: Number(p.estimated_cost ?? p.estimatedCost ?? 0),
+      complexity: (p.complexity ?? "medium") as DecompositionPlan["complexity"],
+      version: Number(p.version ?? p.plan_version ?? p.sow_version ?? 1),
+      teamId: (p.team_id ?? p.teamId) as string | undefined,
+      projectId: (p.project_id ?? p.projectId) as string | undefined,
+      aiConfidence: Number(p.ai_confidence ?? p.aiConfidence ?? 0),
+      criticalPathDuration: Number(p.critical_path_duration ?? p.criticalPathDuration ?? 0),
+      uniqueSkills: Number(p.unique_skills ?? p.uniqueSkills ?? 0),
+      dependencyCount: Number(p.dependency_count ?? p.dependencyCount ?? 0),
+    }));
+  }, [apiPlansRes]);
+
+  const handleKickoff = (plan: DecompositionPlan) => {
+    kickoffMutation.mutate({ plan_id: plan.id });
+    setPaymentPlan(plan);
+  };
+
+  const handlePaymentSuccess = (paidPlanId: string) => {
+    setPlans((prev) =>
+      prev.map((p) => p.id === paidPlanId ? { ...p, status: "approved" } : p)
+    );
+    setJustPaidIds((prev) => {
+      const next = new Set(prev);
+      next.add(paidPlanId);
+      return next;
+    });
+    setPaymentPlan(null);
+  };
 
   function handleSort(field: SortField) {
     if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -76,7 +270,7 @@ export default function DecompositionPlansPage() {
   }
 
   const filtered = React.useMemo(() => {
-    let list = [...mockPlans];
+    let list = [...allPlans];
     if (statusFilter !== "all") list = list.filter((p) => p.status === statusFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -95,13 +289,13 @@ export default function DecompositionPlansPage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [statusFilter, search, sortField, sortDir]);
+  }, [allPlans, statusFilter, search, sortField, sortDir]);
 
-  const totalPlans = mockPlans.length;
-  const totalMilestones = mockPlans.reduce((s, p) => s + p.totalMilestones, 0);
-  const totalTasks = mockPlans.reduce((s, p) => s + p.totalTasks, 0);
-  const avgConfidence = Math.round(mockPlans.reduce((s, p) => s + p.aiConfidence, 0) / totalPlans);
-  const totalBudget = mockPlans.reduce((s, p) => s + p.estimatedCost, 0);
+  const totalPlans = allPlans.length;
+  const totalMilestones = allPlans.reduce((s, p) => s + p.totalMilestones, 0);
+  const totalTasks = allPlans.reduce((s, p) => s + p.totalTasks, 0);
+  const avgConfidence = totalPlans > 0 ? Math.round(allPlans.reduce((s, p) => s + p.aiConfidence, 0) / totalPlans) : 0;
+  const totalBudget = allPlans.reduce((s, p) => s + p.estimatedCost, 0);
 
   const statusOptions = [
     { value: "all", label: "All Status" }, { value: "draft", label: "Draft" },
@@ -109,7 +303,104 @@ export default function DecompositionPlansPage() {
     { value: "in_progress", label: "In Progress" }, { value: "completed", label: "Completed" },
   ];
 
+  const formatAmount = (amt: number) =>
+    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amt);
+
+  /* ── Loading skeleton ── */
+  if (plansLoading) {
+    return (
+      <div className="space-y-7">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-56" />
+            <Skeleton className="h-4 w-80" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-24 rounded-lg" />
+            <Skeleton className="h-10 w-32 rounded-xl" />
+          </div>
+        </div>
+
+        {/* KPI row — 5 cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="card-parchment flex items-center gap-5 px-5 py-5">
+              <Skeleton className="w-12 h-12 rounded-2xl shrink-0" />
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-7 w-14" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Table card */}
+        <div className="card-parchment">
+          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
+            <Skeleton className="h-4 w-44" />
+          </div>
+          <div className="flex items-center gap-3 px-6 py-3" style={{ borderBottom: "1px solid var(--border-hair)" }}>
+            <Skeleton className="h-9 w-56 rounded-lg" />
+            <Skeleton className="h-9 w-36 rounded-lg" />
+          </div>
+          {/* Table header */}
+          <div className="grid grid-cols-5 gap-4 px-6 py-3" style={{ borderBottom: "1px solid var(--border-soft)" }}>
+            {["w-28", "w-24", "w-16", "w-12", "w-16"].map((w, i) => (
+              <Skeleton key={i} className={`h-2.5 ${w}`} />
+            ))}
+          </div>
+          {/* Table rows */}
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="grid grid-cols-5 gap-4 px-6 py-5 items-center" style={{ borderBottom: "1px solid var(--border-hair)" }}>
+              <div className="space-y-1.5">
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-2.5 w-2/3" />
+              </div>
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-3 w-8" />
+              <Skeleton className="h-3 w-8" />
+              <Skeleton className="h-9 w-24 rounded-lg" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Error state ── */
+  if (plansError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center px-6">
+        <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center mb-4">
+          <AlertTriangle className="w-6 h-6 text-red-500" />
+        </div>
+        <p className="text-sm font-semibold text-gray-800 mb-1">Failed to load decomposition plans</p>
+        <p className="text-xs text-gray-500 max-w-md mb-3">
+          {plansErrorObj instanceof Error ? plansErrorObj.message : "Unknown error"}
+        </p>
+        <details className="text-left w-full max-w-lg">
+          <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Debug info</summary>
+          <pre className="mt-2 p-3 bg-gray-50 rounded-lg text-[10px] text-gray-600 overflow-auto max-h-40">
+            {JSON.stringify({ error: plansErrorObj, response: apiPlansRes }, null, 2)}
+          </pre>
+        </details>
+      </div>
+    );
+  }
+
   return (
+    <>
+    {paymentPlan && (
+      <MilestonePaymentModal
+        title={paymentPlan.title}
+        budget={paymentPlan.estimatedCost}
+        pendingId="m1"
+        entityId={paymentPlan.id}
+        onSuccess={() => handlePaymentSuccess(paymentPlan!.id)}
+        onClose={() => setPaymentPlan(null)}
+      />
+    )}
     <motion.div variants={stagger} initial="hidden" animate="show">
 
       {/* ═══ HEADER ═══ */}
@@ -222,58 +513,59 @@ export default function DecompositionPlansPage() {
             </thead>
             <tbody>
               {filtered.map((plan) => {
-                const st = statusMap[plan.status];
-                const cx = complexityMap[plan.complexity];
-                const planTasks = mockTasks.filter((t) => t.planId === plan.id);
-                const completedTasks = planTasks.filter((t) => t.status === "accepted").length;
-                const taskTotal = planTasks.length > 0 ? planTasks.length : plan.totalTasks;
-                const updatedDate = new Date(plan.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                
+                const sowVersion = `SOW Version V${plan.version}`;
+                const sowRef = `SOW-2026-${plan.sowId.replace("sow-", "").padStart(3, "0")}`;
 
                 return (
                   <tr key={plan.id} onClick={() => router.push(`/enterprise/decomposition/${plan.id}`)}
                     className="group cursor-pointer transition-colors hover:bg-black/[0.02]"
                     style={{ borderBottom: "1px solid var(--border-hair)" }}>
-                    {/* Plan */}
+
+                    {/* Project Name */}
                     <td style={{ padding: "13px 16px" }}>
                       <div className="text-[13px] font-medium text-gray-800 truncate max-w-[280px]">{plan.title}</div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="font-mono text-[10px] text-gray-400">{plan.sowId.toUpperCase()}</span>
-                        <span className="w-1 h-1 rounded-full bg-gray-300" />
-                        <span className="text-[10px] text-gray-400">{plan.totalMilestones} milestones</span>
-                        <span className="w-1 h-1 rounded-full bg-gray-300" />
-                        <span className="text-[10px] text-gray-400">{plan.estimatedHours.toLocaleString()}h</span>
+                        <span className="text-[10px] text-gray-400">{sowVersion}</span>
                       </div>
                     </td>
-                    {/* Status */}
+
+                    
+
+                    {/* SOW Reference */}
                     <td style={{ padding: "13px 16px" }}>
                       <div className="flex items-center gap-1.5">
-                        <Badge variant={st.variant}>{st.label}</Badge>
-                        {cx && <Badge variant={cx.variant}>{cx.label}</Badge>}
+                        <span className="font-mono text-[12px] text-gray-700">{sowRef}</span>
+                        <Link href={`/enterprise/sow/${plan.sowId}`} onClick={(e) => e.stopPropagation()}>
+                          <ExternalLink className="w-3 h-3 text-gray-400 hover:text-brown-500 transition-colors" />
+                        </Link>
                       </div>
                     </td>
+
+                    {/* Milestones */}
+                    <td style={{ padding: "13px 16px", textAlign: "center" }}>
+                      <span className="text-[12px] font-medium text-gray-700">{plan.totalMilestones}</span>
+                    </td>
+
                     {/* Tasks */}
                     <td style={{ padding: "13px 16px", textAlign: "center" }}>
-                      <span className="text-[12px] font-medium text-gray-700">{planTasks.length > 0 ? `${completedTasks}/${taskTotal}` : plan.totalTasks}</span>
+                      <span className="text-[12px] font-medium text-gray-700">{plan.totalTasks}</span>
                     </td>
-                    {/* AI Confidence */}
-                    <td style={{ padding: "13px 16px" }}>
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                          <div className={cn("h-full rounded-full",
-                            plan.aiConfidence >= 85 ? "bg-forest-500" : plan.aiConfidence >= 70 ? "bg-gold-500" : "bg-brown-500"
-                          )} style={{ width: `${plan.aiConfidence}%` }} />
-                        </div>
-                        <span className="text-[11px] font-mono font-medium text-gray-600 w-8">{plan.aiConfidence}%</span>
-                      </div>
+
+                    {/* Primary Action */}
+                    <td style={{ padding: "13px 16px", textAlign: "center" }}>
+                      <PrimaryActionButton
+                        plan={plan}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const suffix = justPaidIds.has(plan.id) ? "?ai=generating" : "";
+                          router.push(`/enterprise/decomposition/${plan.id}${suffix}`);
+                        }}
+                        onKickoff={() => handleKickoff(plan)}
+                        onWithdraw={(id) => withdrawMutation.mutate(id)}
+                      />
                     </td>
-                    {/* Cost */}
-                    <td style={{ padding: "13px 16px", textAlign: "right" }}>
-                      <span className="text-[12px] font-semibold text-gray-800">{formatCost(plan.estimatedCost)}</span>
-                    </td>
-                    {/* Updated */}
-                    <td style={{ padding: "13px 16px" }}>
-                      <span className="text-[11.5px] text-gray-500">{updatedDate}</span>
-                    </td>
+
                   </tr>
                 );
               })}
@@ -295,6 +587,8 @@ export default function DecompositionPlansPage() {
           )}
         </div>
       </motion.div>
+
     </motion.div>
+    </>
   );
 }

@@ -21,6 +21,7 @@ import {
   Users,
   Calendar,
   Shield,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp, slideInRight } from "@/lib/utils/motion-variants";
@@ -58,8 +59,9 @@ export default function KickoffProjectPage() {
   const sow = mockSOWs.find((s) => s.id === sowId) || mockSOWs[0];
 
   const [contractAcknowledged] = React.useState(true);
-  const [m1Paid] = React.useState(true);
+  const [m1Paid] = React.useState(false);
   const [showConfirmModal, setShowConfirmModal] = React.useState(false);
+  const [showM1Snackbar, setShowM1Snackbar] = React.useState(false);
   const [kickoffState, setKickoffState] = React.useState<
     "ready" | "processing" | "kicked_off" | "plan_ready"
   >("ready");
@@ -419,8 +421,10 @@ export default function KickoffProjectPage() {
             variant={bothConditionsMet ? "gradient-forest" : "outline"}
             size="lg"
             className="gap-2"
-            disabled={!bothConditionsMet}
-            onClick={() => setShowConfirmModal(true)}
+            onClick={() => {
+              if (!m1Paid) { setShowM1Snackbar(true); return; }
+              setShowConfirmModal(true);
+            }}
           >
             <Rocket className="w-4 h-4" />
             Kick-off Project
@@ -526,6 +530,47 @@ export default function KickoffProjectPage() {
                 </Button>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* M1 Payment Snackbar */}
+      <AnimatePresence>
+        {showM1Snackbar && (
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ type: "spring", stiffness: 300, damping: 28 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-5 py-3.5 rounded-2xl shadow-xl border border-amber-200 bg-white"
+            style={{ minWidth: 380, maxWidth: 520 }}
+          >
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 shrink-0">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-semibold text-gray-800 leading-snug">
+                M1 Payment Required to Kick-Off
+              </p>
+              <p className="text-[11.5px] text-gray-500 mt-0.5 leading-snug">
+                Please release the M1 payment ({formatCurrency(m1Amount)}) to kick-off this project.
+              </p>
+            </div>
+            <Link
+              href={`/enterprise/decomposition/${sow.id}/payment`}
+              onClick={() => setShowM1Snackbar(false)}
+              className="flex items-center gap-1.5 shrink-0 text-[11.5px] font-semibold text-white bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700 px-3.5 py-2 rounded-xl transition-all"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              Progress M1 Payment
+            </Link>
+            <button
+              type="button"
+              onClick={() => setShowM1Snackbar(false)}
+              className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

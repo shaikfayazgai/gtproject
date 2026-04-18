@@ -6,6 +6,7 @@ import { signIn } from "next-auth/react";
 import { COUNTRIES_DATA } from "../data";
 import { getPasswordStrength, getAgeFromDob } from "../helpers";
 import { registerContributor } from "@/lib/actions/register";
+import { fetchInternal } from "@/lib/api/client";
 import type { RegistrationRole, ContributorType, SSOData } from "../types";
 
 export function useRegistration(ssoData?: SSOData | null) {
@@ -66,6 +67,7 @@ export function useRegistration(ssoData?: SSOData | null) {
 
   const [ndaAccepted,     setNdaAccepted]     = useState(false);
   const [ndaSignature,    setNdaSignature]    = useState("");
+  const [ndaSignedFile,   setNdaSignedFile]   = useState<File | null>(null);
 
   const [resumeFile,      setResumeFile]      = useState<File | null>(null);
   const [resumeDrag,      setResumeDrag]      = useState(false);
@@ -75,10 +77,6 @@ export function useRegistration(ssoData?: SSOData | null) {
   const [acceptFee,       setAcceptFee]       = useState(false);
   const [acceptAhp,       setAcceptAhp]       = useState(false);
   const [marketingOptIn,  setMarketingOptIn]  = useState(false);
-
-  useEffect(() => {
-    if (email) setVerificationEmail(prev => prev || email);
-  }, [email]);
 
   useEffect(() => {
     if (step !== 3 || !country) return;
@@ -159,16 +157,30 @@ export function useRegistration(ssoData?: SSOData | null) {
   }
 
   async function sendEmailOTP() {
-    if (!verificationEmail) {
+    if (!verificationEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(verificationEmail)) {
       setError("Please enter a valid email address");
       return;
     }
     setError("");
     setEmailOtpLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setEmailOtpLoading(false);
-    setEmailOtpSent(true);
-    startEmailCooldown();
+    try {
+      const res = await fetchInternal("/api/auth/otp/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: verificationEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message ?? "Failed to send verification email. Please try again.");
+        return;
+      }
+      setEmailOtpSent(true);
+      startEmailCooldown();
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setEmailOtpLoading(false);
+    }
   }
 
   async function verifyEmailOTP() {
@@ -178,15 +190,35 @@ export function useRegistration(ssoData?: SSOData | null) {
     }
     setError("");
     setEmailOtpLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 800));
-    setEmailOtpLoading(false);
-    setEmailVerified(true);
+    try {
+      const res = await fetchInternal("/api/auth/otp/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: verificationEmail, code: emailOtp }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message ?? "Invalid or expired code. Please try again.");
+        return;
+      }
+      setEmailVerified(true);
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setEmailOtpLoading(false);
+    }
   }
 
   function goToStep2() {
-    if (!firstName.trim())    { setError("Please enter your first name"); return; }
+    if (!firstName.trim())               { setError("Please enter your first name"); return; }
     if (!lastName.trim())     { setError("Please enter your last name"); return; }
-    if (!email)               { setError("Please enter a valid email address"); return; }
+    // ✅ Added proper email validation
+    if (!email.trim()) { setError("Please enter your email address"); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { 
+      setError("Please enter a valid email address (e.g. name@company.com)"); 
+      return; 
+    }
+
     if (!isSsoUser) {
       if (password.length < 8)  { setError("Password must be at least 8 characters with a number and mixed case"); return; }
       if (password !== confirm) { setError("Passwords do not match - please re-enter"); return; }
@@ -208,14 +240,22 @@ export function useRegistration(ssoData?: SSOData | null) {
     }
     if (primarySkills.length < 1) { setError("Please add at least one primary skill"); return; }
     if (!availability) { setError("Please enter your weekly availability (hours)"); return; }
-    if (!mentorAck) { setError("Please acknowledge the Reviewer / Mentor requirement to proceed"); return; }
     setError("");
+    if (!verificationEmail) setVerificationEmail(email);
     setStep(3);
   }
 
   function goToStep4() {
-    if (!ndaAccepted || !ndaSignature.trim()) {
-      setError("You must read, sign, and accept the NDA & Disclosure Agreement to continue");
+    if (!ndaSignedFile) {
+      setError("Please upload the signed NDA document to continue");
+      return;
+    }
+    if (!ndaSignature.trim()) {
+      setError("Please enter your full legal name as a digital signature");
+      return;
+    }
+    if (!ndaAccepted) {
+      setError("You must read and accept the NDA & Disclosure Agreement to continue");
       return;
     }
     if (!phoneVerified || !emailVerified) {
@@ -270,16 +310,35 @@ export function useRegistration(ssoData?: SSOData | null) {
       });
 
       if (!result.success) {
-        setError(result.error);
+        // Show friendly message for duplicate email
+        if (result.error?.toLowerCase().includes("already") || 
+            result.error?.toLowerCase().includes("exists") ||
+            result.error?.toLowerCase().includes("duplicate")) {
+          setError("This email is already registered. Please sign in instead.");
+        } else {
+          setError(result.error);
+        }
         setIsLoading(false);
         return;
       }
 
-      await signIn("credentials", {
+      const signInResult = await signIn("credentials", {
         email,
         password,
-        callbackUrl: "/contributor/dashboard",
+        redirect: false,
       });
+
+      if (signInResult?.ok) {
+        const { getSession } = await import("next-auth/react");
+        const session = await getSession();
+        const role = (session?.user as { role?: string })?.role;
+        window.location.href =
+          role === "enterprise" ? "/enterprise/dashboard" :
+          role === "mentor"     ? "/mentor/dashboard" :
+                                  "/contributor/dashboard";
+      } else {
+        window.location.href = "/auth/login";
+      }
     } catch {
       setError("Something went wrong. Please try again.");
       setIsLoading(false);
@@ -341,6 +400,7 @@ export function useRegistration(ssoData?: SSOData | null) {
 
     ndaAccepted, setNdaAccepted,
     ndaSignature, setNdaSignature,
+    ndaSignedFile, setNdaSignedFile,
 
     resumeFile, setResumeFile,
     resumeDrag, setResumeDrag,

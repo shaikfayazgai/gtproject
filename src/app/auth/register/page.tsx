@@ -2,8 +2,16 @@
 
 import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
+
+const stepAnim = {
+  initial: { opacity: 0, x: 24 },
+  animate: { opacity: 1, x: 0 },
+  exit:    { opacity: 0, x: -24 },
+  transition: { duration: 0.28, ease: "easeOut" as const },
+};
 import {
   Sparkles,
   Briefcase,
@@ -12,6 +20,7 @@ import {
   Mail,
   Lock,
   Shield,
+  ShieldCheck,
   Globe,
   Users,
   TrendingUp,
@@ -70,21 +79,46 @@ function getSsoDataFromStorage(): SSOData | null {
 
 /* ─────────────────────────── left content (no box) ─────────────────────────── */
 
-const LEFT_STATS = [
-  { value: "50K+",  label: "Students & Pros"   },
-  { value: "120+",  label: "Countries"          },
-  { value: "2.4K+", label: "Companies Hiring"  },
-];
+const CONTENT = {
+  contributor: {
+    eyebrow: "Global Workforce Platform",
+    headline: "Your career",
+    accent: "starts here",
+    desc: "Whether you're a student or a seasoned professional — get AI-matched to real projects and build a verified global portfolio.",
+    stats: [
+      { value: "50K+",  label: "Contributors" },
+      { value: "120+",  label: "Countries"     },
+      { value: "2.4K+", label: "Companies"     },
+    ],
+    badges: [
+      { Icon: BadgeCheck,    label: "Verified Professionals" },
+      { Icon: CreditCard,    label: "Secure Payments"        },
+      { Icon: MessageSquare, label: "Smart Collaboration"    },
+      { Icon: LayoutGrid,    label: "Project Management"     },
+    ],
+  },
+  enterprise: {
+    eyebrow: "Enterprise Platform",
+    headline: "Build your global",
+    accent: "team",
+    desc: "Hire vetted talent, manage distributed projects, and scale with AI-governed workforce intelligence — all in one platform.",
+    stats: [
+      { value: "2,400+", label: "Companies"       },
+      { value: "50K+",   label: "Verified Talent" },
+      { value: "120+",   label: "Countries"        },
+    ],
+    badges: [
+      { Icon: Shield,      label: "SOC 2 Certified"    },
+      { Icon: Lock,        label: "256-bit Encryption" },
+      { Icon: Zap,         label: "99.9% Uptime SLA"   },
+      { Icon: ShieldCheck, label: "GDPR Compliant"     },
+    ],
+  },
+} as const;
 
-const LEFT_FEATURES = [
-  { Icon: BadgeCheck,    label: "Verified Professionals" },
-  { Icon: CreditCard,    label: "Secure Payments"        },
-  { Icon: MessageSquare, label: "Smart Collaboration"    },
-  { Icon: LayoutGrid,    label: "Project Management"     },
-];
+function LeftContent({ role }: { role?: "contributor" | "enterprise" }) {
+  const c = CONTENT[role ?? "contributor"];
 
-
-function LeftContent() {
   return (
     <div className="hidden lg:flex flex-col flex-1 max-w-lg pt-8 pb-8 pr-10 gap-14">
 
@@ -101,25 +135,21 @@ function LeftContent() {
 
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-teal-600 mb-4 flex items-center gap-2">
           <span className="w-5 h-px bg-teal-500" />
-          Global Workforce Platform
+          {c.eyebrow}
         </p>
 
         <h2 className="font-heading text-4xl font-bold text-brown-950 leading-[1.2] mb-5">
-          Your career or company<br />
-          <span className="text-teal-600">starts here</span>.
+          {c.headline} <span className="text-teal-600">{c.accent}</span>.
         </h2>
 
-        <p className="text-sm text-beige-600 leading-relaxed max-w-sm">
-          Whether you&apos;re a student, a professional, or a company scaling with
-          world-class talent — GlimmoraTeam connects you.
-        </p>
+        <p className="text-sm text-beige-600 leading-relaxed max-w-sm">{c.desc}</p>
       </div>
 
       {/* MIDDLE — Stats + Badges */}
       <div>
         <div className="flex items-center gap-8 mb-8">
-          {LEFT_STATS.map(({ value, label }, i) => (
-            <div key={label} className={`${i > 0 ? "pl-8 border-l border-beige-200" : ""}`}>
+          {c.stats.map(({ value, label }, i) => (
+            <div key={label} className={i > 0 ? "pl-8 border-l border-beige-200" : ""}>
               <p className="font-heading text-2xl font-bold text-brown-950">{value}</p>
               <p className="text-xs text-beige-500 mt-1">{label}</p>
             </div>
@@ -127,7 +157,7 @@ function LeftContent() {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          {LEFT_FEATURES.map(({ Icon, label }) => (
+          {c.badges.map(({ Icon, label }) => (
             <div key={label} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/50 border border-beige-100">
               <Icon className="w-3.5 h-3.5 text-teal-600 shrink-0" />
               <span className="text-xs text-brown-700 font-medium">{label}</span>
@@ -488,24 +518,20 @@ function ContributorRegisterContent() {
     }, 150);
   };
 
-  const setOnboardingComplete = useAuthStore((s) => s.setOnboardingComplete);
+  const setPendingOnboarding = useAuthStore((s) => s.setPendingOnboarding);
 
-  const handleSSO = async (provider: SSOProvider) => {
+  const handleSSO = (provider: SSOProvider) => {
     setSsoLoading(provider);
-    try {
-      const providerId = provider === "microsoft" ? "microsoft-entra-id" : "google";
-      if (selectedRole === "enterprise") {
-        // Reset onboarding so the modal shows after OAuth login
-        setOnboardingComplete(false);
-      }
-      await signIn(providerId, {
-        callbackUrl: selectedRole === "enterprise"
-          ? "/enterprise/onboarding"
-          : "/onboarding",
-      });
-    } catch {
-      setSsoLoading(null);
+    const role = selectedRole === "enterprise" ? "enterprise" : "contributor";
+    if (role === "enterprise") {
+      setPendingOnboarding(true);
     }
+    const redirectAfter = role === "enterprise" 
+      ? "/enterprise/dashboard" 
+      : "/contributor/dashboard";
+    // Use NextAuth's built-in OAuth instead of Glimmora's endpoints
+    // Glimmora's callback is locked to glimmora-api.onrender.com and can't redirect back
+    signIn(provider, { callbackUrl: redirectAfter });
   };
 
   const handleManual = () => {
@@ -533,7 +559,7 @@ function ContributorRegisterContent() {
   // When SSO pre-fills role
   const activeRole = (reg.registrationRole as "contributor" | "enterprise") || (selectedRole as "contributor" | "enterprise") || undefined;
 
-  const showLeftContent = uiState === "picker";
+  const showLeftContent = uiState === "picker" || uiState === "authOptions";
 
   const logo = (
     <Link href="/" className="flex items-center gap-2 group w-fit">
@@ -578,16 +604,22 @@ function ContributorRegisterContent() {
               animateIn={roleBarAnimated}
             />
 
-            <GlassCard variant="heavy" padding="lg">
-              <GlassCardContent>
-                <AuthMethodPicker
-                  role={activeRole}
-                  onSSO={handleSSO}
-                  onManual={handleManual}
-                  ssoLoading={ssoLoading}
-                />
-              </GlassCardContent>
-            </GlassCard>
+            <div
+              className="rounded-2xl p-8"
+              style={{
+                background: "rgba(255,255,255,0.85)",
+                backdropFilter: "blur(24px)",
+                border: "1px solid rgba(0,0,0,0.06)",
+                boxShadow: "0 4px 32px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)",
+              }}
+            >
+              <AuthMethodPicker
+                role={activeRole}
+                onSSO={handleSSO}
+                onManual={handleManual}
+                ssoLoading={ssoLoading}
+              />
+            </div>
 
             <p className="text-center text-sm text-beige-600">
               Already have an account?{" "}
@@ -615,101 +647,112 @@ function ContributorRegisterContent() {
 
             <StepProgress step={reg.step} />
 
-            {reg.step === 1 && (
-              <Step1Identity
-                firstName={reg.firstName} setFirstName={reg.setFirstName}
-                lastName={reg.lastName} setLastName={reg.setLastName}
-                email={reg.email} setEmail={reg.setEmail}
-                password={reg.password} setPassword={reg.setPassword}
-                confirm={reg.confirm} setConfirm={reg.setConfirm}
-                showPw={reg.showPw} setShowPw={reg.setShowPw}
-                showCon={reg.showCon} setShowCon={reg.setShowCon}
-                contribType={reg.contribType} setContribType={reg.setContribType}
-                country={reg.country} setCountry={reg.setCountry}
-                passwordStrength={reg.passwordStrength}
-                error={reg.error}
-                onContinue={reg.goToStep2}
-                isSsoUser={reg.isSsoUser}
-                ssoProvider={reg.ssoProvider}
-              />
-            )}
+            <AnimatePresence mode="wait">
+              {reg.step === 1 && (
+                <motion.div key="c-step-1" {...stepAnim}>
+                  <Step1Identity
+                    firstName={reg.firstName} setFirstName={reg.setFirstName}
+                    lastName={reg.lastName} setLastName={reg.setLastName}
+                    email={reg.email} setEmail={reg.setEmail}
+                    password={reg.password} setPassword={reg.setPassword}
+                    confirm={reg.confirm} setConfirm={reg.setConfirm}
+                    showPw={reg.showPw} setShowPw={reg.setShowPw}
+                    showCon={reg.showCon} setShowCon={reg.setShowCon}
+                    contribType={reg.contribType} setContribType={reg.setContribType}
+                    country={reg.country} setCountry={reg.setCountry}
+                    passwordStrength={reg.passwordStrength}
+                    error={reg.error}
+                    onContinue={reg.goToStep2}
+                    isSsoUser={reg.isSsoUser}
+                    ssoProvider={reg.ssoProvider}
+                  />
+                </motion.div>
+              )}
 
-            {reg.step === 2 && (
-              <Step3Profile
-                contribType={reg.contribType}
-                dob={reg.dob} setDob={reg.setDob}
-                timezone={reg.timezone} setTimezone={reg.setTimezone}
-                departmentCategory={reg.departmentCategory} setDepartmentCategory={reg.setDepartmentCategory}
-                departmentOther={reg.departmentOther} setDepartmentOther={reg.setDepartmentOther}
-                availability={reg.availability} setAvailability={reg.setAvailability}
-                degree={reg.degree} setDegree={reg.setDegree}
-                branch={reg.branch} setBranch={reg.setBranch}
-                linkedin={reg.linkedin} setLinkedin={reg.setLinkedin}
-                mentorAck={reg.mentorAck} setMentorAck={reg.setMentorAck}
-                primarySkills={reg.primarySkills}
-                skillInput={reg.skillInput} setSkillInput={reg.setSkillInput}
-                addPrimarySkill={reg.addPrimarySkill} removePrimarySkill={reg.removePrimarySkill}
-                secondarySkills={reg.secondarySkills}
-                secondarySkillInput={reg.secondarySkillInput} setSecondarySkillInput={reg.setSecondarySkillInput}
-                addSecondarySkill={reg.addSecondarySkill} removeSecondarySkill={reg.removeSecondarySkill}
-                otherSkills={reg.otherSkills}
-                otherSkillInput={reg.otherSkillInput} setOtherSkillInput={reg.setOtherSkillInput}
-                addOtherSkill={reg.addOtherSkill} removeOtherSkill={reg.removeOtherSkill}
-                workStart={reg.workStart} setWorkStart={reg.setWorkStart}
-                workEnd={reg.workEnd} setWorkEnd={reg.setWorkEnd}
-                careerStage={reg.careerStage} setCareerStage={reg.setCareerStage}
-                yearsExperience={reg.yearsExperience} setYearsExperience={reg.setYearsExperience}
-                error={reg.error}
-                onContinue={reg.goToStep3}
-                onBack={() => { reg.setStep(1); reg.setError(""); }}
-              />
-            )}
+              {reg.step === 2 && (
+                <motion.div key="c-step-2" {...stepAnim}>
+                  <Step3Profile
+                    contribType={reg.contribType}
+                    dob={reg.dob} setDob={reg.setDob}
+                    timezone={reg.timezone} setTimezone={reg.setTimezone}
+                    departmentCategory={reg.departmentCategory} setDepartmentCategory={reg.setDepartmentCategory}
+                    departmentOther={reg.departmentOther} setDepartmentOther={reg.setDepartmentOther}
+                    availability={reg.availability} setAvailability={reg.setAvailability}
+                    degree={reg.degree} setDegree={reg.setDegree}
+                    branch={reg.branch} setBranch={reg.setBranch}
+                    linkedin={reg.linkedin} setLinkedin={reg.setLinkedin}
+                    mentorAck={reg.mentorAck} setMentorAck={reg.setMentorAck}
+                    primarySkills={reg.primarySkills}
+                    skillInput={reg.skillInput} setSkillInput={reg.setSkillInput}
+                    addPrimarySkill={reg.addPrimarySkill} removePrimarySkill={reg.removePrimarySkill}
+                    secondarySkills={reg.secondarySkills}
+                    secondarySkillInput={reg.secondarySkillInput} setSecondarySkillInput={reg.setSecondarySkillInput}
+                    addSecondarySkill={reg.addSecondarySkill} removeSecondarySkill={reg.removeSecondarySkill}
+                    otherSkills={reg.otherSkills}
+                    otherSkillInput={reg.otherSkillInput} setOtherSkillInput={reg.setOtherSkillInput}
+                    addOtherSkill={reg.addOtherSkill} removeOtherSkill={reg.removeOtherSkill}
+                    workStart={reg.workStart} setWorkStart={reg.setWorkStart}
+                    workEnd={reg.workEnd} setWorkEnd={reg.setWorkEnd}
+                    careerStage={reg.careerStage} setCareerStage={reg.setCareerStage}
+                    yearsExperience={reg.yearsExperience} setYearsExperience={reg.setYearsExperience}
+                    error={reg.error}
+                    onContinue={reg.goToStep3}
+                    onBack={() => { reg.setStep(1); reg.setError(""); }}
+                  />
+                </motion.div>
+              )}
 
-            {reg.step === 3 && (
-              <Step2Verification
-                registrationEmail={reg.email}
-                phoneCountry={reg.phoneCountry} setPhoneCountry={reg.setPhoneCountry}
-                phone={reg.phone} setPhone={reg.setPhone}
-                otpSent={reg.otpSent}
-                otp={reg.otp} setOtp={reg.setOtp}
-                cooldown={reg.cooldown}
-                phoneVerified={reg.phoneVerified}
-                phoneOtpLoading={reg.phoneOtpLoading}
-                verificationEmail={reg.verificationEmail} setVerificationEmail={reg.setVerificationEmail}
-                emailOtpSent={reg.emailOtpSent}
-                emailOtp={reg.emailOtp} setEmailOtp={reg.setEmailOtp}
-                emailCooldown={reg.emailCooldown}
-                emailVerified={reg.emailVerified}
-                emailOtpLoading={reg.emailOtpLoading}
-                ndaAccepted={reg.ndaAccepted} setNdaAccepted={reg.setNdaAccepted}
-                ndaSignature={reg.ndaSignature} setNdaSignature={reg.setNdaSignature}
-                error={reg.error}
-                onSendOTP={reg.sendOTP}
-                onVerifyOTP={reg.verifyOTP}
-                onSendEmailOTP={reg.sendEmailOTP}
-                onVerifyEmailOTP={reg.verifyEmailOTP}
-                onContinue={reg.goToStep4}
-                onBack={() => { reg.setStep(2); reg.setError(""); }}
-              />
-            )}
+              {reg.step === 3 && (
+                <motion.div key="c-step-3" {...stepAnim}>
+                  <Step2Verification
+                    registrationEmail={reg.email}
+                    phoneCountry={reg.phoneCountry} setPhoneCountry={reg.setPhoneCountry}
+                    phone={reg.phone} setPhone={reg.setPhone}
+                    otpSent={reg.otpSent}
+                    otp={reg.otp} setOtp={reg.setOtp}
+                    cooldown={reg.cooldown}
+                    phoneVerified={reg.phoneVerified}
+                    phoneOtpLoading={reg.phoneOtpLoading}
+                    verificationEmail={reg.verificationEmail} setVerificationEmail={reg.setVerificationEmail}
+                    emailOtpSent={reg.emailOtpSent}
+                    emailOtp={reg.emailOtp} setEmailOtp={reg.setEmailOtp}
+                    emailCooldown={reg.emailCooldown}
+                    emailVerified={reg.emailVerified}
+                    emailOtpLoading={reg.emailOtpLoading}
+                    ndaAccepted={reg.ndaAccepted} setNdaAccepted={reg.setNdaAccepted}
+                    ndaSignature={reg.ndaSignature} setNdaSignature={reg.setNdaSignature}
+                    ndaSignedFile={reg.ndaSignedFile} setNdaSignedFile={reg.setNdaSignedFile}
+                    error={reg.error}
+                    onSendOTP={reg.sendOTP}
+                    onVerifyOTP={reg.verifyOTP}
+                    onSendEmailOTP={reg.sendEmailOTP}
+                    onVerifyEmailOTP={reg.verifyEmailOTP}
+                    onContinue={reg.goToStep4}
+                    onBack={() => { reg.setStep(2); reg.setError(""); }}
+                  />
+                </motion.div>
+              )}
 
-            {reg.step === 4 && (
-              <Step4Consent
-                resumeFile={reg.resumeFile} setResumeFile={reg.setResumeFile}
-                resumeDrag={reg.resumeDrag} setResumeDrag={reg.setResumeDrag}
-                acceptTos={reg.acceptTos} setAcceptTos={reg.setAcceptTos}
-                acceptCoc={reg.acceptCoc} setAcceptCoc={reg.setAcceptCoc}
-                acceptPrivacy={reg.acceptPrivacy} setAcceptPrivacy={reg.setAcceptPrivacy}
-                acceptFee={reg.acceptFee} setAcceptFee={reg.setAcceptFee}
-                acceptAhp={reg.acceptAhp} setAcceptAhp={reg.setAcceptAhp}
-                marketingOptIn={reg.marketingOptIn} setMarketingOptIn={reg.setMarketingOptIn}
-                isLoading={reg.isLoading}
-                error={reg.error}
-                onPreview={() => reg.setPreviewOpen(true)}
-                onSubmit={reg.handleFinalSubmit}
-                onBack={() => { reg.setStep(3); reg.setError(""); }}
-              />
-            )}
+              {reg.step === 4 && (
+                <motion.div key="c-step-4" {...stepAnim}>
+                  <Step4Consent
+                    resumeFile={reg.resumeFile} setResumeFile={reg.setResumeFile}
+                    resumeDrag={reg.resumeDrag} setResumeDrag={reg.setResumeDrag}
+                    acceptTos={reg.acceptTos} setAcceptTos={reg.setAcceptTos}
+                    acceptCoc={reg.acceptCoc} setAcceptCoc={reg.setAcceptCoc}
+                    acceptPrivacy={reg.acceptPrivacy} setAcceptPrivacy={reg.setAcceptPrivacy}
+                    acceptFee={reg.acceptFee} setAcceptFee={reg.setAcceptFee}
+                    acceptAhp={reg.acceptAhp} setAcceptAhp={reg.setAcceptAhp}
+                    marketingOptIn={reg.marketingOptIn} setMarketingOptIn={reg.setMarketingOptIn}
+                    isLoading={reg.isLoading}
+                    error={reg.error}
+                    onPreview={() => reg.setPreviewOpen(true)}
+                    onSubmit={reg.handleFinalSubmit}
+                    onBack={() => { reg.setStep(3); reg.setError(""); }}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
 
@@ -747,24 +790,26 @@ function ContributorRegisterContent() {
 
   /* ── Picker: two-column with left content ── */
   if (showLeftContent) {
+    const isAuthOptions = uiState === "authOptions";
     return (
       <div className="w-full flex items-start gap-16 max-w-7xl mx-auto px-8">
-        <LeftContent />
-        <div className="w-full max-w-[520px] flex flex-col justify-center">
-          <div className="mb-6">
-            <h1 className="font-heading text-[22px] font-bold text-brown-950">Create your account</h1>
-            <p className="text-sm text-gray-500 mt-1">Join the Global Workforce Intelligence Platform</p>
-          </div>
+        <LeftContent role={isAuthOptions ? (activeRole ?? undefined) : undefined} />
+        <div className={`w-full flex flex-col justify-center pt-8 ${isAuthOptions ? "max-w-[440px]" : "max-w-xl"}`}>
+          {!isAuthOptions && (
+            <div className="mb-6">
+              <h1 className="font-heading text-[22px] font-bold text-brown-950">Create your account</h1>
+              <p className="text-sm text-gray-500 mt-1">Join the Global Workforce Intelligence Platform</p>
+            </div>
+          )}
           {formBody}
         </div>
       </div>
     );
   }
 
-  /* ── Auth options + form: logo top-left, form centered ── */
+  /* ── Registering: no left panel, wider centered form ── */
   return (
-    <div className={`w-full mx-auto flex flex-col py-8 ${uiState === "registering" ? "max-w-3xl" : "max-w-[520px]"}`}>
-      <div className="mb-8">{logo}</div>
+    <div className="w-full max-w-[750px] mx-auto flex flex-col py-8 px-4">
       {formBody}
     </div>
   );

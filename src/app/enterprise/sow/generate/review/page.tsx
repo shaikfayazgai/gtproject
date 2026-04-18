@@ -25,13 +25,17 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { stagger, fadeUp } from "@/lib/utils/motion-variants";
 import { Textarea } from "@/components/ui";
 import { useSidebarStore } from "@/lib/stores/sidebar-store";
+import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
+import { useSOWPipelineStore } from "@/lib/stores/sow-pipeline-store";
+import { useSowStore, INITIAL_APPROVAL_STAGES } from "@/lib/stores/sow-store";
 
 /* ═══════════════════════════════════════════════════════════
    MOCK DATA
-   ═══════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════ */ 
 
 const sowMeta = {
   id: "sow-004",
@@ -196,7 +200,11 @@ function layerStatusStyle(s: "passed" | "warning" | "pending" | "active") {
 
 export default function SOWAIDraftReviewPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const { isCollapsed } = useSidebarStore();
+  const { projectTitle, clientOrganisation, approvalAuthorities, commercialDetails } = useSOWUploadStore();
+  const addSOW = useSOWPipelineStore((s) => s.addSOW);
+  const addSow = useSowStore((s) => s.addSow);
   const [activeTab, setActiveTab] = React.useState<TabKey>("generated");
   const [resolvedFlags, setResolvedFlags] = React.useState<Set<string>>(new Set());
   const [expandedSections, setExpandedSections] = React.useState<Set<string>>(new Set(["sec-1", "sec-2"]));
@@ -798,8 +806,55 @@ export default function SOWAIDraftReviewPage() {
             <button
               disabled={submitted}
               onClick={() => {
+                const { budgetMaximum, budgetMinimum, currency } = commercialDetails.budgetRisk;
+                const budgetValue = budgetMaximum || budgetMinimum;
+                const totalValue = budgetValue
+                  ? `${currency === "USD" ? "$" : currency}${budgetValue.toLocaleString()}`
+                  : "TBD";
+                const newId = `sow-${Date.now()}`;
+                const now = new Date().toISOString();
+                addSOW({
+                  id: newId,
+                  title: projectTitle || sowMeta.title,
+                  client: clientOrganisation || sowMeta.client,
+                  currentStage: 1,
+                  stageApprover: approvalAuthorities.businessOwnerApprover || "Pending Assignment",
+                  slaStatus: "on-track",
+                  submittedDate: now.split("T")[0],
+                  totalValue,
+                  completedStages: [],
+                  submittedBy: session?.user?.name || "Unknown",
+                });
+                addSow({
+                  id: newId,
+                  title: projectTitle || sowMeta.title,
+                  client: clientOrganisation || sowMeta.client,
+                  status: "approval",
+                  intakeMode: "ai_generated",
+                  confidentiality: "confidential",
+                  dataSensitivity: "confidential",
+                  version: 1,
+                  createdAt: now,
+                  updatedAt: now,
+                  createdBy: session?.user?.name || "Unknown",
+                  fileSize: "—",
+                  pages: 0,
+                  parsedSections: 0,
+                  totalSections: 0,
+                  aiConfidence: sowMeta.overallConfidence,
+                  riskScore: { completeness: 28, confidence: 22, compliance: 23, patternMatch: 18, overall: sowMeta.riskScore },
+                  tags: [],
+                  estimatedBudget: commercialDetails.budgetRisk.budgetMaximum || commercialDetails.budgetRisk.budgetMinimum || 0,
+                  estimatedDuration: commercialDetails.timelineTeam.targetEndDate
+                    ? `Until ${commercialDetails.timelineTeam.targetEndDate}`
+                    : "TBD",
+                  stakeholders: approvalAuthorities.businessOwnerApprover
+                    ? [session?.user?.name || "Unknown", approvalAuthorities.businessOwnerApprover]
+                    : [session?.user?.name || "Unknown"],
+                  approvalStages: INITIAL_APPROVAL_STAGES,
+                });
                 setSubmitted(true);
-                setTimeout(() => router.push("/enterprise/sow/sow-004/approve"), 1500);
+                setTimeout(() => router.push(`/enterprise/sow/${newId}/approve`), 1500);
               }}
               className="flex items-center gap-1.5 rounded-lg transition-all duration-200"
               style={{

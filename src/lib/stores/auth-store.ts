@@ -32,6 +32,10 @@ interface AuthState {
   isOnboardingComplete: boolean;
   setOnboardingComplete: (v: boolean) => void;
 
+  /** True only when the user just registered via SSO from the register page and hasn't completed onboarding yet. */
+  pendingOnboarding: boolean;
+  setPendingOnboarding: (v: boolean) => void;
+
   onboardingProgress: OnboardingProgress | null;
   setOnboardingProgress: (v: OnboardingProgress | null) => void;
 
@@ -47,6 +51,9 @@ export const useAuthStore = create<AuthState>()(
 
       isOnboardingComplete: false,
       setOnboardingComplete: (v) => set({ isOnboardingComplete: v }),
+
+      pendingOnboarding: false,
+      setPendingOnboarding: (v) => set({ pendingOnboarding: v }),
 
       onboardingProgress: null,
       setOnboardingProgress: (v) => set({ onboardingProgress: v }),

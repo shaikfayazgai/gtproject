@@ -79,7 +79,7 @@ export function ActionValidationModal({
             <AlertTriangle className="w-4 h-4 text-gold-600 shrink-0 mt-0.5" />
             <p className="text-[11px] text-gold-700">
               {isHold
-                ? "This action will pause all project activities. A reason is required for audit purposes."
+                ? "This will pause all project activities and hold all contributor tasks assigned to this project. Contributors will be notified. A reason is required for audit purposes."
                 : "This action will escalate the project for immediate governance attention. A detailed reason is required."}
             </p>
           </div>

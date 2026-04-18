@@ -5,14 +5,15 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, ArrowLeft, CheckCircle2, AlertTriangle, Ban,
-  ChevronDown, Sparkles, X, Clock,
+  Sparkles, X, Clock, Send, Bot, Undo2, MessageSquare, Pencil, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp } from "@/lib/utils/motion-variants";
 import { FlowStepProgress } from "@/components/enterprise/sow/FlowStepProgress";
-import { mockGapItems } from "@/mocks/data/sow-upload-flow";
 import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
+import { useGapItems } from "@/lib/hooks/use-manual-sow";
 import type { GapItem, GapSeverity } from "@/types/enterprise";
+import { Skeleton } from "@/components/ui";
 
 /* ── Severity config ── */
 
@@ -22,7 +23,6 @@ const SEV = {
     dot: "bg-red-500",
     text: "text-red-600",
     border: "border-red-200",
-    accentBorder: "border-l-red-400",
     badgeBg: "bg-red-50 text-red-600 border-red-200",
     icon: Ban,
   },
@@ -31,7 +31,6 @@ const SEV = {
     dot: "bg-amber-400",
     text: "text-amber-600",
     border: "border-amber-200",
-    accentBorder: "border-l-amber-400",
     badgeBg: "bg-amber-50 text-amber-600 border-amber-200",
     icon: AlertTriangle,
   },
@@ -40,551 +39,771 @@ const SEV = {
     dot: "bg-gray-300",
     text: "text-gray-400",
     border: "border-gray-200",
-    accentBorder: "border-l-gray-300",
     badgeBg: "bg-gray-50 text-gray-500 border-gray-200",
     icon: CheckCircle2,
   },
 } as const;
 
-/* ═══ PAGE ═══ */
+/* ── Chat message type ── */
+
+type ChatMessage = {
+  id: string;
+  role: "ai" | "user" | "system";
+  content: string;
+  suggestions?: string[];
+};
+
+const AI_REMEDIATION = [
+  "Add numbered acceptance criteria for each deliverable tied to specific test scenarios.",
+  "Define pass/fail conditions using measurable metrics (e.g. response time < 500ms).",
+  "Include sign-off authority and review process per milestone.",
+];
+
+/* ── Gap List Row ── */
+
+function GapRow({
+  gap,
+  isSelected,
+  onClick,
+}: {
+  gap: GapItem;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const cfg = SEV[gap.severity];
+  const isHandled = gap.isResolved || gap.isAcknowledged || gap.isDismissed;
+  const SevIcon = cfg.icon;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-xl border transition-all duration-150",
+        isSelected
+          ? "bg-brown-50 border-brown-200 shadow-sm"
+          : "bg-white border-gray-100 hover:border-brown-200 hover:bg-brown-50/40",
+        isHandled && !isSelected && "opacity-60",
+      )}
+    >
+      <div className="flex flex-col items-center gap-1 pt-0.5 shrink-0">
+        <div className={cn("w-2 h-2 rounded-full shrink-0", cfg.dot)} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={cn(
+          "text-[12px] font-semibold leading-snug truncate",
+          isSelected ? "text-brown-700" : "text-gray-800",
+        )}>
+          {gap.title}
+        </p>
+        <p className="text-[10.5px] text-gray-400 mt-0.5 line-clamp-1 leading-snug">
+          {gap.description}
+        </p>
+      </div>
+      <div className="shrink-0">
+        {isHandled ? (
+          <span className="text-[9px] font-bold text-forest-700 bg-forest-50 border border-forest-200 px-1.5 py-0.5 rounded-full">
+            {gap.isResolved ? "Resolved" : gap.isAcknowledged ? "Ack." : "Dismissed"}
+          </span>
+        ) : (
+          <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full border", cfg.badgeBg)}>
+            {cfg.label}
+          </span>
+        )}
+      </div>
+    </button>
+  );
+}
+
+/* ── Suggestion Card ── */
+
+function SuggestionCard({
+  index,
+  text,
+  state,
+  onAccept,
+  onDismiss,
+  onEdit,
+}: {
+  index: number;
+  text: string;
+  state?: "accepted" | "dismissed";
+  onAccept: (text: string) => void;
+  onDismiss: () => void;
+  onEdit: (text: string) => void;
+}) {
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [editText, setEditText] = React.useState(text);
+
+  const handleSave = () => {
+    onEdit(editText);
+    setIsEditing(false);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.08 }}
+      className={cn(
+        "px-3.5 py-2.5 rounded-xl border text-[12px] leading-relaxed transition-all",
+        state === "accepted"
+          ? "bg-forest-50 border-forest-200 text-forest-800"
+          : state === "dismissed"
+          ? "bg-gray-50 border-gray-200 text-gray-400 line-through opacity-50"
+          : "bg-white border-teal-100 text-gray-700",
+      )}
+    >
+      {isEditing ? (
+        <div className="space-y-2">
+          <textarea
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            rows={3}
+            autoFocus
+            className="w-full text-[12px] text-gray-700 px-2.5 py-1.5 rounded-lg border border-brown-200 bg-white outline-none focus:border-brown-400 focus:ring-2 focus:ring-brown-100 resize-none transition-all"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!editText.trim()}
+              className="flex items-center gap-1 text-[10px] font-semibold text-white bg-brown-500 hover:bg-brown-600 px-2.5 py-1 rounded-lg transition-all disabled:opacity-50"
+            >
+              <CheckCircle2 className="w-3 h-3" /> Save
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEditText(text); setIsEditing(false); }}
+              className="flex items-center gap-1 text-[10px] font-medium text-gray-500 border border-gray-200 px-2.5 py-1 rounded-lg hover:bg-gray-50 transition-all"
+            >
+              <X className="w-3 h-3" /> Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <p>{editText}</p>
+          {!state && (
+            <div className="flex items-center gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => onAccept(editText)}
+                className="flex items-center gap-1 text-[10px] font-semibold text-forest-700 bg-forest-50 border border-forest-200 px-2.5 py-1 rounded-lg hover:bg-forest-100 transition-all"
+              >
+                <CheckCircle2 className="w-3 h-3" /> Accept
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-1 text-[10px] font-medium text-brown-600 border border-brown-200 px-2.5 py-1 rounded-lg hover:bg-brown-50 transition-all"
+              >
+                <Pencil className="w-3 h-3" /> Edit
+              </button>
+              <button
+                type="button"
+                onClick={onDismiss}
+                className="flex items-center gap-1 text-[10px] font-medium text-red-500 border border-red-200 px-2.5 py-1 rounded-lg hover:bg-red-50 transition-all"
+              >
+                <Ban className="w-3 h-3" /> Exclude
+              </button>
+            </div>
+          )}
+          {state === "accepted" && (
+            <p className="text-[10px] font-bold text-forest-600 mt-1 flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3" /> Accepted
+            </p>
+          )}
+          {state === "dismissed" && (
+            <p className="text-[10px] text-gray-400 mt-1">Excluded</p>
+          )}
+        </>
+      )}
+    </motion.div>
+  );
+}
+
+/* ── Chat Bubble ── */
+
+function ChatBubble({
+  msg,
+  suggStates,
+  onAccept,
+  onDismiss,
+  onEdit,
+}: {
+  msg: ChatMessage;
+  suggStates?: Record<number, "accepted" | "dismissed">;
+  onAccept?: (idx: number, text: string) => void;
+  onDismiss?: (idx: number) => void;
+  onEdit?: (idx: number, text: string) => void;
+}) {
+  if (msg.role === "system") {
+    return (
+      <div className="flex justify-center">
+        <span className="text-[10px] text-gray-400 bg-gray-50 border border-gray-100 px-3 py-1 rounded-full">
+          {msg.content}
+        </span>
+      </div>
+    );
+  }
+
+  if (msg.role === "ai") {
+    return (
+      <div className="flex items-start gap-2.5">
+        <div className="shrink-0 w-7 h-7 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center mt-0.5">
+          <Bot className="w-3.5 h-3.5 text-white" />
+        </div>
+        <div className="flex-1 max-w-[88%] space-y-2">
+          {/* Intro line */}
+          <div
+            className="px-4 py-2.5 rounded-2xl rounded-tl-sm text-[12px] text-gray-600"
+            style={{ background: "linear-gradient(135deg, #F0F9F9, #E8F5F5)", border: "1px solid #C5E4E4" }}
+          >
+            {msg.content}
+          </div>
+
+          {/* Per-suggestion cards with Accept / Edit / Dismiss */}
+          {msg.suggestions?.map((s, i) => {
+            const state = suggStates?.[i];
+            return (
+              <SuggestionCard
+                key={i}
+                index={i}
+                text={s}
+                state={state}
+                onAccept={(text) => onAccept?.(i, text)}
+                onDismiss={() => onDismiss?.(i)}
+                onEdit={(text) => onEdit?.(i, text)}
+              />
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-start gap-2.5 flex-row-reverse">
+      <div className="shrink-0 w-7 h-7 rounded-xl bg-gradient-to-br from-brown-400 to-brown-600 flex items-center justify-center mt-0.5">
+        <span className="text-[10px] font-bold text-white">U</span>
+      </div>
+      <div className="flex-1 max-w-[85%] px-4 py-3 rounded-2xl rounded-tr-sm text-[12.5px] leading-relaxed text-gray-700 bg-brown-50 border border-brown-100">
+        {msg.content}
+      </div>
+    </div>
+  );
+}
+
+/* ══ PAGE ══ */
+
+/* ── API → GapItem mapper ── */
+function apiToGapItem(raw: Record<string, unknown>): GapItem {
+  const get = (c: string, s: string, fb: unknown) => raw[c] ?? raw[s] ?? fb;
+  return {
+    id:           String(get("id", "_id", Math.random())),
+    severity:     (String(get("severity", "severity", "important")).toLowerCase()) as GapSeverity,
+    title:        String(get("title", "name", "")),
+    description:  String(get("description", "detail", "")),
+    section:         String(get("section", "affected_section", "")),
+    affectedSection: String(get("affectedSection", "affected_section", "")),
+    isResolved:      Boolean(get("isResolved", "is_resolved", false)),
+    isAcknowledged:  Boolean(get("isAcknowledged", "is_acknowledged", false)),
+    isDismissed:     Boolean(get("isDismissed", "is_dismissed", false)),
+    isProhibited:    Boolean(get("isProhibited", "is_prohibited", false)),
+    remediationSuggestions: (get("remediationSuggestions", "remediation_suggestions", undefined) as string[] | undefined),
+  };
+}
 
 export default function GapAnalysisPage() {
   const router = useRouter();
   const store = useSOWUploadStore();
+  const sowId = store.uploadedSowId;
+  const { data: gapRes, isLoading: gapsLoading } = useGapItems(sowId);
+
+  /* Map API data */
+  const apiGaps: GapItem[] = React.useMemo(() => {
+    if (!gapRes) return [];
+    const res = gapRes as unknown as Record<string, unknown>;
+    const payload = (res.data !== undefined && res.data !== null ? res.data : res) as Record<string, unknown>;
+    const list = payload.items ?? payload.gaps ?? payload.gap_items ?? payload.gapItems ?? payload.results ?? payload;
+    if (Array.isArray(list) && list.length > 0) return list.map((r) => apiToGapItem(r as Record<string, unknown>));
+    return [];
+  }, [gapRes]);
 
   const [gaps, setGaps] = React.useState<GapItem[]>(() =>
-    store.gapItems.length > 0 ? store.gapItems : mockGapItems,
+    store.gapItems.length > 0 ? store.gapItems : [],
   );
-  const [collapsed, setCollapsed] = React.useState<Set<GapSeverity>>(new Set());
 
-  /* Per-gap: AI suggestion selection */
-  const [selectedSuggIdx, setSelectedSuggIdx] = React.useState<Record<string, number>>({});
-  const [customText, setCustomText] = React.useState<Record<string, string>>({});
+  /* Update from API when available */
+  React.useEffect(() => {
+    if (apiGaps.length > 0) setGaps(apiGaps);
+  }, [apiGaps]);
 
-  /* Per-gap: false positive flow */
-  const [showFPForm, setShowFPForm] = React.useState<Set<string>>(new Set());
-  const [fpText, setFPText] = React.useState<Record<string, string>>({});
-
-  /* Accept all pending modal */
+  const [selectedGapId, setSelectedGapId] = React.useState<string | null>(null);
+  const [chatHistory, setChatHistory] = React.useState<Record<string, ChatMessage[]>>({});
+  // suggestionStates: msgId → { suggIdx → "accepted" | "dismissed" }
+  const [suggestionStates, setSuggestionStates] = React.useState<Record<string, Record<number, "accepted" | "dismissed">>>({});
+  const [chatInput, setChatInput] = React.useState("");
+  const [isGenerating, setIsGenerating] = React.useState(false);
+  const [fpInput, setFpInput] = React.useState<Record<string, string>>({});
   const [showAcceptModal, setShowAcceptModal] = React.useState(false);
+
+  const chatEndRef = React.useRef<HTMLDivElement>(null);
+
+  const selectedGap = gaps.find((g) => g.id === selectedGapId) ?? null;
+  const currentChat = selectedGapId ? (chatHistory[selectedGapId] ?? []) : [];
+
+  const unreviewedCount = store.extractionItems.filter((e) => e.reviewState === "pending").length;
 
   /* ── Derived counts ── */
   const criticalGaps  = gaps.filter((g) => g.severity === "critical");
   const importantGaps = gaps.filter((g) => g.severity === "important");
   const optionalGaps  = gaps.filter((g) => g.severity === "optional");
 
-  const unresolvedCritical       = criticalGaps.filter((g) => !g.isResolved);
-  const unacknowledgedImportant  = importantGaps.filter((g) => !g.isAcknowledged && !g.isResolved);
-  const resolvedCritical         = criticalGaps.filter((g) => g.isResolved).length;
-  const handledImportant         = importantGaps.filter((g) => g.isAcknowledged || g.isResolved).length;
-  const dismissedOptional        = optionalGaps.filter((g) => g.isDismissed).length;
-  const prohibitedCount          = gaps.filter((g) => g.isProhibited && !g.isResolved).length;
-
-  const unreviewedCount = store.extractionItems.filter((e) => e.reviewState === "pending").length;
+  const unresolvedCritical      = criticalGaps.filter((g) => !g.isResolved);
+  const unacknowledgedImportant = importantGaps.filter((g) => !g.isAcknowledged && !g.isResolved);
+  const prohibitedCount         = gaps.filter((g) => g.isProhibited && !g.isResolved).length;
+  const resolvedCritical        = criticalGaps.filter((g) => g.isResolved).length;
+  const handledImportant        = importantGaps.filter((g) => g.isAcknowledged || g.isResolved).length;
+  const dismissedOptional       = optionalGaps.filter((g) => g.isDismissed).length;
 
   const canProceed =
     unresolvedCritical.length === 0 &&
     unacknowledgedImportant.length === 0 &&
     prohibitedCount === 0;
 
-  /* ── Actions ── */
-  const resolveGap     = (id: string) => setGaps((p) => p.map((g) => g.id === id ? { ...g, isResolved: true } : g));
-  const acknowledgeGap = (id: string) => setGaps((p) => p.map((g) => g.id === id ? { ...g, isAcknowledged: true } : g));
-  const dismissGap     = (id: string) => setGaps((p) => p.map((g) => g.id === id ? { ...g, isDismissed: true } : g));
-  const dismissAllOptional = () => setGaps((p) => p.map((g) => g.severity === "optional" ? { ...g, isDismissed: true } : g));
+  /* ── Auto scroll chat ── */
+  React.useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [currentChat.length]);
 
-  const generateRemediation = (id: string) =>
-    setGaps((p) => p.map((g) => g.id === id ? {
-      ...g,
-      remediationSuggestions: [
-        "Add numbered acceptance criteria for each deliverable tied to specific test scenarios.",
-        "Define pass/fail conditions using measurable metrics (e.g. response time < 500ms).",
-        "Include sign-off authority and review process per milestone.",
+  /* ── Gap actions ── */
+  const resolveGap     = React.useCallback((id: string) => setGaps((p) => p.map((g) => g.id === id ? { ...g, isResolved: true } : g)), []);
+  const acknowledgeGap = React.useCallback((id: string) => setGaps((p) => p.map((g) => g.id === id ? { ...g, isAcknowledged: !g.isAcknowledged } : g)), []);
+  const dismissGap     = React.useCallback((id: string) => setGaps((p) => p.map((g) => g.id === id ? { ...g, isDismissed: true } : g)), []);
+  const resetGap       = React.useCallback((id: string) => setGaps((p) => p.map((g) => g.id === id ? { ...g, isResolved: false, isAcknowledged: false, isDismissed: false } : g)), []);
+
+  /* ── Select gap ── */
+  const handleSelectGap = (gap: GapItem) => {
+    setSelectedGapId(gap.id);
+    setChatInput("");
+    if (!chatHistory[gap.id]) {
+      setChatHistory((prev) => ({
+        ...prev,
+        [gap.id]: [
+          {
+            id: "init",
+            role: "system",
+            content: `Reviewing: "${gap.title}"`,
+          },
+        ],
+      }));
+    }
+  };
+
+  /* ── Generate AI suggestion ── */
+  const handleGenerateAI = () => {
+    if (!selectedGapId || isGenerating) return;
+    setIsGenerating(true);
+    setTimeout(() => {
+      const msgId = `ai-${Date.now()}`;
+      setChatHistory((prev) => ({
+        ...prev,
+        [selectedGapId]: [
+          ...(prev[selectedGapId] ?? []),
+          {
+            id: msgId,
+            role: "ai",
+            content: "Here are AI-generated remediation suggestions. Accept or dismiss each one:",
+            suggestions: AI_REMEDIATION,
+          },
+        ],
+      }));
+      setIsGenerating(false);
+    }, 1400);
+  };
+
+  const handleAcceptSuggestion = React.useCallback((msgId: string, idx: number, _text: string) => {
+    setSuggestionStates((prev) => ({
+      ...prev,
+      [msgId]: { ...(prev[msgId] ?? {}), [idx]: "accepted" },
+    }));
+    // Auto-resolve the gap when any suggestion is accepted
+    if (selectedGapId) resolveGap(selectedGapId);
+  }, [selectedGapId, resolveGap]);
+
+  const handleDismissSuggestion = React.useCallback((msgId: string, idx: number) => {
+    setSuggestionStates((prev) => ({
+      ...prev,
+      [msgId]: { ...(prev[msgId] ?? {}), [idx]: "dismissed" },
+    }));
+  }, []);
+
+  /* ── Send user message ── */
+  const handleSend = () => {
+    if (!selectedGapId || !chatInput.trim()) return;
+    const msg = chatInput.trim();
+    setChatHistory((prev) => ({
+      ...prev,
+      [selectedGapId]: [
+        ...(prev[selectedGapId] ?? []),
+        { id: `user-${Date.now()}`, role: "user", content: msg },
       ],
-    } : g));
-
-  const applyAndResolve = (gapId: string) => {
-    const selIdx = selectedSuggIdx[gapId] ?? -1;
-    const hasText = selIdx >= 0 || (customText[gapId] || "").trim().length > 0;
-    if (!hasText) return;
-    resolveGap(gapId);
+    }));
+    setChatInput("");
   };
 
-  const handleFalsePositive = (id: string) => {
-    if ((fpText[id] || "").length < 30) return;
+  /* ── Apply & Resolve from chat ── */
+  const handleApplyResolve = () => {
+    if (!selectedGapId) return;
+    resolveGap(selectedGapId);
+    setChatHistory((prev) => ({
+      ...prev,
+      [selectedGapId]: [
+        ...(prev[selectedGapId] ?? []),
+        { id: `sys-${Date.now()}`, role: "system", content: "Gap marked as resolved." },
+      ],
+    }));
+  };
+
+  /* ── False positive submit ── */
+  const handleFPSubmit = (id: string) => {
+    const text = fpInput[id] || "";
+    if (text.length < 30) return;
     resolveGap(id);
-    setShowFPForm((prev) => { const n = new Set(prev); n.delete(id); return n; });
+    setChatHistory((prev) => ({
+      ...prev,
+      [id]: [
+        ...(prev[id] ?? []),
+        { id: `sys-${Date.now()}`, role: "system", content: "Marked as false positive and resolved." },
+      ],
+    }));
   };
 
-  const toggleSection = (sev: GapSeverity) =>
-    setCollapsed((p) => { const n = new Set(p); n.has(sev) ? n.delete(sev) : n.add(sev); return n; });
-
-  const handleAcceptAllPending = () => {
-    store.acceptAllPending();
-    setShowAcceptModal(false);
-  };
-
-  const handleContinue = () => {
-    store.setGapItems(gaps);
-    store.setFlowStep(5);
-    router.push("/enterprise/sow/upload/details");
-  };
-
-  /* ══ Gap Card (small-width card per gap item) ══ */
-  function GapCard({ gap }: { gap: GapItem }) {
-    const cfg = SEV[gap.severity];
-    const isHandled = gap.isResolved || gap.isAcknowledged || gap.isDismissed;
-    const hasSuggestions = (gap.remediationSuggestions?.length ?? 0) > 0;
-    const selIdx = selectedSuggIdx[gap.id] ?? -1;
-    const hasResolveText =
-      selIdx >= 0 || (customText[gap.id] || "").trim().length > 0;
-    const isFPOpen = showFPForm.has(gap.id);
-    const fpJustification = fpText[gap.id] || "";
-
-    return (
-      <div className={cn(
-        "rounded-xl border border-l-[3px] bg-white shadow-sm transition-all overflow-hidden flex flex-col",
-        cfg.accentBorder,
-        cfg.border,
-        isHandled && "opacity-55",
-      )}>
-        {/* ── Card header ── */}
-        <div className="px-3.5 pt-3 pb-2.5">
-          <div className="flex items-start gap-2 mb-1.5">
-            {isHandled
-              ? <CheckCircle2 className="w-3.5 h-3.5 text-forest-500 shrink-0 mt-0.5" />
-              : gap.isProhibited
-              ? <Ban className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
-              : <cfg.icon className={cn("w-3.5 h-3.5 shrink-0 mt-0.5", cfg.text)} />
-            }
-            <span className={cn(
-              "text-[12px] font-semibold leading-snug flex-1",
-              isHandled ? "text-gray-400 line-through" : "text-gray-800",
-            )}>
-              {gap.title}
-            </span>
-            {gap.isProhibited && !isHandled && (
-              <span className="shrink-0 text-[8px] font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
-                Prohibited
-              </span>
-            )}
-          </div>
-
-          <p className="text-[11px] text-gray-500 leading-relaxed pl-5">{gap.description}</p>
-
-          <div className="mt-1.5 pl-5">
-            <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">
-              § {gap.section}
-            </span>
-          </div>
-        </div>
-
-        {/* ── Prohibited reason ── */}
-        {gap.isProhibited && gap.prohibitedReason && !isHandled && (
-          <div className="mx-3.5 mb-2.5 px-3 py-2 rounded-lg bg-red-50 border border-red-100">
-            <p className="text-[10px] text-red-600 leading-relaxed">{gap.prohibitedReason}</p>
-          </div>
-        )}
-
-        {/* ── AI Suggestions: selectable cards + editable textarea ── */}
-        {hasSuggestions && !isHandled && (
-          <div className="px-3.5 pb-2.5 space-y-1.5">
-            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-              AI Suggestions — pick one
-            </p>
-            {gap.remediationSuggestions!.map((s, i) => (
-              <button
-                key={i}
-                onClick={() => {
-                  setSelectedSuggIdx((prev) => ({ ...prev, [gap.id]: i }));
-                  setCustomText((prev) => ({ ...prev, [gap.id]: "" }));
-                }}
-                className={cn(
-                  "w-full flex items-start gap-2 px-2.5 py-2 rounded-lg border text-left transition-all",
-                  selIdx === i
-                    ? "border-brown-400 bg-brown-50/70 ring-1 ring-brown-200"
-                    : "border-gray-100 bg-gray-50/60 hover:border-brown-200 hover:bg-brown-50/30",
-                )}>
-                <Sparkles className={cn("w-2.5 h-2.5 shrink-0 mt-0.5", selIdx === i ? "text-brown-500" : "text-gray-400")} />
-                <span className="text-[10px] text-gray-600 leading-relaxed">{s}</span>
-              </button>
-            ))}
-
-            <div className="pt-0.5">
-              <p className="text-[9px] text-gray-400 mb-1">Or write your own:</p>
-              <textarea
-                value={customText[gap.id] || ""}
-                onChange={(e) => {
-                  setCustomText((prev) => ({ ...prev, [gap.id]: e.target.value }));
-                  if (e.target.value.trim()) {
-                    setSelectedSuggIdx((prev) => { const n = { ...prev }; delete n[gap.id]; return n; });
-                  }
-                }}
-                placeholder="Type your remediation text…"
-                rows={2}
-                className="w-full text-[10px] rounded-lg border border-gray-200 px-2.5 py-1.5 resize-none focus:outline-none focus:border-brown-300 placeholder:text-gray-300 bg-white"
-              />
-            </div>
-
-            <button
-              onClick={() => applyAndResolve(gap.id)}
-              disabled={!hasResolveText}
-              className={cn(
-                "w-full text-[10px] font-semibold py-1.5 rounded-lg transition-all",
-                hasResolveText
-                  ? "bg-forest-600 text-white hover:bg-forest-700"
-                  : "bg-gray-100 text-gray-400 cursor-not-allowed",
-              )}>
-              Apply & Resolve
-            </button>
-          </div>
-        )}
-
-        {/* ── False positive justification form ── */}
-        {isFPOpen && !isHandled && (
-          <div className="mx-3.5 mb-2.5 px-3 py-2.5 rounded-lg bg-orange-50/50 border border-orange-100">
-            <p className="text-[10px] font-semibold text-orange-700 mb-1.5">
-              Justification required (min 30 chars)
-            </p>
-            <textarea
-              value={fpJustification}
-              onChange={(e) => setFPText((prev) => ({ ...prev, [gap.id]: e.target.value }))}
-              placeholder="Explain why this is a false positive…"
-              rows={2}
-              className="w-full text-[10px] rounded-lg border border-orange-200 px-2.5 py-1.5 resize-none focus:outline-none focus:border-orange-400 bg-white placeholder:text-gray-300"
-            />
-            <div className="flex items-center justify-between mt-2 gap-2">
-              <span className={cn(
-                "text-[9px] font-medium tabular-nums",
-                fpJustification.length < 30 ? "text-red-400" : "text-forest-600",
-              )}>
-                {fpJustification.length} / 30 min
-              </span>
-              <div className="flex gap-1.5">
-                <button
-                  onClick={() => setShowFPForm((p) => { const n = new Set(p); n.delete(gap.id); return n; })}
-                  className="text-[9px] font-medium text-gray-400 hover:text-gray-600 px-2 py-1 rounded-lg border border-gray-200 bg-white transition-all">
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleFalsePositive(gap.id)}
-                  disabled={fpJustification.length < 30}
-                  className={cn(
-                    "text-[9px] font-semibold px-2.5 py-1 rounded-lg border transition-all",
-                    fpJustification.length >= 30
-                      ? "text-white bg-orange-500 border-orange-500 hover:bg-orange-600"
-                      : "text-gray-400 bg-gray-100 border-gray-200 cursor-not-allowed",
-                  )}>
-                  Submit
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Actions footer ── */}
-        {!isHandled && (
-          <div className="mt-auto px-3.5 pb-3 pt-2 border-t border-gray-50 flex items-center gap-1.5 flex-wrap">
-
-            {/* Critical — not prohibited, no suggestions yet */}
-            {gap.severity === "critical" && !gap.isProhibited && !hasSuggestions && (
-              <>
-                <button
-                  onClick={() => resolveGap(gap.id)}
-                  className="text-[10px] font-medium text-forest-700 px-2.5 py-1.5 rounded-lg border border-forest-200 bg-forest-50 hover:bg-forest-100 transition-all">
-                  Mark Resolved
-                </button>
-                <button
-                  onClick={() => generateRemediation(gap.id)}
-                  className="flex items-center gap-1 text-[10px] font-medium text-brown-600 px-2.5 py-1.5 rounded-lg border border-brown-200 bg-brown-50 hover:bg-brown-100 transition-all">
-                  <Sparkles className="w-2.5 h-2.5" /> Generate Suggestion
-                </button>
-              </>
-            )}
-
-            {/* Critical — prohibited, false positive not open */}
-            {gap.severity === "critical" && gap.isProhibited && !isFPOpen && (
-              <>
-                <button
-                  onClick={() => resolveGap(gap.id)}
-                  className="text-[10px] font-medium text-red-600 px-2.5 py-1.5 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 transition-all">
-                  Edit Clause
-                </button>
-                <button
-                  onClick={() => setShowFPForm((p) => { const n = new Set(p); n.add(gap.id); return n; })}
-                  className="text-[10px] font-medium text-orange-600 px-2.5 py-1.5 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-all">
-                  Mark as False Positive
-                </button>
-              </>
-            )}
-
-            {/* Important — acknowledgement checkbox */}
-            {gap.severity === "important" && (
-              <label className="flex items-start gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={gap.isAcknowledged}
-                  onChange={() => acknowledgeGap(gap.id)}
-                  className="w-3.5 h-3.5 mt-0.5 rounded border-gray-300 accent-amber-500 shrink-0"
-                />
-                <span className="text-[10px] text-gray-500 leading-snug">
-                  I acknowledge this gap and understand it may affect SOW quality.
-                </span>
-              </label>
-            )}
-
-            {/* Optional — dismiss */}
-            {gap.severity === "optional" && (
-              <button
-                onClick={() => dismissGap(gap.id)}
-                className="flex items-center gap-1 text-[10px] font-medium text-gray-400 px-2.5 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all">
-                <X className="w-2.5 h-2.5" /> Dismiss
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* ── Handled badge ── */}
-        {isHandled && (
-          <div className="mt-auto px-3.5 pb-2.5 flex items-center gap-1.5 border-t border-gray-50 pt-2">
-            <CheckCircle2 className="w-3 h-3 text-forest-500" />
-            <span className="text-[10px] font-medium text-forest-600">
-              {gap.isResolved ? "Resolved" : gap.isAcknowledged ? "Acknowledged" : "Dismissed"}
-            </span>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  /* ══ Gap Section container ══ */
-  function GapSection({
-    severity, items, label, extraAction,
-  }: {
-    severity: GapSeverity;
-    items: GapItem[];
-    label: string;
-    extraAction?: React.ReactNode;
-  }) {
-    const isCollapsed = collapsed.has(severity);
-    const cfg = SEV[severity];
-    const visibleItems = severity === "optional"
-      ? items.filter((g) => !g.isDismissed)
-      : items;
-
-    if (visibleItems.length === 0 && severity === "optional") return null;
-
-    const handledCount = visibleItems.filter(
-      (g) => g.isResolved || g.isAcknowledged || g.isDismissed,
-    ).length;
-    const allHandled = handledCount === visibleItems.length && visibleItems.length > 0;
-
-    return (
-      <motion.div variants={fadeUp} className="card-parchment overflow-hidden mb-4">
-        {/* Section header */}
-        <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100">
-          <button
-            onClick={() => toggleSection(severity)}
-            className="flex items-center gap-2 flex-1 min-w-0 text-left">
-            <span className={cn("w-2 h-2 rounded-full shrink-0", cfg.dot)} />
-            <cfg.icon className={cn("w-3.5 h-3.5 shrink-0", cfg.text)} />
-            <span className={cn("text-[12px] font-semibold", cfg.text)}>{label}</span>
-            <span className="text-[10px] text-gray-400">({visibleItems.length})</span>
-            {allHandled && (
-              <span className="flex items-center gap-1 text-[9px] font-bold text-forest-700 bg-forest-50 border border-forest-200 px-2 py-0.5 rounded-full">
-                <CheckCircle2 className="w-2.5 h-2.5" /> All handled
-              </span>
-            )}
-            <ChevronDown className={cn(
-              "w-4 h-4 text-gray-300 ml-auto transition-transform",
-              isCollapsed && "-rotate-90",
-            )} />
-          </button>
-          {extraAction}
-        </div>
-
-        {/* Cards grid — 2 columns of small cards */}
-        <AnimatePresence>
-          {!isCollapsed && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden">
-              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {visibleItems.map((gap) => (
-                  <GapCard key={gap.id} gap={gap} />
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-    );
-  }
-
-  /* ══ Unreviewed Extractions section ══ */
-  function UnreviewedSection() {
-    if (unreviewedCount === 0) return null;
-    return (
-      <motion.div variants={fadeUp} className="card-parchment overflow-hidden mb-4">
-        <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-amber-100 bg-amber-50/30">
-          <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-          <span className="text-[12px] font-semibold text-amber-600">Unreviewed Extractions</span>
-          <span className="text-[9px] font-bold text-amber-600 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full">
-            {unreviewedCount} pending
-          </span>
-          <span className="ml-auto text-[10px] text-gray-400 hidden sm:block">
-            Warning only — does not block progress
-          </span>
-        </div>
-        <div className="px-5 py-4 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-[12px] font-medium text-gray-700 mb-0.5">
-              {unreviewedCount} extraction item{unreviewedCount !== 1 ? "s" : ""} not yet reviewed
-            </p>
-            <p className="text-[11px] text-gray-400 leading-snug">
-              These items were neither accepted, edited, nor excluded in the Parsed SOW Review step.
-            </p>
-          </div>
-          <button
-            onClick={() => setShowAcceptModal(true)}
-            className="shrink-0 flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 px-3.5 py-2 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 transition-all whitespace-nowrap">
-            Accept All Pending
-          </button>
-        </div>
-      </motion.div>
-    );
-  }
+  const handleAcceptAllPending = () => { store.acceptAllPending(); setShowAcceptModal(false); };
+  const handleContinue = () => { store.setGapItems(gaps); store.setFlowStep(5); router.push("/enterprise/sow/upload/details"); };
 
   /* ══ Render ══ */
   return (
     <>
-      <motion.div variants={stagger} initial="hidden" animate="show">
+      <motion.div variants={stagger} initial="hidden" animate="show" className="flex flex-col h-full">
 
-        {/* Step progress */}
         <motion.div variants={fadeUp} className="mb-6">
           <FlowStepProgress currentStep={4} />
         </motion.div>
 
-        {/* Header */}
-        <motion.div variants={fadeUp} className="mb-6">
+        <motion.div variants={fadeUp} className="mb-5">
           <h1 className="font-heading text-[28px] font-semibold text-gray-900 tracking-tight">
             Gap Analysis Resolution
           </h1>
           <p className="mt-1.5 text-[13px] text-gray-500">
-            Resolve critical gaps and acknowledge important ones before proceeding to Commercial &amp; Project Details.
+            Select a gap on the left to review, configure, or generate AI remediation suggestions.
           </p>
         </motion.div>
 
-        {/* Summary card */}
-        <motion.div variants={fadeUp} className="card-parchment overflow-hidden mb-5">
-          <div className="grid grid-cols-3 divide-x divide-gray-100">
-            <div className="px-6 py-4">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Critical</p>
-              <div className="flex items-end gap-1.5">
-                <span className={cn(
-                  "num-display text-[28px] leading-none",
-                  unresolvedCritical.length === 0 ? "text-forest-600" : "text-red-500",
-                )}>
-                  {resolvedCritical}/{criticalGaps.length}
-                </span>
-                <span className="text-[11px] text-gray-400 mb-1">resolved</span>
-              </div>
+        {/* Summary strip */}
+        <motion.div variants={fadeUp} className="card-parchment overflow-hidden mb-4">
+          <div className="grid grid-cols-4 divide-x divide-gray-100">
+            <div className="px-5 py-3.5 flex items-center gap-3">
+              <span className={cn("num-display text-[22px] leading-none", unresolvedCritical.length === 0 ? "text-forest-600" : "text-red-500")}>
+                {resolvedCritical}/{criticalGaps.length}
+              </span>
+              <span className="text-[11px] text-gray-400 leading-tight">Critical<br />resolved</span>
             </div>
-            <div className="px-6 py-4">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Important</p>
-              <div className="flex items-end gap-1.5">
-                <span className={cn(
-                  "num-display text-[28px] leading-none",
-                  unacknowledgedImportant.length === 0 ? "text-forest-600" : "text-amber-500",
-                )}>
-                  {handledImportant}/{importantGaps.length}
-                </span>
-                <span className="text-[11px] text-gray-400 mb-1">acknowledged</span>
-              </div>
+            <div className="px-5 py-3.5 flex items-center gap-3">
+              <span className={cn("num-display text-[22px] leading-none", unacknowledgedImportant.length === 0 ? "text-forest-600" : "text-amber-500")}>
+                {handledImportant}/{importantGaps.length}
+              </span>
+              <span className="text-[11px] text-gray-400 leading-tight">Important<br />acknowledged</span>
             </div>
-            <div className="px-6 py-4">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Optional</p>
-              <div className="flex items-end gap-1.5">
-                <span className="num-display text-[28px] leading-none text-gray-500">
-                  {dismissedOptional}/{optionalGaps.length}
-                </span>
-                <span className="text-[11px] text-gray-400 mb-1">dismissed</span>
-              </div>
+            <div className="px-5 py-3.5 flex items-center gap-3">
+              <span className="num-display text-[22px] leading-none text-gray-500">
+                {dismissedOptional}/{optionalGaps.length}
+              </span>
+              <span className="text-[11px] text-gray-400 leading-tight">Optional<br />dismissed</span>
             </div>
-          </div>
-          {/* Status bar */}
-          <div className={cn(
-            "px-6 py-3 border-t border-gray-100 flex items-center gap-2",
-            canProceed ? "bg-forest-50/50" : "bg-red-50/40",
-          )}>
-            {canProceed ? (
-              <>
-                <CheckCircle2 className="w-3.5 h-3.5 text-forest-500" />
-                <span className="text-[12px] font-medium text-forest-700">
-                  All gaps resolved — ready to proceed
-                </span>
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-                <span className="text-[12px] font-medium text-red-600">
-                  {unresolvedCritical.length + unacknowledgedImportant.length + prohibitedCount} item
-                  {unresolvedCritical.length + unacknowledgedImportant.length + prohibitedCount !== 1 ? "s" : ""}{" "}
-                  remaining before you can continue
-                </span>
-              </>
-            )}
+            <div className={cn("px-5 py-3.5 flex items-center gap-2", canProceed ? "bg-forest-50/50" : "bg-red-50/40")}>
+              {canProceed ? (
+                <><CheckCircle2 className="w-4 h-4 text-forest-500 shrink-0" /><span className="text-[12px] font-medium text-forest-700">Ready to proceed</span></>
+              ) : (
+                <><AlertTriangle className="w-4 h-4 text-red-400 shrink-0" /><span className="text-[12px] font-medium text-red-600">{unresolvedCritical.length + unacknowledgedImportant.length + prohibitedCount} item{unresolvedCritical.length + unacknowledgedImportant.length + prohibitedCount !== 1 ? "s" : ""} remaining</span></>
+              )}
+            </div>
           </div>
         </motion.div>
 
-        {/* Prohibited hard block banner */}
-        {prohibitedCount > 0 && (
-          <motion.div variants={fadeUp} className="mb-4">
-            <div className="flex items-start gap-3 px-5 py-4 rounded-2xl border border-red-200 bg-red-50">
-              <Ban className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-[13px] font-semibold text-red-700 mb-0.5">
-                  {prohibitedCount} prohibited clause{prohibitedCount !== 1 ? "s" : ""} detected
-                </p>
-                <p className="text-[12px] text-red-500">
-                  This SOW contains {prohibitedCount} prohibited clause{prohibitedCount !== 1 ? "s" : ""}.
-                  Resolve all before continuing — edit the clause or mark as false positive with a justification (min 30 chars). Dismissals are logged and reviewed by GlimmoraTeam Admin.
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        )}
+        {/* Split layout */}
+        <motion.div variants={fadeUp} className="grid grid-cols-[300px_1fr] gap-4 flex-1 min-h-0" style={{ height: "380px" }}>
 
-        {/* ── All four sections ── */}
-        <GapSection severity="critical"  items={criticalGaps}  label="Critical Gaps" />
-        <GapSection severity="important" items={importantGaps} label="Important Gaps" />
-        <GapSection
-          severity="optional"
-          items={optionalGaps}
-          label="Optional Gaps"
-          extraAction={
-            optionalGaps.filter((g) => !g.isDismissed).length > 0 ? (
-              <button
-                onClick={dismissAllOptional}
-                className="text-[11px] font-medium text-gray-400 hover:text-gray-600 whitespace-nowrap transition-colors mr-1">
-                Dismiss all
-              </button>
-            ) : undefined
-          }
-        />
-        <UnreviewedSection />
+          {/* ── LEFT: Gap list ── */}
+          <div className="card-parchment flex flex-col overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-100 shrink-0">
+              <p className="text-[12px] font-semibold text-gray-700">All Gaps
+                <span className="ml-1.5 text-[10px] font-normal text-gray-400">({gaps.length} total)</span>
+              </p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2.5 space-y-1">
+              {/* Loading skeleton */}
+              {gapsLoading && gaps.length === 0 && (
+                <div className="space-y-2 py-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="rounded-lg border border-gray-100 p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-3 w-3/4" />
+                        <Skeleton className="h-4 w-12 rounded-full" />
+                      </div>
+                      <Skeleton className="h-2.5 w-full" />
+                      <Skeleton className="h-2.5 w-2/3" />
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Empty state */}
+              {!gapsLoading && gaps.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-8 text-gray-400 text-center px-4">
+                  <CheckCircle2 className="w-8 h-8 text-forest-300 mb-2" />
+                  <p className="text-[12px] font-medium text-gray-500">No gaps detected</p>
+                  <p className="text-[11px] text-gray-400 mt-1">Your SOW meets all required standards.</p>
+                </div>
+              )}
+              {/* Critical */}
+              {criticalGaps.length > 0 && (
+                <>
+                  <p className="text-[9px] font-bold text-red-500 uppercase tracking-widest px-1 pt-1 pb-0.5">Critical</p>
+                  {criticalGaps.map((gap) => (
+                    <GapRow key={gap.id} gap={gap} isSelected={selectedGapId === gap.id} onClick={() => handleSelectGap(gap)} />
+                  ))}
+                </>
+              )}
+              {/* Important */}
+              {importantGaps.length > 0 && (
+                <>
+                  <p className="text-[9px] font-bold text-amber-500 uppercase tracking-widest px-1 pt-2 pb-0.5">Important</p>
+                  {importantGaps.map((gap) => (
+                    <GapRow key={gap.id} gap={gap} isSelected={selectedGapId === gap.id} onClick={() => handleSelectGap(gap)} />
+                  ))}
+                </>
+              )}
+              {/* Optional */}
+              {optionalGaps.length > 0 && (
+                <>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-1 pt-2 pb-0.5">Optional</p>
+                  {optionalGaps.map((gap) => (
+                    <GapRow key={gap.id} gap={gap} isSelected={selectedGapId === gap.id} onClick={() => handleSelectGap(gap)} />
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* ── RIGHT: Chat window ── */}
+          <div className="card-parchment flex flex-col overflow-hidden">
+            <AnimatePresence mode="wait">
+              {!selectedGap ? (
+                /* Empty state */
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex-1 flex flex-col items-center justify-center text-center px-8"
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+                    <MessageSquare className="w-6 h-6 text-gray-300" />
+                  </div>
+                  <p className="text-[14px] font-semibold text-gray-500 mb-1">Select a gap to begin</p>
+                  <p className="text-[12px] text-gray-400 max-w-[260px] leading-relaxed">
+                    Click any gap on the left to review details, generate AI suggestions, or manually configure a resolution.
+                  </p>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={selectedGap.id}
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex flex-col flex-1 min-h-0"
+                >
+                  {/* Chat header — gap info */}
+                  {(() => {
+                    const cfg = SEV[selectedGap.severity];
+                    const SevIcon = cfg.icon;
+                    const isHandled = selectedGap.isResolved || selectedGap.isAcknowledged || selectedGap.isDismissed;
+                    return (
+                      <div className="shrink-0 px-5 py-3.5 border-b border-gray-100" style={{ background: "linear-gradient(160deg, #FEFDFB, #FAF8F5)" }}>
+                        <div className="flex items-start gap-3">
+                          <div className={cn("shrink-0 w-8 h-8 rounded-xl flex items-center justify-center mt-0.5",
+                            selectedGap.severity === "critical" ? "bg-red-50 border border-red-200" :
+                            selectedGap.severity === "important" ? "bg-amber-50 border border-amber-200" :
+                            "bg-gray-50 border border-gray-200"
+                          )}>
+                            <SevIcon className={cn("w-4 h-4", cfg.text)} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-[13px] font-bold text-gray-800 leading-snug">{selectedGap.title}</p>
+                              <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full border", cfg.badgeBg)}>
+                                {cfg.label}
+                              </span>
+                              {selectedGap.isProhibited && (
+                                <span className="text-[9px] font-bold text-red-600 bg-red-100 border border-red-200 px-2 py-0.5 rounded-full">Prohibited</span>
+                              )}
+                              {isHandled && (
+                                <span className="text-[9px] font-bold text-forest-700 bg-forest-50 border border-forest-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <CheckCircle2 className="w-2.5 h-2.5" />
+                                  {selectedGap.isResolved ? "Resolved" : selectedGap.isAcknowledged ? "Acknowledged" : "Dismissed"}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11.5px] text-gray-500 mt-1 leading-relaxed">{selectedGap.description}</p>
+                          </div>
+                          {isHandled && (
+                            <button type="button" onClick={() => resetGap(selectedGap.id)}
+                              className="shrink-0 flex items-center gap-1 text-[10px] font-medium text-gray-500 px-2.5 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all">
+                              <Undo2 className="w-3 h-3" /> Reset
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Quick actions row */}
+                        {!isHandled && (
+                          <div className="flex items-center gap-2 mt-3 flex-wrap">
+                            {selectedGap.severity === "important" && (
+                              <label className="flex items-center gap-1.5 cursor-pointer">
+                                <input type="checkbox" checked={selectedGap.isAcknowledged} onChange={() => acknowledgeGap(selectedGap.id)}
+                                  className="w-3.5 h-3.5 rounded border-gray-300 accent-amber-500" />
+                                <span className="text-[11px] text-gray-600">Acknowledge this gap</span>
+                              </label>
+                            )}
+                            {selectedGap.severity === "optional" && (
+                              <button type="button" onClick={() => dismissGap(selectedGap.id)}
+                                className="flex items-center gap-1 text-[11px] font-medium text-red-500 px-3 py-1.5 rounded-lg border border-red-200 bg-white hover:bg-red-50 transition-all">
+                                <Ban className="w-3 h-3" /> Exclude
+                              </button>
+                            )}
+                            {selectedGap.severity === "critical" && !selectedGap.isProhibited && (
+                              <button type="button" onClick={handleApplyResolve}
+                                className="flex items-center gap-1 text-[11px] font-medium text-forest-700 px-3 py-1.5 rounded-lg border border-forest-200 bg-forest-50 hover:bg-forest-100 transition-all">
+                                <CheckCircle2 className="w-3 h-3" /> Mark Resolved
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* False positive (prohibited) */}
+                        {selectedGap.isProhibited && !selectedGap.isResolved && (
+                          <div className="mt-3 p-3 rounded-xl bg-orange-50 border border-orange-100">
+                            <p className="text-[11px] font-semibold text-orange-700 mb-1.5">False Positive — Justification required (min 30 chars)</p>
+                            <textarea
+                              value={fpInput[selectedGap.id] || ""}
+                              onChange={(e) => setFpInput((p) => ({ ...p, [selectedGap.id]: e.target.value }))}
+                              placeholder="Explain why this is a false positive…"
+                              rows={2}
+                              className="w-full text-[11px] rounded-lg border border-orange-200 px-2.5 py-1.5 resize-none focus:outline-none focus:border-orange-400 bg-white placeholder:text-gray-300"
+                            />
+                            <div className="flex items-center justify-between mt-1.5">
+                              <span className={cn("text-[10px] font-medium tabular-nums", (fpInput[selectedGap.id] || "").length < 30 ? "text-red-400" : "text-forest-600")}>
+                                {(fpInput[selectedGap.id] || "").length} / 30 min
+                              </span>
+                              <button type="button" onClick={() => handleFPSubmit(selectedGap.id)}
+                                disabled={(fpInput[selectedGap.id] || "").length < 30}
+                                className={cn("text-[10px] font-semibold px-3 py-1 rounded-lg border transition-all",
+                                  (fpInput[selectedGap.id] || "").length >= 30
+                                    ? "text-white bg-orange-500 border-orange-500 hover:bg-orange-600"
+                                    : "text-gray-400 bg-gray-100 border-gray-200 cursor-not-allowed")}>
+                                Submit False Positive
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Chat messages area */}
+                  <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-0">
+                    {currentChat.map((msg) => (
+                      <ChatBubble
+                        key={msg.id}
+                        msg={msg}
+                        suggStates={suggestionStates[msg.id]}
+                        onAccept={(idx, text) => handleAcceptSuggestion(msg.id, idx, text)}
+                        onDismiss={(idx) => handleDismissSuggestion(msg.id, idx)}
+                        onEdit={() => {}}
+                      />
+                    ))}
+                    {isGenerating && (
+                      <div className="flex items-center gap-2.5">
+                        <div className="shrink-0 w-7 h-7 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center">
+                          <Bot className="w-3.5 h-3.5 text-white" />
+                        </div>
+                        <div className="flex items-center gap-1.5 px-4 py-3 rounded-2xl rounded-tl-sm bg-teal-50 border border-teal-100">
+                          {[0, 1, 2].map((i) => (
+                            <motion.div key={i} className="w-1.5 h-1.5 rounded-full bg-teal-400"
+                              animate={{ scale: [1, 1.4, 1], opacity: [0.5, 1, 0.5] }}
+                              transition={{ duration: 0.9, delay: i * 0.2, repeat: Infinity }} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
+
+                  {/* Chat input area */}
+                  <div className="shrink-0 border-t border-gray-100 px-4 py-3 space-y-2.5" style={{ background: "linear-gradient(160deg, #FEFDFB, #FAF8F5)" }}>
+                    {/* Generate AI button */}
+                    <button type="button" onClick={handleGenerateAI} disabled={isGenerating}
+                      className="flex items-center gap-2 text-[11.5px] font-semibold text-teal-700 px-3.5 py-2 rounded-xl border border-teal-200 bg-teal-50 hover:bg-teal-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      {isGenerating ? "Generating…" : "Generate AI Suggestion"}
+                    </button>
+
+                    {/* Text input + send */}
+                    <div className="flex items-end gap-2">
+                      <textarea
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                        placeholder="Type your configuration or notes…"
+                        rows={2}
+                        className="flex-1 text-[12.5px] text-gray-700 px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white outline-none focus:border-brown-300 focus:ring-2 focus:ring-brown-100 resize-none placeholder:text-gray-300 transition-all"
+                      />
+                      <button type="button" onClick={handleSend} disabled={!chatInput.trim()}
+                        className={cn(
+                          "shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                          chatInput.trim()
+                            ? "bg-gradient-to-br from-brown-400 to-brown-600 text-white shadow-sm hover:from-brown-500 hover:to-brown-700"
+                            : "bg-gray-100 text-gray-300 cursor-not-allowed",
+                        )}>
+                        <Send className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+        </motion.div>
 
         {/* Footer nav */}
-        <motion.div variants={fadeUp} className="flex items-center justify-between mt-2">
-          <button
+        <motion.div variants={fadeUp} className="flex items-center justify-between mt-4">
+          <button type="button"
             onClick={() => router.push("/enterprise/sow/upload/review")}
-            className="flex items-center gap-1.5 text-[12px] font-semibold text-white bg-gradient-to-r from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600 px-4 py-2.5 rounded-xl transition-all">
+            className="flex items-center gap-1.5 text-[12px] font-semibold text-gray-600 bg-white hover:bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl transition-all">
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Review
           </button>
-          <button
+          {unreviewedCount > 0 && (
+            <div className="flex items-center gap-2 text-[11px] text-amber-600 bg-amber-50 border border-amber-200 px-3.5 py-2 rounded-xl">
+              <Clock className="w-3.5 h-3.5" />
+              {unreviewedCount} unreviewed extraction{unreviewedCount !== 1 ? "s" : ""}
+              <button type="button" onClick={() => setShowAcceptModal(true)} className="font-semibold underline underline-offset-2">Accept all</button>
+            </div>
+          )}
+          <button type="button"
             onClick={handleContinue}
             disabled={!canProceed}
             className={cn(
@@ -599,19 +818,14 @@ export default function GapAnalysisPage() {
 
       </motion.div>
 
-      {/* ── Accept All Pending confirmation modal ── */}
+      {/* Accept All Pending modal */}
       <AnimatePresence>
         {showAcceptModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
             onClick={() => setShowAcceptModal(false)}>
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
               onClick={(e) => e.stopPropagation()}
               className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
@@ -622,20 +836,13 @@ export default function GapAnalysisPage() {
                 <h3 className="text-[15px] font-semibold text-gray-800">Accept All Pending?</h3>
               </div>
               <p className="text-[12px] text-gray-500 mb-5 leading-relaxed">
-                This will accept all <span className="font-semibold text-gray-700">{unreviewedCount}</span> pending
-                extraction items as-is. They will be marked as confirmed without individual review.
+                This will accept all <span className="font-semibold text-gray-700">{unreviewedCount}</span> pending extraction items as-is.
               </p>
               <div className="flex gap-2">
-                <button
-                  onClick={() => setShowAcceptModal(false)}
-                  className="flex-1 text-[12px] font-medium text-gray-600 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-all">
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAcceptAllPending}
-                  className="flex-1 text-[12px] font-semibold text-white bg-amber-500 hover:bg-amber-600 py-2.5 rounded-xl transition-all">
-                  Accept All
-                </button>
+                <button type="button" onClick={() => setShowAcceptModal(false)}
+                  className="flex-1 text-[12px] font-medium text-gray-600 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-all">Cancel</button>
+                <button type="button" onClick={handleAcceptAllPending}
+                  className="flex-1 text-[12px] font-semibold text-white bg-amber-500 hover:bg-amber-600 py-2.5 rounded-xl transition-all">Accept All</button>
               </div>
             </motion.div>
           </motion.div>

@@ -42,25 +42,32 @@ export function useOnboardingWizard() {
   const router = useRouter();
   const registrationData = useAuthStore((s) => s.registrationData);
   const setOnboardingComplete = useAuthStore((s) => s.setOnboardingComplete);
+  const setPendingOnboarding = useAuthStore((s) => s.setPendingOnboarding);
   const onboardingProgress = useAuthStore((s) => s.onboardingProgress);
   const setOnboardingProgress = useAuthStore((s) => s.setOnboardingProgress);
 
   const reg = registrationData ?? MOCK_REGISTRATION;
+  const isSSOUser = !registrationData;
 
   /* ── Navigation ── */
-  const [step, setStepRaw] = useState(0); // 0 = welcome
-  const [highestVisited, setHighestVisited] = useState(0);
+  const [step, setStep] = useState(0); // 0 = welcome
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const setStep = (n: number) => {
-    setStepRaw(n);
-    setHighestVisited((prev) => Math.max(prev, n));
-  };
+  /* ── Step 1: Organisation Details (SSO users only — skipped for manual reg) ── */
+  const [companyName, setCompanyName]     = useState(reg.companyName);
+  const [country, setCountry]             = useState(reg.countryOfIncorporation);
+  const [orgType, setOrgType]             = useState("");
+  const [industry, setIndustry]           = useState("");
+  const [companySize, setCompanySize]     = useState("");
+  const [adminTitle, setAdminTitle]       = useState("");
+  const [adminDept, setAdminDept]         = useState("");
+  const [website, setWebsite]             = useState("");
+  const [phone, setPhone]                 = useState("");
 
-  /* ── Step 1: Company Verification ── */
-  const [companyName] = useState(reg.companyName);
-  const [countryOfIncorporation] = useState(reg.countryOfIncorporation);
+  /* ── Step 2: Company Verification ── */
+  // companyName and country now come from Step 1 above
+  const countryOfIncorporation = country;
   const [incorporationFile, setIncorporationFile] = useState<File | null>(null);
   const [incorporationDrag, setIncorporationDrag] = useState(false);
   const [taxId, setTaxId] = useState(MOCK_STEP1.taxId);
@@ -177,7 +184,19 @@ export function useOnboardingWizard() {
   /* ── Step navigation ── */
   function goToStep1() {
     setError("");
-    setStep(1);
+    // SSO users go to Org Details (step 1) first; manual users skip straight to Verification (step 2)
+    setStep(isSSOUser ? 1 : 2);
+  }
+
+  function goToStep1OrgDetails() {
+    if (!companyName.trim())  { setError("Please enter your company name"); return; }
+    if (!country.trim())      { setError("Please select your country of incorporation"); return; }
+    if (!orgType.trim())      { setError("Please select your organisation type"); return; }
+    if (!industry.trim())     { setError("Please select your industry"); return; }
+    if (!companySize.trim())  { setError("Please select your company size"); return; }
+    if (!adminTitle.trim())   { setError("Please enter your job title"); return; }
+    setError("");
+    setStep(2);
   }
 
   function goToStep2() {
@@ -196,7 +215,7 @@ export function useOnboardingWizard() {
     setVerificationStatus("verifying");
     setTimeout(() => {
       setVerificationStatus("verified");
-      setStep(2);
+      setStep(3);
     }, 1500);
   }
 
@@ -208,7 +227,7 @@ export function useOnboardingWizard() {
     setAcceptTos(true);
     setAcceptDpa(true);
     setError("");
-    setStep(3);
+    setStep(4);
   }
 
   function goToStep4() {
@@ -224,12 +243,12 @@ export function useOnboardingWizard() {
       }
     }
     setError("");
-    setStep(4);
+    setStep(5);
   }
 
   function skipStep3() {
     setError("");
-    setStep(4);
+    setStep(5);
   }
 
   async function handleComplete() {
@@ -238,6 +257,7 @@ export function useOnboardingWizard() {
     await new Promise((r) => setTimeout(r, 1500));
     setIsLoading(false);
     setOnboardingComplete(true);
+    setPendingOnboarding(false);
     setOnboardingProgress(null);
     router.push("/enterprise/dashboard");
   }
@@ -249,10 +269,22 @@ export function useOnboardingWizard() {
   const taxIdConfig = getTaxIdConfig(countryOfIncorporation);
 
   return {
-    step, setStep, highestVisited, error, setError, isLoading,
+    step, setStep, error, setError, isLoading,
+    isSSOUser,
 
-    // Step 1
-    companyName, countryOfIncorporation,
+    // Step 1 — Org Details (SSO only)
+    companyName, setCompanyName,
+    country, setCountry,
+    orgType, setOrgType,
+    industry, setIndustry,
+    companySize, setCompanySize,
+    adminTitle, setAdminTitle,
+    adminDept, setAdminDept,
+    website, setWebsite,
+    phone, setPhone,
+
+    // Step 2 — Company Verification
+    countryOfIncorporation,
     incorporationFile, setIncorporationFile,
     incorporationDrag, setIncorporationDrag,
     taxId, setTaxId, taxIdConfig,
@@ -283,7 +315,7 @@ export function useOnboardingWizard() {
     projectTitle, setProjectTitle,
 
     // Navigation
-    goToStep1, goToStep2, goToStep3, goToStep4,
+    goToStep1, goToStep1OrgDetails, goToStep2, goToStep3, goToStep4,
     skipStep3, skipStep4, handleComplete,
   };
 }

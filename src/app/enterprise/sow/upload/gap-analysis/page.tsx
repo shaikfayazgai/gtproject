@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Sparkles,
   X,
+  Ban,
   ChevronDown,
   ChevronUp,
   Shield,
@@ -22,6 +23,8 @@ import {
 import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp, slideInRight } from "@/lib/utils/motion-variants";
 import { Badge, Button, Progress, Checkbox } from "@/components/ui";
+import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
+import { useGapItems, useUpdateGapItem } from "@/lib/hooks/use-manual-sow";
 
 /* ────────────────────────────────────────────────────────────
    Types & mock data
@@ -169,10 +172,48 @@ function getSeverityConfig(severity: GapSeverity) {
 /* ────────────────────────────────────────────────────────────
    Page component
    ──────────────────────────────────────────────────────────── */
+/* Transform API gap items to local Gap shape */
+function apiToGap(item: Record<string, unknown>): Gap {
+  return {
+    id: String(item.id ?? ""),
+    severity: (item.severity as GapSeverity) ?? "important",
+    title: String(item.title ?? item.name ?? ""),
+    description: String(item.description ?? ""),
+    affectedSection: String(item.affected_section ?? item.affectedSection ?? ""),
+    status: (item.status as Gap["status"]) ?? "unresolved",
+    remediation: item.remediation ? String(item.remediation) : undefined,
+  };
+}
+
 export default function GapAnalysisPage() {
-  const [gaps, setGaps] = React.useState<Gap[]>(INITIAL_GAPS);
+  const store = useSOWUploadStore();
+  const sowId = store.uploadedSowId;
+  const { data: gapRes } = useGapItems(sowId);
+  const updateGapMutation = useUpdateGapItem(sowId);
+
+  const apiGaps = React.useMemo(() => {
+    if (!gapRes) return null;
+    const res = gapRes as unknown as Record<string, unknown>;
+    const payload = (res.data !== undefined && res.data !== null ? res.data : res) as Record<string, unknown>;
+    const list = payload.items ?? payload.gaps ?? payload.gap_items ?? payload.gapItems ?? payload.results ?? payload;
+    return Array.isArray(list) && list.length > 0 ? list : null;
+  }, [gapRes]);
+  const initialGaps = React.useMemo(
+    () => (apiGaps && (apiGaps as unknown[]).length > 0 ? (apiGaps as Record<string, unknown>[]).map(apiToGap) : INITIAL_GAPS),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [!!apiGaps],
+  );
+
+  const [gaps, setGaps] = React.useState<Gap[]>(initialGaps);
   const [expandedGap, setExpandedGap] = React.useState<string | null>("crit-1");
   const [generatingRemediation, setGeneratingRemediation] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (apiGaps && (apiGaps as unknown[]).length > 0) {
+      setGaps((apiGaps as Record<string, unknown>[]).map(apiToGap));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!apiGaps]);
 
   const criticalGaps = gaps.filter((g) => g.severity === "critical");
   const importantGaps = gaps.filter((g) => g.severity === "important");
@@ -212,6 +253,7 @@ export default function GapAnalysisPage() {
         g.id === gapId ? { ...g, status: "resolved" } : g
       )
     );
+    if (sowId) updateGapMutation.mutate({ gapId, data: { is_resolved: true } });
   };
 
   const acknowledgeGap = (gapId: string) => {
@@ -220,14 +262,19 @@ export default function GapAnalysisPage() {
         g.id === gapId ? { ...g, status: "acknowledged" } : g
       )
     );
+    if (sowId) updateGapMutation.mutate({ gapId, data: { is_acknowledged: true } });
   };
 
   const dismissAllOptional = () => {
+    const optIds = gaps.filter((g) => g.severity === "optional" && g.status !== "dismissed").map((g) => g.id);
     setGaps((prev) =>
       prev.map((g) =>
         g.severity === "optional" ? { ...g, status: "dismissed" } : g
       )
     );
+    if (sowId) {
+      optIds.forEach((gapId) => updateGapMutation.mutate({ gapId, data: { is_dismissed: true } }));
+    }
   };
 
   const renderGapCard = (gap: Gap) => {
@@ -375,16 +422,18 @@ export default function GapAnalysisPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() =>
+                        className="text-red-500 hover:text-red-600"
+                        onClick={() => {
                           setGaps((prev) =>
                             prev.map((g) =>
                               g.id === gap.id ? { ...g, status: "dismissed" } : g
                             )
-                          )
-                        }
+                          );
+                          if (sowId) updateGapMutation.mutate({ gapId: gap.id, data: { is_dismissed: true } });
+                        }}
                       >
-                        <X className="w-3 h-3" />
-                        Dismiss
+                        <Ban className="w-3 h-3" />
+                        Exclude
                       </Button>
                     )}
                   </div>
@@ -583,17 +632,17 @@ export default function GapAnalysisPage() {
               Optional Gaps
             </h2>
             <p className="text-[11px]" style={{ color: "var(--ink-muted)" }}>
-              Nice-to-have improvements. Can be safely dismissed.
+              Nice-to-have improvements. Can be safely excluded.
             </p>
           </div>
           <Button
             variant="ghost"
             size="sm"
-            className="ml-auto"
+            className="ml-auto text-red-500 hover:text-red-600"
             onClick={dismissAllOptional}
           >
-            <X className="w-3 h-3" />
-            Dismiss all optional
+            <Ban className="w-3 h-3" />
+            Exclude all optional
           </Button>
         </div>
         <div className="space-y-3">

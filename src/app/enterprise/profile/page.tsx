@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useCurrentUser } from "@/lib/hooks/use-auth";
 import {
   User,
   Camera,
@@ -20,6 +22,11 @@ import {
   QrCode,
   KeyRound,
   Info,
+
+
+
+  
+  Pencil,
 } from "lucide-react";
 import {
   GlassCard,
@@ -98,14 +105,37 @@ const MOCK_RECOVERY_CODES = [
 
 export default function ProfilePage() {
   /* ── Personal Information State ── */
-  const [firstName, setFirstName] = useState("Priya");
-  const [lastName, setLastName] = useState("Nair");
-  const [displayName, setDisplayName] = useState("Priya Nair");
-  const [email] = useState("priya@enterprise.com");
-  const [jobTitle, setJobTitle] = useState("Engineering Manager");
-  const [phone, setPhone] = useState("+91 98765 43210");
+  const { data: session } = useSession();
+  const { data: currentUser, isLoading: isUserLoading } = useCurrentUser();
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [phone, setPhone] = useState("");
+
+  // Derive email from API first, then session (avoids the useState-async-session trap)
+  const email = currentUser?.email ?? session?.user?.email ?? "";
+
+  // Populate fields from API response
+  useEffect(() => {
+    if (currentUser) {
+      setFirstName(currentUser.firstName ?? "");
+      setLastName(currentUser.lastName ?? "");
+      setDisplayName(`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim());
+      setJobTitle(currentUser.role ?? "");
+      setPhone(currentUser.phone ?? "");
+    } else if (!isUserLoading && session?.user?.name) {
+      const parts = session.user.name.split(" ");
+      setFirstName(parts[0] ?? "");
+      setLastName(parts.slice(1).join(" ") ?? "");
+      setDisplayName(session.user.name);
+    }
+  }, [currentUser, isUserLoading, session?.user?.name]);
+
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [displayNameCustomized, setDisplayNameCustomized] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [personalErrors, setPersonalErrors] = useState<Record<string, string>>(
     {}
   );
@@ -123,7 +153,7 @@ export default function ProfilePage() {
   );
 
   /* ── MFA State ── */
-  const [mfaEnabled] = useState(true);
+  const mfaEnabled = currentUser?.mfaEnabled ?? true;
   const [mfaMethod, setMfaMethod] = useState("totp");
   const [verificationCode, setVerificationCode] = useState("");
   const [showRecoveryCodes, setShowRecoveryCodes] = useState(false);
@@ -231,10 +261,12 @@ export default function ProfilePage() {
     return Object.keys(errors).length === 0;
   }, [firstName, lastName, displayName, jobTitle]);
 
-  const handleSavePersonalInfo = useCallback(() => {
+  const handleSavePersonalInfo = useCallback((): boolean => {
     if (validatePersonalInfo()) {
       toast.success("Personal information updated.");
+      return true;
     }
+    return false;
   }, [validatePersonalInfo]);
 
   const handleUpdatePassword = useCallback(() => {
@@ -350,18 +382,34 @@ export default function ProfilePage() {
       <GlassCard variant="heavy" padding="lg">
         <GlassCardContent>
           {/* Section Header */}
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 text-teal-600">
-              <User className="h-5 w-5" />
+          <div className="flex items-start justify-between gap-3 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 text-teal-600">
+                <User className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="font-heading text-lg font-semibold text-brown-950">
+                  Personal Information
+                </h2>
+                <p className="text-sm text-beige-600">
+                  Your account details. Contact support to change name or email.
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-heading text-lg font-semibold text-brown-950">
-                Personal Information
-              </h2>
-              <p className="text-sm text-beige-600">
-                Update your personal details and contact information.
-              </p>
-            </div>
+            {!isEditing ? (
+              <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2 shrink-0">
+                <Button variant="outline" size="sm" onClick={() => { setIsEditing(false); setPersonalErrors({}); }}>
+                  Cancel
+                </Button>
+                <Button variant="primary" size="sm" onClick={() => { if (handleSavePersonalInfo()) setIsEditing(false); }}>
+                  Save
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Profile Photo */}
@@ -374,6 +422,8 @@ export default function ProfilePage() {
                     alt="Profile"
                     className="h-full w-full object-cover"
                   />
+                ) : isUserLoading ? (
+                  <div className="h-10 w-10 rounded-full bg-beige-300 animate-pulse" />
                 ) : (
                   <span className="text-3xl font-heading font-semibold text-brown-400">
                     {firstName[0]}
@@ -400,64 +450,52 @@ export default function ProfilePage() {
 
           {/* Form Fields */}
           <div className="space-y-5">
-            {/* First Name + Last Name */}
+            {/* First Name + Last Name — readonly */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="firstName">
-                  First Name <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="firstName"
-                  value={firstName}
-                  onChange={(e) => handleFirstNameChange(e.target.value)}
-                  placeholder="First name"
-                  maxLength={50}
-                />
-                {personalErrors.firstName && (
-                  <p className="text-xs text-red-500">
-                    {personalErrors.firstName}
-                  </p>
+                <Label>First Name</Label>
+                {isUserLoading ? (
+                  <div className="h-10 rounded-xl bg-beige-200 animate-pulse" />
+                ) : (
+                  <div className="text-sm text-brown-950 py-2.5 px-3 rounded-xl bg-beige-50/50 border border-beige-200 min-h-[40px]">
+                    {firstName || "—"}
+                  </div>
                 )}
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="lastName">
-                  Last Name <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="lastName"
-                  value={lastName}
-                  onChange={(e) => handleLastNameChange(e.target.value)}
-                  placeholder="Last name"
-                  maxLength={50}
-                />
-                {personalErrors.lastName && (
-                  <p className="text-xs text-red-500">
-                    {personalErrors.lastName}
-                  </p>
+                <Label>Last Name</Label>
+                {isUserLoading ? (
+                  <div className="h-10 rounded-xl bg-beige-200 animate-pulse" />
+                ) : (
+                  <div className="text-sm text-brown-950 py-2.5 px-3 rounded-xl bg-beige-50/50 border border-beige-200 min-h-[40px]">
+                    {lastName || "—"}
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* Display Name */}
+            {/* Username — readonly */}
             <div className="space-y-1.5">
-              <Label htmlFor="displayName">Display Name</Label>
-              <Input
-                id="displayName"
-                value={displayName}
-                onChange={(e) => handleDisplayNameChange(e.target.value)}
-                placeholder="Display name (auto-populated)"
-                maxLength={100}
-              />
-              {personalErrors.displayName && (
-                <p className="text-xs text-red-500">
-                  {personalErrors.displayName}
-                </p>
+              <Label>Username</Label>
+              {isUserLoading ? (
+                <div className="h-10 rounded-xl bg-beige-200 animate-pulse" />
+              ) : (
+                <div className="text-sm text-brown-950 py-2.5 px-3 rounded-xl bg-beige-50/50 border border-beige-200 min-h-[40px]">
+                  {displayName || "—"}
+                </div>
               )}
             </div>
 
-            {/* Work Email (read-only) */}
+            {/* Work Email — readonly */}
             <div className="space-y-1.5">
-              <Label htmlFor="email">Work Email</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="email">Work Email</Label>
+                {!isUserLoading && currentUser && (
+                  <Badge variant={currentUser.emailVerified ? "teal" : "gold"} size="sm" dot>
+                    {currentUser.emailVerified ? "Verified" : "Unverified"}
+                  </Badge>
+                )}
+              </div>
               <Input
                 id="email"
                 value={email}
@@ -470,40 +508,52 @@ export default function ProfilePage() {
               </p>
             </div>
 
-            {/* Job Title */}
+            {/* Job Title / Role — editable */}
             <div className="space-y-1.5">
               <Label htmlFor="jobTitle">Job Title / Role</Label>
-              <Input
-                id="jobTitle"
-                value={jobTitle}
-                onChange={(e) => setJobTitle(e.target.value)}
-                placeholder="e.g. Engineering Manager"
-                maxLength={100}
-              />
-              {personalErrors.jobTitle && (
-                <p className="text-xs text-red-500">
-                  {personalErrors.jobTitle}
-                </p>
+              {isEditing ? (
+                <>
+                  <Input
+                    id="jobTitle"
+                    value={jobTitle}
+                    onChange={(e) => setJobTitle(e.target.value)}
+                    placeholder="e.g. Engineering Manager"
+                    maxLength={100}
+                  />
+                  {personalErrors.jobTitle && (
+                    <p className="text-xs text-red-500">{personalErrors.jobTitle}</p>
+                  )}
+                </>
+              ) : (
+                <div className="text-sm text-brown-950 py-2.5 px-3 rounded-xl bg-beige-50/50 border border-beige-200 min-h-[40px]">
+                  {jobTitle || "—"}
+                </div>
               )}
             </div>
 
-            {/* Phone Number */}
+            {/* Phone Number — editable */}
             <div className="space-y-1.5">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+1 234 567 8900"
-              />
-            </div>
-
-            {/* Save Button */}
-            <div className="flex justify-end pt-2">
-              <Button variant="primary" onClick={handleSavePersonalInfo}>
-                Save Personal Information
-              </Button>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="phone">Phone Number</Label>
+                {!isUserLoading && currentUser && (
+                  <Badge variant={currentUser.phoneVerified ? "teal" : "gold"} size="sm" dot>
+                    {currentUser.phoneVerified ? "Verified" : "Unverified"}
+                  </Badge>
+                )}
+              </div>
+              {isEditing ? (
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+1 234 567 8900"
+                />
+              ) : (
+                <div className="text-sm text-brown-950 py-2.5 px-3 rounded-xl bg-beige-50/50 border border-beige-200 min-h-[40px]">
+                  {phone || "—"}
+                </div>
+              )}
             </div>
           </div>
         </GlassCardContent>
@@ -734,17 +784,29 @@ export default function ProfilePage() {
                     MFA Status
                   </p>
                   <p className="text-xs text-beige-500">
-                    Required by your organization. MFA cannot be disabled.
+                    {currentUser?.mfaEnrollmentRequired
+                      ? "Enrollment required. Please set up MFA to secure your account."
+                      : "Required by your organization. MFA cannot be disabled."}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <Badge variant="teal" size="sm" dot>
-                  Enabled
+                <Badge variant={mfaEnabled ? "teal" : "gold"} size="sm" dot>
+                  {mfaEnabled ? "Enabled" : "Disabled"}
                 </Badge>
                 <Switch checked={mfaEnabled} disabled />
               </div>
             </div>
+
+            {/* MFA Enrollment Required Warning */}
+            {currentUser?.mfaEnrollmentRequired && !mfaEnabled && (
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-gold-50 border border-gold-200 text-gold-800">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <p className="text-xs leading-relaxed">
+                  Your organization requires MFA. Complete setup below to avoid losing access.
+                </p>
+              </div>
+            )}
 
             {/* MFA Method */}
             <div className="space-y-1.5">
@@ -757,7 +819,6 @@ export default function ProfilePage() {
                   <SelectItem value="totp">
                     Authenticator App (TOTP)
                   </SelectItem>
-                  <SelectItem value="sms">SMS OTP</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -823,22 +884,6 @@ export default function ProfilePage() {
                   />
                   <p className="text-xs text-beige-500">
                     Enter the code from your authenticator app to verify setup.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* SMS OTP info */}
-            {mfaMethod === "sms" && (
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-beige-100/40 border border-beige-200/50">
-                <Smartphone className="h-5 w-5 text-beige-500 mt-0.5 flex-shrink-0" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-brown-800">
-                    SMS OTP will be sent to your registered phone number.
-                  </p>
-                  <p className="text-xs text-beige-500">
-                    Make sure your phone number is up to date in Personal
-                    Information above.
                   </p>
                 </div>
               </div>

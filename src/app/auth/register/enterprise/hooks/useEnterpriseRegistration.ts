@@ -7,6 +7,7 @@ import { COUNTRIES_DATA } from "../../data";
 import { getPasswordStrength } from "../../helpers";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { registerEnterprise } from "@/lib/actions/register";
+import { fetchInternal } from "@/lib/api/client";
 
 export type OrgType =
   | ""
@@ -132,16 +133,27 @@ export function useEnterpriseRegistration() {
   }
 
   async function sendEmailOTP() {
-    if (!adminEmail.trim() || !adminEmail.includes("@")) {
+    if (!adminEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) {
       setError("Please enter a valid business email address");
       return;
     }
     setError("");
     setEmailOtpLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setEmailOtpLoading(false);
-    setEmailOtpSent(true);
-    startEmailCooldown();
+    try {
+      const res = await fetchInternal("/api/auth/otp/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.message); return; }
+      setEmailOtpSent(true);
+      startEmailCooldown();
+    } catch {
+      setError("Failed to send email. Please check your connection and try again.");
+    } finally {
+      setEmailOtpLoading(false);
+    }
   }
 
   async function verifyEmailOTP() {
@@ -151,9 +163,20 @@ export function useEnterpriseRegistration() {
     }
     setError("");
     setEmailOtpLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    setEmailOtpLoading(false);
-    setEmailVerified(true);
+    try {
+      const res = await fetchInternal("/api/auth/otp/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminEmail, code: emailOtp }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.message); return; }
+      setEmailVerified(true);
+    } catch {
+      setError("Verification failed. Please try again.");
+    } finally {
+      setEmailOtpLoading(false);
+    }
   }
 
   function goToStep2() {
@@ -296,11 +319,23 @@ export function useEnterpriseRegistration() {
         adminEmail: adminEmail,
       });
 
-      await signIn("credentials", {
+      const signInResult = await signIn("credentials", {
         email: adminEmail,
         password,
-        callbackUrl: "/enterprise/onboarding",
+        redirect: false,
       });
+
+      if (signInResult?.ok) {
+        const { getSession } = await import("next-auth/react");
+        const session = await getSession();
+        const role = (session?.user as { role?: string })?.role;
+        window.location.href =
+          role === "contributor" ? "/contributor/dashboard" :
+          role === "mentor"      ? "/mentor/dashboard" :
+                                   "/enterprise/dashboard";
+      } else {
+        window.location.href = "/auth/login";
+      }
     } catch {
       setError("Something went wrong. Please try again.");
       setIsLoading(false);

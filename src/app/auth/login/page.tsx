@@ -1,9 +1,12 @@
 "use client";
 
-import { Suspense, useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signIn, getSession } from "next-auth/react";
+import { authApi } from "@/lib/api/auth";
+import { ApiError, fetchInternal } from "@/lib/api/client";
 import {
   Sparkles,
   ArrowRight,
@@ -33,18 +36,16 @@ const STATS = [
 function LoginPageContent() {
   const searchParams = useSearchParams();
   const isMfaEnabled = useAuthStore((s) => s.isMfaEnabled);
-  const isOnboardingComplete = useAuthStore((s) => s.isOnboardingComplete);
-  const setOnboardingComplete = useAuthStore((s) => s.setOnboardingComplete);
 
   const rawCallbackUrl = searchParams.get("callbackUrl");
   const callbackUrl = (() => {
     if (!rawCallbackUrl) return undefined;
     try {
       const url = new URL(rawCallbackUrl, window.location.origin);
-      // Do not allow redirecting to the bare home page after login
-      if (url.pathname === "/" && !url.search && !url.hash) return undefined;
       // Only allow same-origin redirects to avoid open-redirects
       if (url.origin !== window.location.origin) return undefined;
+      // Do not redirect back to the home page after login
+      if (url.pathname === "/" && !url.search && !url.hash) return undefined;
       return `${url.pathname}${url.search}${url.hash}`;
     } catch {
       return undefined;
@@ -56,16 +57,14 @@ function LoginPageContent() {
 
   const [step, setStep] = useState<Step>("credentials");
   const [userRole, setUserRole] = useState<string>("");
+  const mfaPendingTokenRef = useRef<string>("");
 
-  // Route based on user role — FSD §2.2 lifecycle
-  const getRoleDest = () => {
-    if (userRole === "contributor") return isOnboardingComplete ? "/contributor/dashboard" : "/onboarding";
-    if (userRole === "mentor") return "/mentor/dashboard";
-    if (userRole === "admin") return "/enterprise/dashboard";
-    // enterprise role — show onboarding if not complete
-    return isOnboardingComplete ? "/enterprise/dashboard" : "/enterprise/onboarding";
-  };
-  const redirectTo = callbackUrl || getRoleDest();
+  const redirectTo = callbackUrl || (
+    userRole === "contributor" ? "/contributor/dashboard" :
+    userRole === "mentor"      ? "/mentor/dashboard" :
+    userRole === "admin"       ? "/admin/dashboard" :
+                                 "/enterprise/dashboard"
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -106,6 +105,10 @@ function LoginPageContent() {
         case "CredentialsSignin":
           setError("The email or password you entered is incorrect. Please verify your credentials and try again.");
           break;
+        case "SsoNotRegistered":
+          setError("No account found for this Google/Microsoft login. Please register first.");
+          setErrorCode("NO_ACCOUNT");
+          break;
         default:
           setError("Something went wrong on our end. Please try again shortly or contact support if the issue persists.");
       }
@@ -123,14 +126,21 @@ function LoginPageContent() {
     return () => clearInterval(id);
   }, [step]);
 
-  /* ── Auto-submit MFA when 6 digits entered ── */
+  /* ── Verify TOTP code via Glimmora API ── */
   const handleMFA = useCallback(async () => {
     setError("");
     setIsLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setIsLoading(false);
-    window.location.href = loginDest || callbackUrl || "/enterprise/dashboard";
-  }, [loginDest, callbackUrl]);
+    try {
+      await authApi.verifyMfaCode(mfaCode, mfaPendingTokenRef.current);
+      // MFA verified — refresh the NextAuth session to pick up the new token state
+      await getSession();
+      window.location.href = loginDest || callbackUrl || "/enterprise/dashboard";
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Invalid code. Please try again.";
+      setError(msg);
+      setIsLoading(false);
+    }
+  }, [mfaCode, loginDest, callbackUrl]);
 
   useEffect(() => {
     if (step === "mfa" && mfaCode.length === 6 && !isLoading) {
@@ -161,7 +171,7 @@ function LoginPageContent() {
 
     try {
       // Pre-validate credentials to get specific error messages
-      const validateRes = await fetch("/api/auth/validate", {
+      const validateRes = await fetchInternal("/api/auth/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
@@ -173,6 +183,53 @@ function LoginPageContent() {
         setErrorCode(data.error);
         setIsLoading(false);
         return;
+      }
+
+      const validateData = await validateRes.json();
+
+      // MFA required — skip signIn, store the pending token and show TOTP step
+      if (validateData.mfaRequired) {
+        mfaPendingTokenRef.current = validateData.mfaPendingToken ?? "";
+        setStep("mfa");
+        setIsLoading(false);
+        return;
+      }
+
+      // MFA setup required — create session via glimmora-oauth (no second login call)
+      // and go straight to MFA prompt.
+      if (validateData.mfaSetupRequired) {
+        const u = validateData.user || {};
+        const oauthResult = await signIn("glimmora-oauth", {
+          userId: u.id || "",
+          email: u.email || email.trim().toLowerCase(),
+          firstName: u.firstName || "",
+          lastName: u.lastName || "",
+          role: "enterprise",
+          accessToken: "", // No token yet — MFA blocks issuance
+          refreshToken: "",
+          expiresIn: "0",
+          provider: "credentials",
+          redirect: false,
+        });
+
+        if (oauthResult?.ok) {
+          const dest = callbackUrl || "/enterprise/dashboard";
+          setLoginDest(dest);
+          setUserRole("enterprise");
+
+          // Store pending token for MFA setup page
+          try {
+            if (validateData.mfaSetupPendingToken) {
+              sessionStorage.setItem("_mfa_pending_token", validateData.mfaSetupPendingToken);
+            }
+            sessionStorage.setItem("_mfa_setup_email", email.trim().toLowerCase());
+            sessionStorage.setItem("_mfa_setup_password", password);
+          } catch { /* sessionStorage unavailable */ }
+
+          setStep("mfa-prompt");
+          setIsLoading(false);
+          return;
+        }
       }
 
       const result = await signIn("credentials", {
@@ -188,42 +245,36 @@ function LoginPageContent() {
       }
 
       if (result?.ok) {
-        // Fetch session to get user role
         const session = await getSession();
         const role = (session?.user as { role?: string })?.role;
 
-        // Reset onboarding so the modal shows after login (enterprise only)
-        if (role === "enterprise") {
-          setOnboardingComplete(false);
-        } else {
-          // Contributor/admin/mentor: mark onboarding complete (returning users)
-          // New contributors coming from /auth/register go through /onboarding first
-          setOnboardingComplete(true);
-        }
-
-        // Store role for redirect after MFA
         setUserRole(role || "enterprise");
 
-        // Compute destination based on role and onboarding status
-        // FSD §2.2: Contributor lifecycle: Register → Profile Builder → Assessment → Dashboard
+        // Login = returning user — send straight to dashboard.
+        // Onboarding wizard is only for first-time SSO users (handled in auth.ts signIn callback).
         const dest = callbackUrl || (
-          role === "contributor" ? (
-            isOnboardingComplete ? "/contributor/dashboard" : "/onboarding"
-          ) :
-          role === "mentor" ? "/mentor/dashboard" :
-          role === "admin" ? "/enterprise/dashboard" :
-          isOnboardingComplete ? "/enterprise/dashboard" : "/enterprise/onboarding"
+          role === "contributor" ? "/contributor/dashboard" :
+          role === "mentor"      ? "/mentor/dashboard" :
+          role === "admin"       ? "/admin/dashboard" :
+                                   "/enterprise/dashboard"
         );
+        
         setLoginDest(dest);
 
-        // Credentials verified - check MFA
-        if (isMfaEnabled) {
-          setStep("mfa");
-          setIsLoading(false);
-        } else {
-          setStep("mfa-prompt");
-          setIsLoading(false);
+        // Admin role skips MFA prompt — navigate directly to dashboard.
+        if (role === "admin") {
+          window.location.href = dest;
+          return;
         }
+
+        // Store credentials for MFA setup page
+        try {
+          sessionStorage.setItem("_mfa_setup_email", email.trim().toLowerCase());
+          sessionStorage.setItem("_mfa_setup_password", password);
+        } catch { /* sessionStorage unavailable */ }
+
+        setStep("mfa-prompt");
+        setIsLoading(false);
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -242,25 +293,26 @@ function LoginPageContent() {
     if (!recoveryCode) { setError("Please enter your recovery code"); return; }
     setError("");
     setIsLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setIsLoading(false);
-    window.location.href = loginDest || callbackUrl || "/enterprise/dashboard";
+    try {
+      await authApi.redeemRecoveryCode(recoveryCode, mfaPendingTokenRef.current);
+      await getSession();
+      window.location.href = loginDest || callbackUrl || "/enterprise/dashboard";
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Invalid recovery code. Please try again.";
+      setError(msg);
+      setIsLoading(false);
+    }
   };
 
-  /* ── Google / Microsoft SSO via NextAuth ── */
-  const handleSSO = async (provider: "google" | "microsoft") => {
+  /* ── Google / Microsoft SSO via Glimmora OAuth API ── */
+  const handleSSO = (provider: "google" | "microsoft") => {
     setError("");
     setSsoLoading(provider);
-
-    try {
-      const providerId = provider === "microsoft" ? "microsoft-entra-id" : "google";
-      await signIn(providerId, {
-        callbackUrl: redirectTo,
-      });
-    } catch {
-      setError(`Failed to sign in with ${provider}. Please try again.`);
-      setSsoLoading(null);
-    }
+    // Fall back to /auth/redirect which reads the session role and routes accordingly
+    const redirectAfter = callbackUrl || "/auth/redirect";
+    // Use NextAuth's built-in OAuth instead of Glimmora's endpoints
+    // Glimmora's callback is locked to glimmora-api.onrender.com and can't redirect back
+    signIn(provider, { callbackUrl: redirectAfter });
   };
 
   const resetToCredentials = () => {
@@ -412,22 +464,31 @@ function LoginPageContent() {
 
             {/* Form */}
             <form onSubmit={handleCredentials} className="space-y-5">
-              {error && (
-                <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <div>
-                    <p>{error}</p>
-                    {errorCode === "NO_ACCOUNT" && (
-                      <Link
-                        href="/auth/register"
-                        className="inline-flex items-center gap-1 mt-1.5 text-teal-600 hover:text-teal-700 font-semibold transition-colors"
-                      >
-                        Create an account <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              )}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    key="login-error"
+                    initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <div>
+                      <p>{error}</p>
+                      {errorCode === "NO_ACCOUNT" && (
+                        <Link
+                          href="/auth/register"
+                          className="inline-flex items-center gap-1 mt-1.5 text-teal-600 hover:text-teal-700 font-semibold transition-colors"
+                        >
+                          Create an account <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <div className="space-y-1.5">
                 <Label htmlFor="email" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Email</Label>
@@ -624,12 +685,21 @@ function LoginPageContent() {
                 </div>
               </div>
 
-              {error && (
-                <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  {error}
-                </div>
-              )}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    key="mfa-error"
+                    initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    {error}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {isLoading && (
                 <div className="flex items-center justify-center gap-2 py-2 text-sm text-gray-500">
@@ -707,12 +777,21 @@ function LoginPageContent() {
                 <p className="text-xs text-gray-400 text-center">Format: XXXXX-XXXXX</p>
               </div>
 
-              {error && (
-                <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  {error}
-                </div>
-              )}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    key="recovery-error"
+                    initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    {error}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <Button type="submit" variant="gradient-cta" size="lg" className="w-full" disabled={isLoading}>
                 {isLoading ? (

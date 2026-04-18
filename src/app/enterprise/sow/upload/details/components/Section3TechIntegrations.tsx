@@ -11,6 +11,7 @@ export function Section3TechIntegrations({ onComplete, onBack }: Props) {
   const store = useSOWUploadStore();
   const data = store.commercialDetails.techIntegrations;
   const [errors, setErrors] = React.useState<SectionErrors>({});
+  const [aiLoading, setAiLoading] = React.useState(false);
   const touched = React.useRef<Set<string>>(new Set());
 
   const update = (patch: Partial<typeof data>) => {
@@ -33,6 +34,22 @@ export function Section3TechIntegrations({ onComplete, onBack }: Props) {
     setErrors((prev) => { const n = { ...prev }; if (err) n[field] = err; else delete n[field]; return n; });
   };
 
+  const handleAutoFill = () => {
+    setAiLoading(true);
+    setTimeout(() => {
+      update({
+        technologyStack:
+          "React 19 (frontend) · Node.js 20 LTS (API layer) · PostgreSQL 16 (primary database) · Redis 7 (caching/sessions) · AWS ECS + RDS (hosting) · CloudFront CDN · GitHub Actions (CI/CD)",
+        scalabilityRequirements:
+          "Target 500 concurrent users with < 300ms p95 API response time. Auto-scaling via ECS (min 2 / max 10 replicas). Read replicas for reporting workloads. CDN caching for static assets (TTL 24h). Load testing baseline required before UAT sign-off.",
+        userManagementScope:
+          "SSO via Azure AD with role-based access control (RBAC). Three roles: Admin, Manager, Viewer. User provisioning via SCIM 2.0. MFA enforced for Admin role. Session timeout: 8 hours idle.",
+        ssoRequired: true,
+      });
+      setAiLoading(false);
+    }, 1400);
+  };
+
   const handleComplete = () => {
     const errs = validateSection("techIntegrations", data);
     setErrors(errs);
@@ -42,7 +59,12 @@ export function Section3TechIntegrations({ onComplete, onBack }: Props) {
 
   return (
     <>
-      <SectionHeader number={3} title="Technical Architecture & Integrations" fsdRef="FSD §7.6.4 Section 3" />
+      <SectionHeader
+        number={3}
+        title="Technical Architecture & Integrations"
+        onAIFill={handleAutoFill}
+        aiLoading={aiLoading}
+      />
 
       <div className="px-6 py-6 space-y-5">
 

@@ -20,18 +20,14 @@ import {
   Server,
   Boxes,
   PieChart,
-  UserCog,
   KeyRound,
-  Building2,
-  ShieldCheck,
-  Plug,
   UsersRound,
-  FormInput,
-  BookMarked,
-  FileStack,
-  Scale,
   BarChart3,
-  Target,
+  Bell,
+  Inbox,
+  ClipboardList,
+  LineChart,
+  Mail,
   type LucideIcon,
 } from "lucide-react";
 
@@ -79,7 +75,6 @@ export const enterpriseNav: ModuleConfig = {
       items: [
         { label: "SOW Repository", href: "/enterprise/sow", icon: FileText },
         { label: "Approval Pipeline", href: "/enterprise/sow/approval", icon: ClipboardCheck },
-        { label: "Archive", href: "/enterprise/sow/archive", icon: History },
       ],
     },
     /* ─── Planning ─── */
@@ -117,31 +112,7 @@ export const enterpriseNav: ModuleConfig = {
     {
       title: "Organization",
       items: [
-        { label: "Settings", href: "/enterprise/admin/config", icon: Building2 },
-        { label: "Roles & Access", href: "/enterprise/admin/roles", icon: KeyRound },
-        { label: "Policies", href: "/enterprise/admin/config/apg", icon: ShieldCheck },
-        { label: "Integrations", href: "/enterprise/admin/config/integrations", icon: Plug },
-        { label: "Contributors", href: "/enterprise/admin/users", icon: UserCog },
-        { label: "SOW Intake Forms", href: "/enterprise/admin/config/sow-forms", icon: FormInput },
-        { label: "Clause Library", href: "/enterprise/admin/config/clause-library", icon: BookMarked },
-        { label: "SOW Templates", href: "/enterprise/admin/config/templates", icon: FileStack },
-        { label: "Review Rubrics", href: "/enterprise/admin/config/review-rubrics", icon: Scale },
-      ],
-    },
-    {
-      title: "Analytics & Intelligence",
-      items: [
-        { label: "Workforce", href: "/enterprise/analytics", icon: BarChart3 },
-        { label: "Economic", href: "/enterprise/analytics/economic", icon: TrendingUp },
-        { label: "Governance & Risk", href: "/enterprise/analytics/governance", icon: Shield },
-        { label: "Self-service", href: "/enterprise/analytics/reports", icon: PieChart },
-      ],
-    },
-    /* ─── Audit ─── */
-    {
-      title: "Audit",
-      items: [
-        { label: "Audit Log", href: "/enterprise/audit", icon: ScrollText },
+        { label: "Settings", href: "/enterprise/settings", icon: Settings },
       ],
     },
   ],
@@ -164,7 +135,6 @@ export const contributorNav: ModuleConfig = {
       items: [
         { label: "Tasks", href: "/contributor/tasks", icon: ListChecks },
         { label: "Submissions", href: "/contributor/tasks/submissions", icon: ClipboardCheck },
-        { label: "Assessment", href: "/contributor/assessment", icon: Target },
       ],
     },
     {
@@ -226,6 +196,43 @@ export const mentorNav: ModuleConfig = {
   ],
 };
 
+export const reviewerNav: ModuleConfig = {
+  id: "reviewer",
+  name: "Reviewer Workspace",
+  shortName: "Reviewer",
+  basePath: "/enterprise/reviewer",
+  accentColor: "teal",
+  sections: [
+    {
+      items: [
+        { label: "Dashboard", href: "/enterprise/reviewer", icon: LayoutDashboard },
+      ],
+    },
+    {
+      title: "Active Work",
+      items: [
+        { label: "Review Queue", href: "/enterprise/reviewer/review-queue", icon: ListChecks },
+        { label: "Task Monitor", href: "/enterprise/reviewer/task-monitor", icon: ClipboardList },
+        { label: "Q&A Inbox", href: "/enterprise/reviewer/qa-inbox", icon: Inbox },
+        { label: "Notifications", href: "/enterprise/reviewer/notifications", icon: Bell },
+      ],
+    },
+    {
+      title: "Records",
+      items: [
+        { label: "Review History", href: "/enterprise/reviewer/review-history", icon: History },
+        { label: "Mentoring Log", href: "/enterprise/reviewer/mentoring-log", icon: GraduationCap },
+      ],
+    },
+    {
+      title: "Performance",
+      items: [
+        { label: "My Metrics", href: "/enterprise/reviewer/my-metrics", icon: LineChart },
+      ],
+    },
+  ],
+};
+
 export const analyticsNav: ModuleConfig = {
   id: "analytics",
   name: "Analytics & Intelligence",
@@ -262,4 +269,47 @@ export const analyticsNav: ModuleConfig = {
   ],
 };
 
-export const allModules = [enterpriseNav, contributorNav, mentorNav, analyticsNav] as const;
+export const adminNav: ModuleConfig = {
+  id: "admin",
+  name: "Platform Admin Console",
+  shortName: "Admin",
+  basePath: "/admin",
+  accentColor: "gold",
+  sections: [
+    {
+      items: [
+        { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+      ],
+    },
+    {
+      title: "User Management",
+      items: [
+        { label: "Roles & Permissions", href: "/admin/roles", icon: KeyRound },
+      ],
+    },
+    {
+      title: "Platform",
+      items: [
+        { label: "Organisations", href: "/admin/organisations", icon: UsersRound },
+        { label: "SOW Oversight", href: "/admin/sow", icon: FileText },
+        { label: "Audit Log", href: "/admin/audit", icon: ScrollText },
+      ],
+    },
+    {
+      title: "Configuration",
+      items: [
+        { label: "Email Templates", href: "/admin/email-templates", icon: Mail },
+      ],
+    },
+    {
+      title: "System",
+      items: [
+        { label: "System Health", href: "/admin/system", icon: Server },
+        { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+        { label: "Settings", href: "/admin/settings", icon: Settings },
+      ],
+    },
+  ],
+};
+
+export const allModules = [enterpriseNav, contributorNav, mentorNav, reviewerNav, analyticsNav, adminNav] as const;
