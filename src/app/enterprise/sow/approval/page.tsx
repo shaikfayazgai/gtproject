@@ -6,9 +6,10 @@ import { motion } from "framer-motion";
 import {
   Search, Eye, CheckCircle2, Clock, AlertTriangle, ShieldCheck, Scale,
   UserCheck, DollarSign, Pen, Layers,
-  X, Filter, Check,
+  X, Filter, Check, Send, Undo2,
   type LucideIcon,
 } from "lucide-react";
+import { toast } from "@/lib/stores/toast-store";
 import { stagger, fadeUp } from "@/lib/utils/motion-variants";
 import { Badge } from "@/components/ui";
 import { TablePagination } from "@/components/ui/table-pagination";
@@ -410,6 +411,37 @@ export default function SOWApprovalPipelinePage() {
     });
   }, [decisionsMap]);
 
+  // Resolve state: which row is being resolved, the text, and the mutation
+  const [resolveRowId, setResolveRowId] = React.useState<string | null>(null);
+  const [resolveText, setResolveText]   = React.useState("");
+  const [resolvingSowId, setResolvingSowId] = React.useState<string | null>(null);
+  const resolveMutation = useRecordApprovalDecision(resolvingSowId);
+
+  const openResolve = (row: ChangeRequestRow) => {
+    setResolveRowId(row.id);
+    setResolvingSowId(row.sowId);
+    setResolveText("");
+  };
+  const closeResolve = () => {
+    setResolveRowId(null);
+    setResolveText("");
+  };
+  const submitResolve = (row: ChangeRequestRow) => {
+    if (!resolveText.trim()) return;
+    resolveMutation.mutate(
+      { stage: row.stage, decision: "resolve" as never, comments: resolveText.trim() },
+      {
+        onSuccess: () => {
+          toast.success("Change request resolved", "Your response has been sent to Glimmora admin for review.");
+          closeResolve();
+        },
+        onError: (err) => {
+          toast.error("Failed to resolve", err instanceof Error ? err.message : "Please try again.");
+        },
+      }
+    );
+  };
+
   const { data: manualRes, isLoading: manualLoading } = useManualSOWList();
   const { data: aiRes,     isLoading: aiLoading }     = useSowList();
   const isLoading = manualLoading || aiLoading;
@@ -771,7 +803,7 @@ export default function SOWApprovalPipelinePage() {
         <div
           className="grid items-center gap-4 px-5 py-2.5"
           style={{
-            gridTemplateColumns: "2fr 1fr 1fr 2fr 0.7fr",
+            gridTemplateColumns: "2fr 1fr 1fr 2fr 0.9fr",
             background: "var(--color-gray-50)",
             borderBottom: "1px solid var(--border-hair)",
           }}
@@ -787,45 +819,110 @@ export default function SOWApprovalPipelinePage() {
             <p className="text-[12.5px]" style={{ color: "var(--ink-faint)" }}>No change requests yet.</p>
           </div>
         ) : (
-          allDecisionRows.map((row, i) => (
-            <div
-              key={row.id}
-              className="grid items-start gap-4 px-5 py-3.5 transition-colors hover:bg-amber-50/20"
-              style={{
-                gridTemplateColumns: "2fr 1fr 1fr 2fr 0.7fr",
-                borderBottom: i < allDecisionRows.length - 1 ? "1px solid var(--border-hair)" : undefined,
-              }}
-            >
-              <div className="min-w-0">
-                <Link href={`/enterprise/sow/${row.sowId}`} className="text-[11.5px] font-semibold leading-snug hover:underline" style={{ color: "var(--ink)" }}>
-                  {row.sowTitle}
-                </Link>
-                <p className="text-[10px] font-medium mt-0.5" style={{ color: "var(--ink-faint)" }}>
-                  Stage {row.stage} · {row.kind === "comment" ? "Comment" : "Change Request"}
-                </p>
-              </div>
-              <div className="min-w-0 pt-0.5">
-                <p className="text-[11.5px] leading-snug" style={{ color: "var(--ink-muted)" }}>{row.client || "—"}</p>
-              </div>
-              <div className="min-w-0 pt-0.5">
-                <p className="text-[11.5px] leading-snug" style={{ color: "var(--ink-muted)" }}>{row.requestedBy}</p>
-                {row.resolvedAt && (
-                  <p className="text-[10px] mt-0.5" style={{ color: "var(--ink-faint)" }}>{formatDate(row.resolvedAt)}</p>
+          allDecisionRows.map((row, i) => {
+            const isResolving   = resolveRowId === row.id;
+            const canResolve    = row.kind === "request_changes" && !row.resolved;
+            return (
+              <React.Fragment key={row.id}>
+                <div
+                  className="grid items-start gap-4 px-5 py-3.5 transition-colors hover:bg-amber-50/20"
+                  style={{
+                    gridTemplateColumns: "2fr 1fr 1fr 2fr 0.9fr",
+                    borderBottom: !isResolving && i < allDecisionRows.length - 1 ? "1px solid var(--border-hair)" : undefined,
+                  }}
+                >
+                  <div className="min-w-0">
+                    <Link href={`/enterprise/sow/${row.sowId}`} className="text-[11.5px] font-semibold leading-snug hover:underline" style={{ color: "var(--ink)" }}>
+                      {row.sowTitle}
+                    </Link>
+                    <p className="text-[10px] font-medium mt-0.5" style={{ color: "var(--ink-faint)" }}>
+                      Stage {row.stage} · {row.kind === "comment" ? "Comment" : "Change Request"}
+                    </p>
+                  </div>
+                  <div className="min-w-0 pt-0.5">
+                    <p className="text-[11.5px] leading-snug" style={{ color: "var(--ink-muted)" }}>{row.client || "—"}</p>
+                  </div>
+                  <div className="min-w-0 pt-0.5">
+                    <p className="text-[11.5px] leading-snug" style={{ color: "var(--ink-muted)" }}>{row.requestedBy}</p>
+                    {row.resolvedAt && (
+                      <p className="text-[10px] mt-0.5" style={{ color: "var(--ink-faint)" }}>{formatDate(row.resolvedAt)}</p>
+                    )}
+                  </div>
+                  <div className="min-w-0 pt-0.5">
+                    <p className="text-[11.5px] leading-snug" style={{ color: "var(--ink-muted)" }}>{row.message || "—"}</p>
+                    {row.resolveMessage && (
+                      <p className="text-[10.5px] italic mt-1" style={{ color: "var(--ink-faint)" }}>Resolved: {row.resolveMessage}</p>
+                    )}
+                  </div>
+                  <div className="pt-0.5 flex flex-col items-start gap-1.5">
+                    <Badge variant={row.resolved ? "forest" : row.kind === "request_changes" ? "gold" : "teal"} size="sm" dot>
+                      {row.resolved ? "Resolved" : row.kind === "request_changes" ? "Pending" : "Open"}
+                    </Badge>
+                    {canResolve && !isResolving && (
+                      <button
+                        onClick={() => openResolve(row)}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10.5px] font-semibold transition-all hover:opacity-90"
+                        style={{ background: "var(--color-brown-500)", color: "#fff" }}
+                      >
+                        <Undo2 size={10} /> Resolve
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {isResolving && (
+                  <div
+                    className="px-5 py-4 bg-amber-50/30"
+                    style={{ borderBottom: i < allDecisionRows.length - 1 ? "1px solid var(--border-hair)" : undefined }}
+                  >
+                    <div className="flex items-center gap-2 mb-2.5">
+                      <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "var(--color-brown-500)" }}>
+                        <Undo2 size={12} className="text-white" />
+                      </div>
+                      <div>
+                        <p className="text-[12px] font-bold" style={{ color: "var(--ink)" }}>Resolve change request</p>
+                        <p className="text-[10px]" style={{ color: "var(--ink-faint)" }}>
+                          Describe what you changed. This will be sent to Glimmora admin for re-approval.
+                        </p>
+                      </div>
+                    </div>
+                    <textarea
+                      rows={3}
+                      maxLength={600}
+                      value={resolveText}
+                      onChange={(e) => setResolveText(e.target.value)}
+                      placeholder="Explain how you addressed the change request..."
+                      className="w-full rounded-xl px-3 py-2.5 text-[12px] leading-relaxed resize-none focus:outline-none transition-all border bg-white"
+                      style={{ borderColor: "var(--border-soft)", color: "var(--ink)", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-brown-400)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(166,119,99,0.1)"; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = "var(--border-soft)"; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)"; }}
+                    />
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-[10px]" style={{ color: "var(--ink-faint)" }}>{resolveText.length}/600</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={closeResolve}
+                          className="px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all"
+                          style={{ background: "var(--color-gray-100)", color: "var(--ink-muted)" }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => submitResolve(row)}
+                          disabled={!resolveText.trim() || resolveMutation.isPending}
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[11px] font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          style={{ background: "var(--color-brown-500)" }}
+                        >
+                          <Send size={10} />
+                          {resolveMutation.isPending ? "Sending…" : "Send to Admin"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 )}
-              </div>
-              <div className="min-w-0 pt-0.5">
-                <p className="text-[11.5px] leading-snug" style={{ color: "var(--ink-muted)" }}>{row.message || "—"}</p>
-                {row.resolveMessage && (
-                  <p className="text-[10.5px] italic mt-1" style={{ color: "var(--ink-faint)" }}>Resolved: {row.resolveMessage}</p>
-                )}
-              </div>
-              <div className="pt-0.5">
-                <Badge variant={row.resolved ? "forest" : row.kind === "request_changes" ? "gold" : "teal"} size="sm" dot>
-                  {row.resolved ? "Resolved" : row.kind === "request_changes" ? "Pending" : "Open"}
-                </Badge>
-              </div>
-            </div>
-          ))
+              </React.Fragment>
+            );
+          })
         )}
       </motion.div>
 
