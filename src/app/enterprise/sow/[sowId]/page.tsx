@@ -459,13 +459,22 @@ export default function SOWDetailPage() {
 
   // Derive the effective active stage index from the pipeline API (when available),
   // so checklist + form reflect the real in_review stage, not just local clicks.
+  // If any stage has been sent back with changes_requested ("rejected"), stay on
+  // that stage — the SOW must be resolved before it can advance.
   const effectiveActiveIdx = React.useMemo(() => {
     if (!pipelineResolvedStages) return null;
+    const rejectedIdx = pipelineResolvedStages.findIndex((s) => s.status === "rejected");
+    if (rejectedIdx >= 0) return rejectedIdx;
     const inReviewIdx = pipelineResolvedStages.findIndex((s) => s.status === "in_review");
     if (inReviewIdx >= 0) return inReviewIdx;
     const pendingIdx = pipelineResolvedStages.findIndex((s) => s.status === "pending");
     if (pendingIdx >= 0) return pendingIdx;
     return pipelineResolvedStages.length; // all approved
+  }, [pipelineResolvedStages]);
+
+  const changesRequestedStageIdx = React.useMemo(() => {
+    if (!pipelineResolvedStages) return -1;
+    return pipelineResolvedStages.findIndex((s) => s.status === "rejected");
   }, [pipelineResolvedStages]);
 
   const clauses = sow ? mockSOWClauses.filter((c) => c.sowId === sow.id) : [];
@@ -1887,10 +1896,35 @@ export default function SOWDetailPage() {
                   }));
                 })();
 
+              const isChangesRequested = changesRequestedStageIdx >= 0;
+              const rejectedStageMeta = isChangesRequested
+                ? STAGE_META[displayStages[changesRequestedStageIdx].stage]
+                : null;
+
               return (
                 <div className="space-y-0">
                   {/* ── Banner ── */}
-                  {!isDone && activeMeta && (
+                  {isChangesRequested && (
+                    <div className="flex items-center justify-between gap-3 px-5 py-3.5 bg-gold-50 border-b border-gold-100">
+                      <div className="flex items-center gap-3">
+                        <AlertTriangle className="w-4 h-4 text-gold-600 shrink-0" />
+                        <p className="text-[13px] text-gold-800">
+                          Changes requested on{" "}
+                          <span className="font-bold">{rejectedStageMeta?.name ?? `Stage ${changesRequestedStageIdx + 1}`}</span>
+                          {" "}— resolve the request below to resume approval.
+                        </p>
+                      </div>
+                      <Link
+                        href="/enterprise/sow/approval"
+                        className="flex items-center gap-1.5 shrink-0 px-4 py-2 rounded-xl text-[12px] font-semibold text-white transition-all"
+                        style={{ background: "linear-gradient(135deg,#A67763,#8B5E4A)", boxShadow: "0 2px 8px rgba(166,119,99,0.35)" }}
+                      >
+                        <Undo2 className="w-3.5 h-3.5" />
+                        Resolve in Pipeline
+                      </Link>
+                    </div>
+                  )}
+                  {!isChangesRequested && !isDone && activeMeta && (
                     <div className="flex items-center gap-3 px-5 py-3.5 bg-teal-50 border-b border-teal-100">
                       <Clock className="w-4 h-4 text-teal-600 shrink-0" />
                       <p className="text-[13px] text-teal-800">
@@ -1964,7 +1998,7 @@ export default function SOWDetailPage() {
                   </div>
 
                   {/* ── Checklist ── */}
-                  {!isDone && activeStage && checklist.length > 0 && (
+                  {!isChangesRequested && !isDone && activeStage && checklist.length > 0 && (
                     <div className="px-6 py-5 border-b border-beige-100">
                       <p className="text-[10px] font-bold text-beige-500 uppercase tracking-widest mb-4">
                         Stage {activeApprovalIdx + 1} Review Checklist
@@ -2012,7 +2046,7 @@ export default function SOWDetailPage() {
                   )}
 
                   {/* ── Digital Signature ── */}
-                  {!isDone && activeStage && (
+                  {!isChangesRequested && !isDone && activeStage && (
                     <div className="px-6 py-3.5 border-b border-beige-100">
                       <p className="text-[9px] font-bold text-beige-500 uppercase tracking-widest mb-1">
                         Digital Signature
@@ -2198,7 +2232,7 @@ export default function SOWDetailPage() {
                   </AnimatePresence>
 
                   {/* ── Action buttons ── */}
-                  {!isDone && activeStage && (
+                  {!isChangesRequested && !isDone && activeStage && (
                     <div className="px-6 py-4 flex items-center gap-3">
                       <button
                         onClick={handleApprove}

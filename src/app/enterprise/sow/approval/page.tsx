@@ -105,6 +105,12 @@ function extractPipelineStages(res: unknown): ApiStage[] {
 }
 
 function computeActiveStage(stages: ApiStage[]): number {
+  // If any stage has changes_requested, stay on the earliest one
+  for (let i = 1; i <= 5; i++) {
+    const s = stages.find((x) => x.stage === i);
+    const st = String(s?.status ?? "").toLowerCase();
+    if (st === "changes_requested" || st === "rejected") return i;
+  }
   for (let i = 1; i <= 5; i++) {
     const s = stages.find((x) => x.stage === i);
     if (!s || s.status === "pending") return i;
@@ -252,6 +258,12 @@ function SOWPipelineRow({ sow, onStageResolved, onDecisionsResolved }: {
   const completedStages = computeCompleted(apiStages);
   const stageCfg = PIPELINE_STAGES[currentStage - 1] ?? PIPELINE_STAGES[0];
 
+  // Detect if any stage is in changes_requested / rejected state
+  const changesRequestedStage = apiStages.find((s) => {
+    const st = String(s.status ?? "").toLowerCase();
+    return st === "changes_requested" || st === "rejected";
+  });
+
   // Extract comment + request_changes decisions for the Change Request History table
   const decisionRows = React.useMemo<ChangeRequestRow[]>(() => {
     const rows: ChangeRequestRow[] = [];
@@ -353,7 +365,11 @@ function SOWPipelineRow({ sow, onStageResolved, onDecisionsResolved }: {
 
       {/* SLA + View column */}
       <div className="flex flex-col items-end gap-1.5 pt-0.5">
-        <Badge variant={slaVariant(sow.slaStatus)} size="sm" dot>{slaLabel(sow.slaStatus)}</Badge>
+        {changesRequestedStage ? (
+          <Badge variant="gold" size="sm" dot>Changes Requested</Badge>
+        ) : (
+          <Badge variant={slaVariant(sow.slaStatus)} size="sm" dot>{slaLabel(sow.slaStatus)}</Badge>
+        )}
         <span className="text-[10px] whitespace-nowrap" style={{ color: "var(--ink-faint)" }}>{formatDate(sow.submittedAt)}</span>
         <Link href={`/enterprise/sow/approval/${sow.id}`}>
           <button
