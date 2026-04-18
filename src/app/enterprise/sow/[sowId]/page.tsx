@@ -441,9 +441,9 @@ export default function SOWDetailPage() {
     return [1, 2, 3, 4, 5].map((num) => {
       const apiSt = pArr.find((s) => Number(s.stage ?? s.stage_number) === num);
       const rawStatus = String(apiSt?.status ?? "pending").toLowerCase();
-      const status: import("@/types/enterprise").ApprovalStatus =
+      const status: import("@/types/enterprise").ApprovalStageStatus =
         rawStatus === "approved" ? "approved" :
-        rawStatus === "rejected" || rawStatus === "changes_requested" ? "changes_requested" :
+        rawStatus === "rejected" || rawStatus === "changes_requested" ? "rejected" :
         rawStatus === "in_review" || rawStatus === "active" || rawStatus === "in_progress" ? "in_review" :
         "pending";
       return {
@@ -1929,7 +1929,7 @@ export default function SOWDetailPage() {
                         const isActive = pipelineResolvedStages
                           ? stage.status === "in_review"
                           : idx === activeApprovalIdx && !isDone;
-                        const isRejected = stage.status === "changes_requested";
+                        const isRejected = stage.status === "rejected";
                         const meta = STAGE_META[stage.stage] ?? { name: stage.stage, role: "" };
                         return (
                           <div key={stage.stage} className="relative z-10 flex flex-col items-center gap-2 flex-1">
