@@ -313,8 +313,9 @@ export const sowApi = {
     return sowCall<BaseResponse>(`/api/v1/sow/${sowId}/gap-items/${gapId}`, "PATCH", data);
   },
 
-  getCommercialDetails(sowId: string): Promise<BaseResponse> {
-    return sowCall<BaseResponse>(`/api/v1/sow/${sowId}/commercial-details`);
+  getCommercialDetails(sowId: string, regenerate = false): Promise<BaseResponse> {
+    const qs = regenerate ? `?regenerateAiTechStack=true` : "";
+    return sowCall<BaseResponse>(`/api/v1/sow/${sowId}/commercial-details${qs}`);
   },
 
   saveCommercialSection(sowId: string, section: string, data: Record<string, unknown>): Promise<BaseResponse> {
