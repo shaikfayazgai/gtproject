@@ -457,11 +457,16 @@ export default function SOWDetailPage() {
   const sectionDropdownRef = React.useRef<HTMLDivElement>(null);
   const sectionTriggerRef = React.useRef<HTMLButtonElement>(null);
   const [dropdownCoords, setDropdownCoords] = React.useState({ top: 0, left: 0, width: 0 });
+  // Track which SOW ID we've already initialised the stage index for so that
+  // API refetches (triggered after approve/comment) never reset the stage the
+  // user has already advanced to.
+  const approvalInitialisedFor = React.useRef<string | null>(null);
 
-  // Sync the active approval stage index to the first in_review stage whenever
-  // the SOW changes (e.g. navigating from the pipeline page to a SOW at stage 3+).
   React.useEffect(() => {
     if (!sow) return;
+    // Only auto-sync once per SOW — after that, user actions drive the index.
+    if (approvalInitialisedFor.current === sowId) return;
+    approvalInitialisedFor.current = sowId;
     const idx = sow.approvalStages.findIndex((s) => s.status === "in_review");
     if (idx >= 0) {
       setActiveApprovalIdx(idx);
