@@ -8,7 +8,6 @@ import {
   Download,
   BarChart3,
   CheckCircle2,
-  Copy,
   Receipt,
   DollarSign,
   ClipboardList,
@@ -250,12 +249,6 @@ export default function FinancialReportsPage() {
     }
   };
 
-  const handleCopyEndpoint = () => {
-    const endpoint = `GET /v1/reports/billing?type=${selectedReport}&format=${format}&scope=${scope}`;
-    navigator.clipboard?.writeText(endpoint);
-    toast.info("API Endpoint Copied", endpoint);
-  };
-
   return (
     <motion.div
       variants={stagger}
@@ -449,48 +442,7 @@ export default function FinancialReportsPage() {
                 )}
                 {previewing ? "Loading…" : "Preview"}
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCopyEndpoint}
-              >
-                <Copy className="w-3.5 h-3.5" />
-                Copy API Endpoint
-              </Button>
             </div>
-          </div>
-
-          {/* API Endpoint Reference */}
-          <div className="rounded-2xl border border-beige-200/50 bg-white/70 backdrop-blur-sm p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <h3 className="text-[13px] font-semibold text-brown-800">
-                API Access
-              </h3>
-              <Badge variant="teal" size="sm">
-                REST
-              </Badge>
-            </div>
-            <div className="rounded-xl bg-brown-950 p-4 font-mono text-[12px] text-beige-200 leading-relaxed overflow-x-auto">
-              <p className="text-beige-400"># Billing Report API</p>
-              <p className="mt-1">
-                <span className="text-forest-400">GET</span>{" "}
-                <span className="text-gold-400">/v1/reports/billing</span>
-                <span className="text-beige-500">?type=</span>
-                <span className="text-teal-400">{selectedReport}</span>
-                <span className="text-beige-500">&format=</span>
-                <span className="text-teal-400">{format}</span>
-                <span className="text-beige-500">&scope=</span>
-                <span className="text-teal-400">{scope}</span>
-              </p>
-              <p className="mt-2 text-beige-400"># Authentication: Bearer Token (OAuth2)</p>
-              <p className="text-beige-500">
-                Authorization: Bearer {"<"}your_api_key{">"}
-              </p>
-            </div>
-            <p className="text-[11px] text-beige-500 mt-2">
-              Requires <span className="font-medium text-beige-600">reports:read</span> OAuth2 scope.
-              See API documentation for full query parameters.
-            </p>
           </div>
         </motion.div>
 
@@ -505,7 +457,6 @@ export default function FinancialReportsPage() {
               {[
                 { label: "Reports Generated", value: "23", sub: "This month", accent: "text-teal-600", bg: "bg-teal-50" },
                 { label: "Total Downloads", value: "67", sub: "All time", accent: "text-forest-600", bg: "bg-forest-50" },
-                { label: "API Calls", value: "142", sub: "Last 30 days", accent: "text-gold-600", bg: "bg-gold-50" },
               ].map((stat) => (
                 <div
                   key={stat.label}
