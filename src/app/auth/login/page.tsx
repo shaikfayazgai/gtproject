@@ -79,28 +79,63 @@ function LoginPageContent() {
   // redirected to the OAuth provider without completing sign-in).
   useEffect(() => {
     const handlePageShow = (e: PageTransitionEvent) => {
-      if (e.persisted) setSsoLoading(null);
+      if (e.persisted) {
+        setSsoLoading(null);
+        const mfaPending = sessionStorage.getItem("_mfa_prompt_pending");
+        if (mfaPending) {
+          setStep("mfa-prompt");
+          return;
+        }
+        getSession().then((session) => {
+          if (!session?.user) return;
+          const u = session.user as { role?: string };
+          const dest =
+            u.role === "contributor" ? "/contributor/dashboard" :
+            u.role === "mentor"      ? "/mentor/dashboard" :
+            u.role === "admin"       ? "/admin/dashboard" :
+                                     "/enterprise/dashboard";
+          window.location.replace(dest);
+        });
+      }
     };
+
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state?.mfaPrompt) {
+        sessionStorage.removeItem("_mfa_prompt_pending");
+        setStep("credentials");
+      }
+    };
+
     window.addEventListener("pageshow", handlePageShow);
-    return () => window.removeEventListener("pageshow", handlePageShow);
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("popstate", handlePopState);
+    };
   }, []);
 
   // If an active session already exists, redirect straight to the dashboard.
   // This prevents the case where clicking Google/Microsoft while already logged in
   // skips OAuth entirely and lands on the dashboard silently.
   useEffect(() => {
+    // Don't auto-redirect if user is on MFA prompt step
+    const mfaPending = sessionStorage.getItem("_mfa_prompt_pending");
+    if (mfaPending) {
+      setStep("mfa-prompt");
+      return;
+    }
+
     getSession().then((session) => {
       if (!session?.user) return;
       const u = session.user as { role?: string; isNewSsoUser?: boolean };
       if (u.isNewSsoUser) { window.location.replace("/contributor/onboarding"); return; }
       const dest =
         u.role === "contributor" ? "/contributor/dashboard" :
-        u.role === "mentor"      ? "/mentor/dashboard"      :
-        u.role === "admin"       ? "/admin/dashboard"       :
-                                   "/enterprise/dashboard";
+        u.role === "mentor"      ? "/mentor/dashboard" :
+        u.role === "admin"       ? "/admin/dashboard" :
+                                 "/enterprise/dashboard";
       window.location.replace(dest);
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [errorCode, setErrorCode] = useState<string>("");
@@ -228,6 +263,9 @@ function LoginPageContent() {
       // MFA setup required — create session via glimmora-oauth (no second login call)
       // and go straight to MFA prompt.
       if (validateData.mfaSetupRequired) {
+        // Set flag BEFORE creating session to block auto-redirect
+        sessionStorage.setItem("_mfa_prompt_pending", "true");
+
         const u = validateData.user || {};
         const oauthResult = await signIn("glimmora-oauth", {
           userId: u.id || "",
@@ -256,6 +294,9 @@ function LoginPageContent() {
             sessionStorage.setItem("_mfa_setup_password", password);
           } catch { /* sessionStorage unavailable */ }
 
+          sessionStorage.setItem("_mfa_prompt_pending", "true");
+          // Push history so back arrow returns to credentials step
+          window.history.pushState({ mfaPrompt: true }, "", "/auth/login");
           setStep("mfa-prompt");
           setIsLoading(false);
           return;
@@ -299,10 +340,12 @@ function LoginPageContent() {
 
         // Store credentials for MFA setup page
         try {
+          sessionStorage.setItem("_mfa_prompt_pending", "true");
           sessionStorage.setItem("_mfa_setup_email", email.trim().toLowerCase());
           sessionStorage.setItem("_mfa_setup_password", password);
         } catch { /* sessionStorage unavailable */ }
 
+        window.history.pushState({ mfaPrompt: true }, "", "/auth/login");
         setStep("mfa-prompt");
         setIsLoading(false);
       }
@@ -345,6 +388,7 @@ function LoginPageContent() {
   };
 
   const resetToCredentials = () => {
+    sessionStorage.removeItem("_mfa_prompt_pending");
     setStep("credentials");
     setMfaCode("");
     setRecoveryCode("");
@@ -648,7 +692,10 @@ function LoginPageContent() {
 
               <button
                 type="button"
-                onClick={() => { window.location.href = loginDest || callbackUrl || "/enterprise/dashboard"; }}
+                onClick={() => {
+                sessionStorage.removeItem("_mfa_prompt_pending");
+                window.location.href = loginDest || callbackUrl || "/enterprise/dashboard";
+              }}
                 className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors py-1"
               >
                 Skip for now
