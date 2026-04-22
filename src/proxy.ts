@@ -63,6 +63,13 @@ export async function proxy(req: NextRequest) {
     pathname.startsWith(route)
   );
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
+  const isAdminRoute = pathname.startsWith("/admin");
+  const dashboardMap: Record<string, string> = {
+    contributor: "/contributor/dashboard",
+    mentor: "/mentor/dashboard",
+    admin: "/admin/dashboard",
+    enterprise: "/enterprise/dashboard",
+  };
 
   // Redirect unauthenticated users away from protected routes
   if (isProtectedRoute && !sessionLikelyValid) {
@@ -71,11 +78,16 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Redirect authenticated users away from auth routes (role-based). Only
-  // act on decoded tokens — when the token didn't decode we can't reliably
-  // pick a destination, so let the page render and /auth/redirect handle it.
+  // Keep admin pages restricted to admin users only.
+  // Non-admin authenticated users are redirected to their own dashboard.
+  if (isAdminRoute && isLoggedIn && userRole !== "admin") {
+    const dest = dashboardMap[userRole] || "/enterprise/dashboard";
+    return NextResponse.redirect(new URL(dest, req.nextUrl.origin));
+  }
+
+  // Redirect authenticated users away from auth routes (role-based)
   if (isAuthRoute && isLoggedIn) {
-    const dest = DASHBOARD_BY_ROLE[userRole] || "/auth/redirect";
+    const dest = dashboardMap[userRole] || "/enterprise/dashboard";
     return NextResponse.redirect(new URL(dest, req.nextUrl.origin));
   }
 
