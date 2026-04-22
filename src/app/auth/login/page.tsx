@@ -133,7 +133,15 @@ function LoginPageContent() {
     try {
       await authApi.verifyMfaCode(mfaCode, mfaPendingTokenRef.current);
       // MFA verified — refresh the NextAuth session to pick up the new token state
-      await getSession();
+      const session = await getSession();
+      const accessToken = (session?.user as { accessToken?: string })?.accessToken;
+      if (accessToken) {
+        try {
+          sessionStorage.setItem("admin_token", accessToken);
+        } catch {
+          // sessionStorage unavailable
+        }
+      }
       window.location.href = loginDest || callbackUrl || "/enterprise/dashboard";
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Invalid code. Please try again.";
@@ -177,15 +185,14 @@ function LoginPageContent() {
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
 
-      if (!validateRes.ok) {
-        const data = await validateRes.json();
-        setError(data.message);
-        setErrorCode(data.error);
+      const validateData = await validateRes.json().catch(() => ({} as Record<string, unknown>));
+      if (!validateRes.ok || validateData.ok === false) {
+        const data = validateData as { message?: string; error?: string };
+        setError(data.message ?? "Unable to sign in. Please try again.");
+        setErrorCode(data.error ?? "");
         setIsLoading(false);
         return;
       }
-
-      const validateData = await validateRes.json();
 
       // MFA required — skip signIn, store the pending token and show TOTP step
       if (validateData.mfaRequired) {
@@ -247,6 +254,14 @@ function LoginPageContent() {
       if (result?.ok) {
         const session = await getSession();
         const role = (session?.user as { role?: string })?.role;
+        const accessToken = (session?.user as { accessToken?: string })?.accessToken;
+        if (accessToken) {
+          try {
+            sessionStorage.setItem("admin_token", accessToken);
+          } catch {
+            // sessionStorage unavailable
+          }
+        }
 
         setUserRole(role || "enterprise");
 
@@ -295,7 +310,15 @@ function LoginPageContent() {
     setIsLoading(true);
     try {
       await authApi.redeemRecoveryCode(recoveryCode, mfaPendingTokenRef.current);
-      await getSession();
+      const session = await getSession();
+      const accessToken = (session?.user as { accessToken?: string })?.accessToken;
+      if (accessToken) {
+        try {
+          sessionStorage.setItem("admin_token", accessToken);
+        } catch {
+          // sessionStorage unavailable
+        }
+      }
       window.location.href = loginDest || callbackUrl || "/enterprise/dashboard";
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Invalid recovery code. Please try again.";

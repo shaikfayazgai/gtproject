@@ -3,91 +3,12 @@
 import { prisma } from "@/lib/db";
 import { authApi } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
-import {
-  contributorRegistrationSchema,
-  enterpriseRegistrationSchema,
-} from "@/lib/validations/registration";
+import { enterpriseRegistrationSchema } from "@/lib/validations/registration";
 import { sendEmail, buildEmailHtml } from "@/lib/email";
 import { DEFAULT_TEMPLATES } from "@/lib/stores/email-template-store";
 import { getBaseUrl } from "@/lib/utils/base-url";
 
 export type ActionResult = { success: true } | { success: false; error: string };
-
-// ── Contributor Registration ──────────────────────────────────────────────
-
-export async function registerContributor(data: unknown): Promise<ActionResult> {
-  const parsed = contributorRegistrationSchema.safeParse(data);
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0].message };
-  }
-  const v = parsed.data;
-
-  try {
-    await authApi.registerContributor({
-      firstName:               v.firstName,
-      lastName:                v.lastName,
-      email:                   v.email.toLowerCase(),
-      password:                v.password,
-      confirmPassword:         v.password,
-      contributorType:         v.contribType,
-      countryOfResidence:      v.country,
-      dateOfBirth:             v.dob,
-      timeZone:                v.timezone,
-      weeklyAvailabilityHours: String(parseInt(v.availability, 10)),
-      departmentCategory:      v.departmentCategory,
-      primarySkills:           v.primarySkills,
-      secondarySkills:         v.secondarySkills,
-      otherSkills:             v.otherSkills,
-      phone:                   v.phone ?? "",
-      degree:                  v.degree,
-      branch:                  v.branch,
-      linkedin:                v.linkedin,
-      careerStage:             v.careerStage,
-      yearsExperience:         v.yearsExperience,
-      workStart:               v.workStart,
-      workEnd:                 v.workEnd,
-      // Use full name as signatory if no explicit signature provided
-      ndaSignatoryLegalName:   v.ndaSignature || `${v.firstName} ${v.lastName}`,
-      mentorGuideAcknowledged: true,
-      acceptTermsOfUse:        v.acceptTos,
-      acceptCodeOfConduct:     v.acceptCoc,
-      acceptPrivacyPolicy:     v.acceptPrivacy,
-      acceptHarassmentPolicy:  v.acceptAhp,
-      acknowledgmentsAccepted: true,
-      notifyNewTasksOptIn:     false,
-      marketingOptIn:          v.marketingOptIn,
-    });
-
-    const baseUrl = getBaseUrl();
-    const contributorTpl = DEFAULT_TEMPLATES.welcome_contributor;
-    sendEmail({
-      to: v.email.toLowerCase(),
-      subject: contributorTpl.subject.replace("{{firstName}}", v.firstName),
-      html: buildEmailHtml({
-        bodyHtml: contributorTpl.bodyHtml,
-        headerColor: contributorTpl.headerColor,
-        footerText: contributorTpl.footerText,
-        payload: {
-          firstName: v.firstName,
-          loginUrl: `${baseUrl}/auth/login`,
-          onboardingUrl: `${baseUrl}/contributor/onboarding`,
-        },
-      }),
-    }).catch(() => {/* fire-and-forget */});
-
-    return { success: true };
-  } catch (err) {
-    if (err instanceof ApiError) {
-      console.error("[registerContributor] API error", err.status, err.message);
-      if (err.status === 409) {
-        return { success: false, error: "An account with this email already exists" };
-      }
-      return { success: false, error: err.message };
-    }
-    console.error("[registerContributor] unexpected error", err);
-    return { success: false, error: "Registration failed. Please try again." };
-  }
-}
 
 // ── SSO Contributor Onboarding (existing SSO user, no password) ──────────
 // SSO onboarding still writes to the local Prisma DB so NextAuth can look up

@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 // Routes that require authentication
-const protectedRoutes = ["/enterprise", "/contributor", "/mentor"];
+const protectedRoutes = ["/enterprise", "/contributor", "/mentor", "/admin"];
 
 // Routes that should redirect to dashboard if already authenticated
 const authRoutes = ["/auth/login", "/auth/register"];
@@ -31,6 +31,13 @@ export async function proxy(req: NextRequest) {
   );
 
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
+  const isAdminRoute = pathname.startsWith("/admin");
+  const dashboardMap: Record<string, string> = {
+    contributor: "/contributor/dashboard",
+    mentor: "/mentor/dashboard",
+    admin: "/admin/dashboard",
+    enterprise: "/enterprise/dashboard",
+  };
 
   // Redirect unauthenticated users away from protected routes
   if (isProtectedRoute && !isLoggedIn) {
@@ -39,14 +46,15 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Keep admin pages restricted to admin users only.
+  // Non-admin authenticated users are redirected to their own dashboard.
+  if (isAdminRoute && isLoggedIn && userRole !== "admin") {
+    const dest = dashboardMap[userRole] || "/enterprise/dashboard";
+    return NextResponse.redirect(new URL(dest, req.nextUrl.origin));
+  }
+
   // Redirect authenticated users away from auth routes (role-based)
   if (isAuthRoute && isLoggedIn) {
-    const dashboardMap: Record<string, string> = {
-      contributor: "/contributor/dashboard",
-      mentor: "/mentor/dashboard",
-      admin: "/enterprise/dashboard",
-      enterprise: "/enterprise/dashboard",
-    };
     const dest = dashboardMap[userRole] || "/enterprise/dashboard";
     return NextResponse.redirect(new URL(dest, req.nextUrl.origin));
   }
