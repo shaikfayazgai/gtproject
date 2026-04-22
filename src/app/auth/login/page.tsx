@@ -109,12 +109,11 @@ function LoginPageContent() {
       if (!session?.user) return;
       const u = session.user as { role?: string; isNewSsoUser?: boolean };
       if (u.isNewSsoUser) { window.location.replace("/contributor/onboarding"); return; }
-      const dest =
-        u.role === "contributor" ? "/contributor/dashboard" :
-        u.role === "mentor"      ? "/mentor/dashboard"      :
-        u.role === "admin"       ? "/admin/dashboard"       :
-                                   "/enterprise/dashboard";
-      window.location.replace(callbackUrl || dest);
+      // Delegate role-based routing to the server so contributor, admin,
+      // reviewer, and enterprise all land on the right dashboard without
+      // relying on the client-side role ternary that previously missed
+      // reviewer and assumed an enterprise default.
+      window.location.replace(callbackUrl || "/auth/redirect");
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [callbackUrl]);
