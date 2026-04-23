@@ -198,6 +198,31 @@ export const sowApi = {
     );
   },
 
+  updateProfile(data: {
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    adminTitle?: string;
+    adminDept?: string;
+  }): Promise<BaseResponse> {
+    return sowCall<BaseResponse>("/api/v1/users/me/profile", "PUT", data);
+  },
+
+  uploadProfilePicture(file: File): Promise<BaseResponse> {
+    return getToken().then(token => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return fetch(`${BASE_URL}/api/v1/users/me/profile-picture`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      }).then(async res => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new ApiError(res.status, data?.message ?? "Upload failed");
+        return data as BaseResponse;
+      });
+    });
+  },
   // ── AI Draft Review ──
 
   listSows(): Promise<BaseResponse> {
