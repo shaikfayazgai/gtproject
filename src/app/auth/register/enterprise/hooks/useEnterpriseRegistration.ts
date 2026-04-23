@@ -146,8 +146,22 @@ export function useEnterpriseRegistration() {
         body: JSON.stringify({ email: adminEmail }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setError(data.detail ? `${data.message} — ${data.detail}` : data.message);
+      if (!res.ok) { setError(data.message); return; }
+      if (data?.demoCode) {
+        const fallbackCode = String(data.demoCode).replace(/\D/g, "").slice(0, 6);
+        setEmailOtp(fallbackCode);
+        const verifyRes = await fetchInternal("/api/auth/otp/verify-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: adminEmail, code: fallbackCode }),
+        });
+        const verifyData = await verifyRes.json().catch(() => ({}));
+        if (!verifyRes.ok) {
+          setError(verifyData?.message ?? "Verification failed. Please try again.");
+          return;
+        }
+        setEmailVerified(true);
+        setEmailOtpSent(false);
         return;
       }
       setEmailOtpSent(true);
@@ -315,10 +329,6 @@ export function useEnterpriseRegistration() {
         return;
       }
 
-      if (result.emailWarning) {
-        console.warn("[enterprise-registration] welcome email failed:", result.emailWarning);
-      }
-
       // Save registration data for onboarding wizard
       setRegistrationData({
         companyName: orgName,
@@ -333,13 +343,7 @@ export function useEnterpriseRegistration() {
       });
 
       if (signInResult?.ok) {
-        const { getSession } = await import("next-auth/react");
-        const session = await getSession();
-        const role = (session?.user as { role?: string })?.role;
-        window.location.href =
-          role === "contributor" ? "/contributor/dashboard" :
-          role === "mentor"      ? "/mentor/dashboard" :
-                                   "/enterprise/dashboard";
+        window.location.href = "/enterprise/dashboard";
       } else {
         window.location.href = "/auth/login";
       }

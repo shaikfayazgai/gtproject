@@ -6,7 +6,6 @@ import { useEffect } from "react";
 import { AppShell } from "@/components/layout";
 import { contributorNav } from "@/lib/config/navigation";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { useRoleGuard } from "@/lib/hooks/use-role-guard";
 import OnboardingModal from "./onboarding/components/OnboardingModal";
 
 export default function ContributorLayout({
@@ -14,7 +13,6 @@ export default function ContributorLayout({
 }: {
   children: React.ReactNode;
 }) {
-  useRoleGuard(["contributor"]);
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const isOnboardingComplete = useAuthStore((s) => s.isOnboardingComplete);

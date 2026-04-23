@@ -2,8 +2,6 @@
 
 import * as React from "react";
 import { useState, useCallback, useRef, useEffect } from "react";
-import { fetchInternal } from "@/lib/api/client";
-import { sowApi } from "@/lib/api/sow";
 import { useSession } from "next-auth/react";
 import { useCurrentUser } from "@/lib/hooks/use-auth";
 import {
@@ -90,7 +88,16 @@ function validatePassword(password: string): string[] {
 
 /* ─────────────────────── Mock Recovery Codes ─────────────────────── */
 
-const MOCK_RECOVERY_CODES: string[] = [];
+const MOCK_RECOVERY_CODES = [
+  "A7K9-M2X4",
+  "B3P8-N6W1",
+  "C5R2-Q9Y7",
+  "D1T6-S4Z3",
+  "E8U0-V5H2",
+  "F4W3-X7J9",
+  "G6Y1-Z8K5",
+  "H2A9-B0L4",
+];
 
 /* ═══════════════════════════════════════════════════════════════════ */
 /*  Profile Page                                                      */
@@ -100,14 +107,12 @@ export default function ProfilePage() {
   /* ── Personal Information State ── */
   const { data: session } = useSession();
   const { data: currentUser, isLoading: isUserLoading } = useCurrentUser();
-  const sessionUser = session?.user as any;
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [phone, setPhone] = useState("");
-  const [department, setDepartment] = useState("");
 
   // Derive email from API first, then session (avoids the useState-async-session trap)
   const email = currentUser?.email ?? session?.user?.email ?? "";
@@ -120,24 +125,13 @@ export default function ProfilePage() {
       setDisplayName(`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim());
       setJobTitle(currentUser.role ?? "");
       setPhone(currentUser.phone ?? "");
-    } else {
-      const u = session?.user as any;
-      // Try firstName/lastName directly first
-      if (u?.firstName) setFirstName(u.firstName);
-      if (u?.lastName) setLastName(u.lastName);
-      if (u?.firstName || u?.lastName) {
-        setDisplayName(`${u?.firstName ?? ""} ${u?.lastName ?? ""}`.trim());
-      } else if (u?.name) {
-      // Fallback to name split
-      const parts = u.name.split(" ");
+    } else if (!isUserLoading && session?.user?.name) {
+      const parts = session.user.name.split(" ");
       setFirstName(parts[0] ?? "");
       setLastName(parts.slice(1).join(" ") ?? "");
-      setDisplayName(u.name);
+      setDisplayName(session.user.name);
     }
-    if (u?.role) setJobTitle(u.role);
-    if (u?.adminDept) setDepartment(u.adminDept);
-  }
-}, [currentUser, session?.user]);
+  }, [currentUser, isUserLoading, session?.user?.name]);
 
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [displayNameCustomized, setDisplayNameCustomized] = useState(false);
@@ -183,27 +177,36 @@ export default function ProfilePage() {
   /* ── Handlers ── */
 
   const handlePhotoUpload = useCallback(
-  async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!["image/png", "image/jpeg"].includes(file.type)) {
-      toast.error("Invalid file type", "Please upload a PNG or JPG image.");
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("File too large", "Maximum file size is 2MB.");
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    setProfilePhoto(url);
-    try {
-      await sowApi.uploadProfilePicture(file);
-      toast.success("Profile photo updated.");
-    } catch {
-      toast.error("Failed to upload photo.");
-    }
-  }, []
-);
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (!["image/png", "image/jpeg"].includes(file.type)) {
+        toast.error("Invalid file type", "Please upload a PNG or JPG image.");
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("File too large", "Maximum file size is 2MB.");
+        return;
+      }
+
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        if (img.width < 100 || img.height < 100) {
+          toast.error(
+            "Image too small",
+            "Minimum dimensions are 100x100 pixels."
+          );
+          URL.revokeObjectURL(url);
+          return;
+        }
+        setProfilePhoto(url);
+      };
+      img.src = url;
+    },
+    []
+  );
 
   const handleFirstNameChange = useCallback(
     (value: string) => {
@@ -241,7 +244,7 @@ export default function ProfilePage() {
     else if (!nameRegex.test(firstName))
       errors.firstName = "Only letters, spaces, and hyphens are allowed.";
 
-    if (!lastName || lastName.length < 1)
+    if (!lastName || lastName.length < 2)
       errors.lastName = "Last name must be at least 2 characters.";
     else if (lastName.length > 50)
       errors.lastName = "Last name must be under 50 characters.";
@@ -258,17 +261,13 @@ export default function ProfilePage() {
     return Object.keys(errors).length === 0;
   }, [firstName, lastName, displayName, jobTitle]);
 
-  const handleSavePersonalInfo = useCallback(async (): Promise<boolean> => {
-    if (!validatePersonalInfo()) return false;
-    try {
-      await sowApi.updateProfile({ firstName, lastName, phone, adminTitle: jobTitle, adminDept: department });
+  const handleSavePersonalInfo = useCallback((): boolean => {
+    if (validatePersonalInfo()) {
       toast.success("Personal information updated.");
       return true;
-    } catch {
-      toast.error("Failed to save. Please try again.");
-      return false;
     }
-  }, [validatePersonalInfo, firstName, lastName, phone, jobTitle, department]);
+    return false;
+  }, [validatePersonalInfo]);
 
   const handleUpdatePassword = useCallback(() => {
     const errors: Record<string, string> = {};
@@ -406,7 +405,7 @@ export default function ProfilePage() {
                 <Button variant="outline" size="sm" onClick={() => { setIsEditing(false); setPersonalErrors({}); }}>
                   Cancel
                 </Button>
-                <Button variant="primary" size="sm" onClick={async () => { const ok = await handleSavePersonalInfo(); if (ok) setIsEditing(false); }}>
+                <Button variant="primary" size="sm" onClick={() => { if (handleSavePersonalInfo()) setIsEditing(false); }}>
                   Save
                 </Button>
               </div>
@@ -553,22 +552,6 @@ export default function ProfilePage() {
               ) : (
                 <div className="text-sm text-brown-950 py-2.5 px-3 rounded-xl bg-beige-50/50 border border-beige-200 min-h-[40px]">
                   {phone || "—"}
-                </div>
-              )}
-            </div>
-            {/* Department */}
-            <div className="space-y-1.5">
-              <Label htmlFor="department">Department</Label>
-              {isEditing ? (
-                <Input
-                  id="department"
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  placeholder="e.g. Engineering"
-                />
-              ) : (
-                <div className="text-sm text-brown-950 py-2.5 px-3 rounded-xl bg-beige-50/50 border border-beige-200 min-h-[40px]">
-                  {department || "—"}
                 </div>
               )}
             </div>

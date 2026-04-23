@@ -85,10 +85,7 @@ async function teamsCall<T>(
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    // Don't log 503 — it's an expected Render cold-start; TanStack Query retries it automatically.
-    if (res.status !== 503) {
-      console.error(`[Teams API] ${method} ${path} → ${res.status}`, data);
-    }
+    console.error(`[Teams API] ${method} ${path} → ${res.status}`, data);
 
     if (data?.errors && Array.isArray(data.errors)) {
       const fieldErrors = data.errors

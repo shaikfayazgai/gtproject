@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { signIn, getSession } from "next-auth/react";
 import { authApi } from "@/lib/api/auth";
 import { ApiError, fetchInternal } from "@/lib/api/client";
@@ -35,6 +35,7 @@ const STATS = [
 
 function LoginPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const isMfaEnabled = useAuthStore((s) => s.isMfaEnabled);
 
   const rawCallbackUrl = searchParams.get("callbackUrl");
@@ -57,26 +58,13 @@ function LoginPageContent() {
 
   const [step, setStep] = useState<Step>("credentials");
   const [userRole, setUserRole] = useState<string>("");
-  // Role returned by /api/auth/validate — used to decide whether the MFA-prompt
-  // screen shows a "Skip for now" option (contributors and admins only).
-  const [pendingRole, setPendingRole] = useState<string>("");
   const mfaPendingTokenRef = useRef<string>("");
-
-  // Credentials validated on the Sign In click but not yet exchanged for a
-  // NextAuth session. The session is only created when the user clicks
-  // "Skip for now" on the MFA prompt (or after completing MFA setup).
-  const pendingCredsRef = useRef<{
-    email: string;
-    password: string;
-    mfaSetupRequired: boolean;
-    mfaSetupPendingToken?: string;
-    user?: { id: string; email: string; firstName: string; lastName: string };
-  } | null>(null);
 
   const redirectTo = callbackUrl || (
     userRole === "contributor" ? "/contributor/dashboard" :
     userRole === "mentor"      ? "/mentor/dashboard" :
     userRole === "admin"       ? "/admin/dashboard" :
+    userRole === "reviewer"   ? "/enterprise/reviewer" :
                                  "/enterprise/dashboard"
   );
   const [email, setEmail] = useState("");
@@ -98,26 +86,6 @@ function LoginPageContent() {
     window.addEventListener("pageshow", handlePageShow);
     return () => window.removeEventListener("pageshow", handlePageShow);
   }, []);
-
-  // If the user was redirected here by a protected route (callbackUrl present)
-  // and they already have a valid session, send them on to their destination.
-  // When they navigate to /auth/login directly, let them see the form so they
-  // can sign in as a different user.
-  useEffect(() => {
-    if (!callbackUrl) return;
-    getSession().then((session) => {
-      if (!session?.user) return;
-      const u = session.user as { role?: string; isNewSsoUser?: boolean };
-      if (u.isNewSsoUser) { window.location.replace("/contributor/onboarding"); return; }
-      // Delegate role-based routing to the server so contributor, admin,
-      // reviewer, and enterprise all land on the right dashboard without
-      // relying on the client-side role ternary that previously missed
-      // reviewer and assumed an enterprise default.
-      window.location.replace(callbackUrl || "/auth/redirect");
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [callbackUrl]);
-
   const [errorCode, setErrorCode] = useState<string>("");
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
   const [timeLeft, setTimeLeft] = useState(30);
@@ -128,37 +96,23 @@ function LoginPageContent() {
     if (urlError) {
       switch (urlError) {
         case "OAuthAccountNotLinked":
-        case "AccountNotLinked":
-          setError("This email is already used with a different login method. Try signing in with email and password instead.");
+          setError("This email is already associated with another sign-in method. Please use your original sign-in method to continue.");
           break;
         case "OAuthCallbackError":
-        case "OAuthCallback":
-        case "CallbackRouteError":
-          setError("Sign-in failed. Please try again.");
-          break;
-        case "OAuthSignin":
-          setError("Could not connect to the sign-in provider. Please try again.");
-          break;
-        case "Configuration":
-          setError("Sign-in is not set up correctly. Please contact support.");
+          setError("We were unable to complete the sign-in with your provider. Please try again or use a different method.");
           break;
         case "AccessDenied":
-          setError("You don't have access. Please contact your administrator.");
-          break;
-        case "UnknownRole":
-          setError("Your account role is not configured. Please contact your administrator.");
+          setError("Access denied. Your account may not have the required permissions. Please contact your administrator.");
           break;
         case "CredentialsSignin":
-          setError("Incorrect email or password. Please try again.");
+          setError("The email or password you entered is incorrect. Please verify your credentials and try again.");
           break;
-        case "SsoNotRegistered": {
-          const ssoEmail = searchParams.get("email");
-          setError(ssoEmail ?? "");
+        case "SsoNotRegistered":
+          setError("No account found for this Google/Microsoft login. Please register first.");
           setErrorCode("NO_ACCOUNT");
           break;
-        }
         default:
-          setError("Something went wrong. Please try again.");
+          setError("Something went wrong on our end. Please try again shortly or contact support if the issue persists.");
       }
     }
   }, [searchParams]);
@@ -176,35 +130,33 @@ function LoginPageContent() {
 
   /* ── Verify TOTP code via Glimmora API ── */
   const handleMFA = useCallback(async () => {
+    if (isLoading) return;
+    if (mfaCode.length !== 6) {
+      setError("Please enter the 6-digit code");
+      return;
+    }
+    if (!mfaPendingTokenRef.current) {
+      setError("MFA session expired. Please sign in again.");
+      setStep("credentials");
+      return;
+    }
     setError("");
     setIsLoading(true);
     try {
       await authApi.verifyMfaCode(mfaCode, mfaPendingTokenRef.current);
       // MFA verified — refresh the NextAuth session to pick up the new token state
-      const session = await getSession();
-      const accessToken = (session?.user as { accessToken?: string })?.accessToken;
-      if (accessToken) {
-        try {
-          sessionStorage.setItem("admin_token", accessToken);
-        } catch {
-          // sessionStorage unavailable
-        }
-      }
-      window.location.href = loginDest || callbackUrl || "/enterprise/dashboard";
+      await getSession();
+      window.location.href = loginDest || callbackUrl || (
+        userRole === "reviewer" ? "/enterprise/reviewer" : "/enterprise/dashboard"
+      );
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Invalid code. Please try again.";
       setError(msg);
       setIsLoading(false);
     }
-  }, [mfaCode, loginDest, callbackUrl]);
+  }, [mfaCode, loginDest, callbackUrl, userRole, isLoading]);
 
-  useEffect(() => {
-    if (step === "mfa" && mfaCode.length === 6 && !isLoading) {
-      handleMFA();
-    }
-  }, [mfaCode, step, isLoading, handleMFA]);
-
-  /* ── Sign In click: validate only. Session is created on Skip / after MFA. ── */
+  /* ── Email + Password login via NextAuth Credentials ── */
   const handleCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -226,110 +178,112 @@ function LoginPageContent() {
     setErrorCode("");
 
     try {
-      // Verify the user exists and the password is correct. This does NOT
-      // create a NextAuth session — signIn() is deferred to the Skip handler
-      // (or the MFA-setup flow) so clicking "Sign In" is only a user-exists check.
+      // Pre-validate credentials to get specific error messages
       const validateRes = await fetchInternal("/api/auth/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
 
-      const validateData = await validateRes.json().catch(() => ({} as Record<string, unknown>));
-      if (!validateRes.ok || validateData.ok === false) {
-        const data = validateData as { message?: string; error?: string };
-        setError(data.message ?? "Unable to sign in. Please try again.");
-        setErrorCode(data.error ?? "");
+      if (!validateRes.ok) {
+        const data = await validateRes.json();
+        setError(data.message);
+        setErrorCode(data.error);
         setIsLoading(false);
         return;
+      }
+
+      const validateData = await validateRes.json();
+
+      // Temporary-password reviewer login: create session from validated tokens
+      // and force password-change flow before dashboard access.
+      if (
+        validateData?.accessToken &&
+        validateData?.user?.role === "reviewer" &&
+        validateData?.user?.requiresPasswordChange
+      ) {
+        const u = validateData.user;
+        const oauthResult = await signIn("glimmora-oauth", {
+          userId: u.id || "",
+          email: u.email || email.trim().toLowerCase(),
+          firstName: u.firstName || "",
+          lastName: u.lastName || "",
+          role: "reviewer",
+          accessToken: validateData.accessToken,
+          refreshToken: validateData.refreshToken || "",
+          expiresIn: String(validateData.expiresIn || 3600),
+          provider: "credentials",
+          redirect: false,
+        });
+        if (oauthResult?.ok) {
+          const cb = encodeURIComponent(callbackUrl || "/enterprise/reviewer");
+          window.location.href = `/auth/change-temp-password?callbackUrl=${cb}`;
+          return;
+        }
       }
 
       // MFA required — skip signIn, store the pending token and show TOTP step
       if (validateData.mfaRequired) {
         mfaPendingTokenRef.current = validateData.mfaPendingToken ?? "";
+        const ur = (validateData.user?.role as string) || "";
+        if (ur) setUserRole(ur);
+        const mfaDest =
+          callbackUrl ||
+          (ur === "reviewer" ? "/enterprise/reviewer" : "/enterprise/dashboard");
+        setLoginDest(mfaDest);
         setStep("mfa");
         setIsLoading(false);
         return;
       }
 
-      // Stash validated credentials for the Skip / MFA-setup handlers.
-      pendingCredsRef.current = {
-        email: email.trim().toLowerCase(),
-        password,
-        mfaSetupRequired: Boolean(validateData.mfaSetupRequired),
-        mfaSetupPendingToken: validateData.mfaSetupPendingToken,
-        user: validateData.user,
-      };
-
-      // Role reported by the validate endpoint (used to decide if "Skip for now"
-      // should be visible on the MFA prompt screen).
-      setPendingRole(String(validateData.role ?? validateData.user?.role ?? "").toLowerCase());
-
-      // Stash credentials/token so the MFA setup page can pick them up.
-      try {
-        sessionStorage.setItem("_mfa_setup_email", email.trim().toLowerCase());
-        sessionStorage.setItem("_mfa_setup_password", password);
-        if (validateData.mfaSetupPendingToken) {
-          sessionStorage.setItem("_mfa_pending_token", validateData.mfaSetupPendingToken);
-        }
-      } catch { /* sessionStorage unavailable */ }
-
-      setLoginDest(callbackUrl || "");
-      setStep("mfa-prompt");
-      setIsLoading(false);
-    } catch {
-      setError("Something went wrong. Please try again.");
-      setIsLoading(false);
-    }
-  };
-
-  /* ── Skip for now: finally create the NextAuth session, then navigate. ── */
-  const handleSkipMfa = async () => {
-    const creds = pendingCredsRef.current;
-    if (!creds) {
-      setError("Session expired. Please sign in again.");
-      resetToCredentials();
-      return;
-    }
-
-    setIsLoading(true);
-    setError("");
-
-    try {
-      if (creds.mfaSetupRequired && creds.user) {
-        // Backend blocks tokens until MFA is set up — use the oauth shim
-        // to create a session without real tokens.
+      // MFA setup required — create session via glimmora-oauth (no second login call)
+      // and go straight to MFA prompt.
+      if (validateData.mfaSetupRequired) {
+        const u = validateData.user || {};
         const oauthResult = await signIn("glimmora-oauth", {
-          userId: creds.user.id || "",
-          email: creds.user.email || creds.email,
-          firstName: creds.user.firstName || "",
-          lastName: creds.user.lastName || "",
-          role: "enterprise",
-          accessToken: "",
+          userId: u.id || "",
+          email: u.email || email.trim().toLowerCase(),
+          firstName: u.firstName || "",
+          lastName: u.lastName || "",
+          role: (validateData.user?.role as string) || "enterprise",
+          accessToken: "", // No token yet — MFA blocks issuance
           refreshToken: "",
           expiresIn: "0",
           provider: "credentials",
           redirect: false,
         });
 
-        if (!oauthResult?.ok) {
-          setError("Sign-in failed. Please try again.");
+        if (oauthResult?.ok) {
+          const r = (validateData.user?.role as string) || "enterprise";
+          const dest =
+            callbackUrl ||
+            (r === "reviewer" ? "/enterprise/reviewer" : "/enterprise/dashboard");
+          setLoginDest(dest);
+          setUserRole(r);
+
+          // Store pending token for MFA setup page
+          try {
+            if (validateData.mfaSetupPendingToken) {
+              sessionStorage.setItem("_mfa_pending_token", validateData.mfaSetupPendingToken);
+            }
+            sessionStorage.setItem("_mfa_setup_email", email.trim().toLowerCase());
+            sessionStorage.setItem("_mfa_setup_password", password);
+          } catch { /* sessionStorage unavailable */ }
+
+          setStep("mfa-prompt");
           setIsLoading(false);
           return;
         }
-
-        window.location.href = callbackUrl || "/enterprise/dashboard";
-        return;
       }
 
       const result = await signIn("credentials", {
-        email: creds.email,
-        password: creds.password,
+        email: email.trim().toLowerCase(),
+        password,
         redirect: false,
       });
 
-      if (!result?.ok || result.error) {
-        setError("Sign-in failed. Please try again.");
+      if (result?.error) {
+        setError("Something went wrong. Please try again.");
         setIsLoading(false);
         return;
       }
@@ -337,14 +291,7 @@ function LoginPageContent() {
       if (result?.ok) {
         const session = await getSession();
         const role = (session?.user as { role?: string })?.role;
-        const accessToken = (session?.user as { accessToken?: string })?.accessToken;
-        if (accessToken) {
-          try {
-            sessionStorage.setItem("admin_token", accessToken);
-          } catch {
-            // sessionStorage unavailable
-          }
-        }
+        const access = (session?.user as { accessToken?: string })?.accessToken;
 
         setUserRole(role || "enterprise");
 
@@ -354,13 +301,28 @@ function LoginPageContent() {
           role === "contributor" ? "/contributor/dashboard" :
           role === "mentor"      ? "/mentor/dashboard" :
           role === "admin"       ? "/admin/dashboard" :
+          role === "reviewer"    ? "/enterprise/reviewer" :
                                    "/enterprise/dashboard"
         );
         
         setLoginDest(dest);
 
-        // Admin role skips MFA prompt — navigate directly to dashboard.
-        if (role === "admin") {
+        // Reviewer first login must force temporary-password change before dashboard access.
+        if (role === "reviewer" && access) {
+          try {
+            const me = await authApi.getCurrentUser(access);
+            if (me.requiresPasswordChange) {
+              const cb = encodeURIComponent(callbackUrl || "/enterprise/reviewer");
+              window.location.href = `/auth/change-temp-password?callbackUrl=${cb}`;
+              return;
+            }
+          } catch {
+            // fallback to default redirect below
+          }
+        }
+
+        // Full Glimmora session (access token) — no intermediary MFA banner; go straight to app.
+        if (role === "admin" || access) {
           window.location.href = dest;
           return;
         }
@@ -393,16 +355,10 @@ function LoginPageContent() {
     setIsLoading(true);
     try {
       await authApi.redeemRecoveryCode(recoveryCode, mfaPendingTokenRef.current);
-      const session = await getSession();
-      const accessToken = (session?.user as { accessToken?: string })?.accessToken;
-      if (accessToken) {
-        try {
-          sessionStorage.setItem("admin_token", accessToken);
-        } catch {
-          // sessionStorage unavailable
-        }
-      }
-      window.location.href = loginDest || callbackUrl || "/enterprise/dashboard";
+      await getSession();
+      window.location.href = loginDest || callbackUrl || (
+        userRole === "reviewer" ? "/enterprise/reviewer" : "/enterprise/dashboard"
+      );
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Invalid recovery code. Please try again.";
       setError(msg);
@@ -413,11 +369,26 @@ function LoginPageContent() {
   /* ── Google / Microsoft SSO via Glimmora OAuth API ── */
   const handleSSO = (provider: "google" | "microsoft") => {
     setError("");
-    setErrorCode("");
     setSsoLoading(provider);
+    // Route SSO through backend OAuth endpoints to avoid local provider redirect-uri mismatches.
     const redirectAfter = callbackUrl || "/auth/redirect";
-    const providerId = provider === "microsoft" ? "microsoft-entra-id" : "google";
-    signIn(providerId, { callbackUrl: redirectAfter });
+    const roleHint =
+      userRole === "contributor" || redirectAfter.startsWith("/contributor")
+        ? "contributor"
+        : "enterprise";
+    const qs = new URLSearchParams({
+      provider,
+      redirectAfter,
+      role: roleHint,
+    });
+    try {
+      sessionStorage.setItem("_oauth_provider", provider);
+      sessionStorage.setItem("_oauth_redirect_after", redirectAfter);
+      sessionStorage.setItem("_oauth_role", roleHint);
+    } catch {
+      // ignore storage unavailability
+    }
+    window.location.href = `/api/auth/oauth/authorize?${qs.toString()}`;
   };
 
   const resetToCredentials = () => {
@@ -581,14 +552,14 @@ function LoginPageContent() {
                   >
                     <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                     <div>
-                      {errorCode === "NO_ACCOUNT" ? (
-                        <p>
-                          No account found for{" "}
-                          <span className="text-teal-600 font-medium">{error}</span>
-                          . Please register first.
-                        </p>
-                      ) : (
-                        <p>{error}</p>
+                      <p>{error}</p>
+                      {errorCode === "NO_ACCOUNT" && (
+                        <Link
+                          href="/auth/register"
+                          className="inline-flex items-center gap-1 mt-1.5 text-teal-600 hover:text-teal-700 font-semibold transition-colors"
+                        >
+                          Create an account <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
                       )}
                     </div>
                   </motion.div>
@@ -717,21 +688,16 @@ function LoginPageContent() {
                 variant="primary"
                 size="lg"
                 className="w-full"
-                onClick={() => { const dest = loginDest || callbackUrl || "/enterprise/dashboard"; window.location.href = `/auth/mfa-setup?redirect=${dest}`; }}
+                onClick={() => {
+                  const dest =
+                    loginDest ||
+                    callbackUrl ||
+                    (userRole === "reviewer" ? "/enterprise/reviewer" : "/enterprise/dashboard");
+                  window.location.href = `/auth/mfa-setup?redirect=${encodeURIComponent(dest)}`;
+                }}
               >
                 <Shield className="w-4 h-4" /> Set Up MFA Now
               </Button>
-
-              {(pendingRole === "contributor" || pendingRole === "admin") && (
-                <button
-                  type="button"
-                  disabled={isLoading}
-                  onClick={handleSkipMfa}
-                  className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors py-1 disabled:opacity-50"
-                >
-                  {isLoading ? "Signing in…" : "Skip for now"}
-                </button>
-              )}
 
               <button
                 type="button"
@@ -815,7 +781,7 @@ function LoginPageContent() {
                 </div>
               )}
 
-              {!isLoading && mfaCode.length < 6 && (
+              {!isLoading && (
                 <Button type="submit" variant="gradient-cta" size="lg" className="w-full" disabled={mfaCode.length !== 6}>
                   Verify &amp; Sign In <ArrowRight className="w-4 h-4" />
                 </Button>
