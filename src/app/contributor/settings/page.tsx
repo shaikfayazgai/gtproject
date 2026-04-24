@@ -601,6 +601,11 @@ export default function SettingsPage() {
                 </p>
               )}
             </div>
+            {localeError && (
+              <p className="text-[11px] text-red-500 mb-4 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3 shrink-0" /> {localeError}
+              </p>
+            )}
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => { setEditField(null); setSaveError(null); }}
@@ -894,25 +899,76 @@ export default function SettingsPage() {
 
       {/* ═══ DEACTIVATE DIALOG ═══ */}
       {showDeactivateDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setShowDeactivateDialog(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
+          onClick={() => { if (!isDeactivating) { setShowDeactivateDialog(false); setDeactivateConfirmText(""); setDeactivateReason(""); setDeactivatePassword(""); } }}
+        >
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-[16px] font-semibold text-red-600">Deactivate Account</h3>
-              <button onClick={() => setShowDeactivateDialog(false)} className="w-8 h-8 rounded-xl hover:bg-gray-100 flex items-center justify-center transition-colors">
+              <button
+                disabled={isDeactivating}
+                onClick={() => { setShowDeactivateDialog(false); setDeactivateConfirmText(""); setDeactivateReason(""); setDeactivatePassword(""); }}
+                className="w-8 h-8 rounded-xl hover:bg-gray-100 flex items-center justify-center transition-colors disabled:opacity-50"
+              >
                 <X className="w-4 h-4 text-gray-400" />
               </button>
             </div>
-            <div className="mb-5">
-              <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 mb-4">
+
+            <div className="space-y-4 mb-5">
+              {/* Warning banner */}
+              <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50">
                 <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-[12px] font-medium text-red-700 mb-1">This action cannot be easily undone</p>
-                  <p className="text-[11px] text-red-600 leading-relaxed">Deactivating your account will remove you from all active tasks and suspend your earnings. You will need to contact support to reactivate.</p>
+                  <p className="text-[11px] text-red-600 leading-relaxed">
+                    Deactivating your account will remove you from all active tasks and suspend your earnings. Contact support to reactivate.
+                  </p>
                 </div>
               </div>
-              <label className="text-[11px] font-medium text-gray-500 block mb-1.5">Type &quot;DEACTIVATE&quot; to confirm</label>
-              <input type="text" placeholder="DEACTIVATE" className="w-full text-[13px] text-gray-700 bg-gray-50 rounded-xl px-4 py-2.5 border border-red-200 outline-none focus:border-red-400 transition-colors" />
+
+              {/* Reason */}
+              <div>
+                <label className="text-[11px] font-medium text-gray-500 block mb-1.5">Reason for deactivation</label>
+                <textarea
+                  rows={2}
+                  placeholder="Tell us why you're leaving…"
+                  value={deactivateReason}
+                  onChange={(e) => setDeactivateReason(e.target.value)}
+                  disabled={isDeactivating}
+                  className="w-full text-[13px] text-gray-700 bg-gray-50 rounded-xl px-4 py-2.5 border border-gray-200 outline-none focus:border-red-300 transition-colors resize-none disabled:opacity-50"
+                />
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="text-[11px] font-medium text-gray-500 block mb-1.5">Account Password</label>
+                <input
+                  type="password"
+                  placeholder="Enter your password to confirm"
+                  value={deactivatePassword}
+                  onChange={(e) => setDeactivatePassword(e.target.value)}
+                  disabled={isDeactivating}
+                  className="w-full text-[13px] text-gray-700 bg-gray-50 rounded-xl px-4 py-2.5 border border-gray-200 outline-none focus:border-red-300 transition-colors disabled:opacity-50"
+                />
+              </div>
+
+              {/* Confirmation text */}
+              <div>
+                <label className="text-[11px] font-medium text-gray-500 block mb-1.5">
+                  Type <span className="font-mono font-bold text-red-500">DEACTIVATE</span> to confirm
+                </label>
+                <input
+                  type="text"
+                  placeholder="DEACTIVATE"
+                  value={deactivateConfirmText}
+                  onChange={(e) => setDeactivateConfirmText(e.target.value)}
+                  disabled={isDeactivating}
+                  className="w-full text-[13px] text-gray-700 bg-gray-50 rounded-xl px-4 py-2.5 border border-red-200 outline-none focus:border-red-400 transition-colors font-mono disabled:opacity-50"
+                />
+              </div>
             </div>
+
             <div className="flex items-center justify-end gap-3">
               <button onClick={() => setShowDeactivateDialog(false)} className="text-[12px] font-medium text-gray-500 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-all">Cancel</button>
               <button onClick={() => setShowDeactivateDialog(false)} className="text-[12px] font-semibold text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 px-5 py-2 rounded-xl transition-all">Deactivate</button>
