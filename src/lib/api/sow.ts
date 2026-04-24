@@ -230,11 +230,12 @@ export const sowApi = {
   },
 
   /**
-   * Same as listSows(), but forces the enterprise service token so admin
-   * pages can see SOWs they don't personally own.
+   * Admin variant — uses the logged-in admin/super_admin's personal Glimmora
+   * access token (from their session) so the backend returns all SOWs visible
+   * to that role.
    */
   listSowsAsAdmin(): Promise<BaseResponse> {
-    return sowCall<BaseResponse>("/api/v1/sows", "GET", undefined, false, true);
+    return sowCall<BaseResponse>("/api/v1/sows");
   },
 
   getSow(sowId: string): Promise<BaseResponse> {
@@ -289,8 +290,9 @@ export const sowApi = {
   },
 
   /**
-   * Same as listManualSOWs(), but forces the enterprise service token so
-   * admin pages can see manual SOWs they don't personally own.
+   * Admin variant — uses the logged-in admin/super_admin's personal Glimmora
+   * access token (from their session) so the backend returns all manual SOWs
+   * visible to that role.
    */
   listManualSOWsAsAdmin(params?: {
     status?: string;
@@ -302,7 +304,7 @@ export const sowApi = {
     order?: "asc" | "desc";
   }): Promise<BaseResponse> {
     const qs = params ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])).toString()}` : "";
-    return sowCall<BaseResponse>(`/api/v1/sow${qs}`, "GET", undefined, false, true);
+    return sowCall<BaseResponse>(`/api/v1/sow${qs}`);
   },
 
   uploadSOW(file: File, metadata: {
