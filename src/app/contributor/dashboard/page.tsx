@@ -24,7 +24,6 @@ import {
   type SystemBanner,
   type ActionItem,
 } from "@/lib/api/contributor";
-import { dedupeAsync, sessionKeyFragment } from "@/lib/utils/request-dedupe";
 
 // ── KPI icon map ──────────────────────────────────────────────────────────────
 
@@ -228,6 +227,8 @@ export default function ContributorDashboardPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [dismissedBanners, setDismissedBanners] = React.useState<Set<string>>(new Set());
 
+  const accessToken = (session?.user as { accessToken?: string } | undefined)?.accessToken;
+
   React.useEffect(() => {
     // Wait until NextAuth has resolved the session
     if (sessionStatus === "loading") return;
@@ -241,30 +242,19 @@ export default function ContributorDashboardPage() {
     }
 
     setIsLoading(true);
-    const sk = sessionKeyFragment(token);
-    let live = true;
-    void dedupeAsync(`contrib:dashboard-bundle:${sk}`, () =>
-      Promise.all([
-        fetchContributorDashboard(token),
-        fetchContributorNotifications(token),
-      ] as const),
-    )
+    Promise.all([
+      fetchContributorDashboard(token),
+      fetchContributorNotifications(token),
+    ] as const)
       .then(([dashboardRes, notificationsRes]) => {
-        if (!live) return;
         setData(dashboardRes);
         setNotifications(notificationsRes.items);
         setError(null);
       })
       .catch((err: Error) => {
-        if (!live) return;
         setError(err.message ?? "Failed to load dashboard");
       })
-      .finally(() => {
-        if (live) setIsLoading(false);
-      });
-    return () => {
-      live = false;
-    };
+      .finally(() => setIsLoading(false));
   }, [session, sessionStatus]);
 
   const dismissBanner = React.useCallback((id: string) => {
