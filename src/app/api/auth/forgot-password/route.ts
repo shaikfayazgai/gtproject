@@ -78,18 +78,11 @@ export async function POST(req: NextRequest) {
     });
 
     if (!emailResult.success) {
-      console.error("[forgot-password] email send failed for:", normalizedEmail, "detail:", emailResult.error);
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Email send failed.",
-          detail: emailResult.error,
-        },
-        { status: 500 },
-      );
+      console.error("[forgot-password] email send failed for:", normalizedEmail);
+    } else {
+      console.log("[forgot-password] reset email sent to:", normalizedEmail, "messageId:", emailResult.messageId);
     }
 
-    console.log("[forgot-password] reset email sent to:", normalizedEmail, "messageId:", emailResult.messageId);
     return NextResponse.json({
       success: true,
       message: "If an account exists for this email, a reset link has been sent.",

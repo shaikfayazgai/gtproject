@@ -32,9 +32,32 @@ export interface PipelineSOW {
   changeRequestHistory?: ChangeRequestHistoryEntry[];
 }
 
-/* ── Empty seed (dummy data cleared) ── */
+/* ── Seed data (2 fresh SOWs, dummy data cleared) ── */
 
-const INITIAL_SOWS: PipelineSOW[] = [];
+const INITIAL_SOWS: PipelineSOW[] = [
+  {
+    id: "sow-a1",
+    title: "AI-Driven Supply Chain Optimizer",
+    client: "Luminary Logistics",
+    currentStage: 1,
+    stageApprover: "Enterprise Admin",
+    slaStatus: "on-track",
+    submittedDate: "2026-03-28",
+    totalValue: "$450,000",
+    completedStages: [],
+  },
+  {
+    id: "sow-b2",
+    title: "Cloud-Native EHR Migration",
+    client: "HealthBridge Systems",
+    currentStage: 1,
+    stageApprover: "Enterprise Admin",
+    slaStatus: "on-track",
+    submittedDate: "2026-03-25",
+    totalValue: "$680,000",
+    completedStages: [],
+  },
+];
 
 /* ── Store ── */
 
@@ -56,8 +79,7 @@ export const useSOWPipelineStore = create<SOWPipelineState>()(
     }),
     {
       name: "gt-sow-pipeline",
-      /* version bump forces fresh empty list, clearing persisted dummy SOWs */
-      version: 5,
+      version: 4,
       migrate: () => ({ sows: INITIAL_SOWS }),
     }
   )

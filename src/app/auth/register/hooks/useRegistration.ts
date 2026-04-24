@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { COUNTRIES_DATA } from "../data";
 import { getPasswordStrength, getAgeFromDob } from "../helpers";
-import { usePricingConfig } from "@/lib/hooks/usePricingConfig";
+import { registerContributor } from "@/lib/actions/register";
+import { fetchInternal } from "@/lib/api/client";
 import type { RegistrationRole, ContributorType, SSOData } from "../types";
 
 export function useRegistration(ssoData?: SSOData | null) {
+  const router = useRouter();
+
   const [isSsoUser] = useState(() => !!ssoData);
   const [ssoProvider] = useState(() => ssoData?.provider ?? null);
 
@@ -44,17 +48,9 @@ export function useRegistration(ssoData?: SSOData | null) {
   const [otherSkillInput,     setOtherSkillInput]     = useState("");
   const [workStart,           setWorkStart]           = useState("");
   const [workEnd,             setWorkEnd]             = useState("");
-  const [jobTitle,            setJobTitle]            = useState("");
   const [careerStage,         setCareerStage]         = useState("");
   const [yearsExperience,     setYearsExperience]     = useState("");
-  const {
-    studentCurrency,
-    studentHourlyRate,
-    womenRateCurrency,
-    womenRateTable,
-    generalRateCurrency,
-    generalRateTable,
-  } = usePricingConfig();
+
   const [phoneCountry,      setPhoneCountry]      = useState("India");
   const [phone,             setPhone]             = useState("");
   const [otpSent,           setOtpSent]           = useState(false);
@@ -167,10 +163,24 @@ export function useRegistration(ssoData?: SSOData | null) {
     }
     setError("");
     setEmailOtpLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 800));
-    setEmailOtpLoading(false);
-    setEmailOtpSent(true);
-    startEmailCooldown();
+    try {
+      const res = await fetchInternal("/api/auth/otp/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: verificationEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message ?? "Failed to send verification email. Please try again.");
+        return;
+      }
+      setEmailOtpSent(true);
+      startEmailCooldown();
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setEmailOtpLoading(false);
+    }
   }
 
   async function verifyEmailOTP() {
@@ -180,9 +190,23 @@ export function useRegistration(ssoData?: SSOData | null) {
     }
     setError("");
     setEmailOtpLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 800));
-    setEmailOtpLoading(false);
-    setEmailVerified(true);
+    try {
+      const res = await fetchInternal("/api/auth/otp/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: verificationEmail, code: emailOtp }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message ?? "Invalid or expired code. Please try again.");
+        return;
+      }
+      setEmailVerified(true);
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setEmailOtpLoading(false);
+    }
   }
 
   function goToStep2() {
@@ -216,10 +240,6 @@ export function useRegistration(ssoData?: SSOData | null) {
     }
     if (primarySkills.length < 1) { setError("Please add at least one primary skill"); return; }
     if (!availability) { setError("Please enter your weekly availability (hours)"); return; }
-    if ((contribType === "women_workforce" || contribType === "general_workforce") && !yearsExperience) {
-      setError("Please select your years of experience");
-      return;
-    }
     setError("");
     if (!verificationEmail) setVerificationEmail(email);
     setStep(3);
@@ -291,7 +311,7 @@ export function useRegistration(ssoData?: SSOData | null) {
 
       if (!result.success) {
         // Show friendly message for duplicate email
-        if (result.error?.toLowerCase().includes("already") ||
+        if (result.error?.toLowerCase().includes("already") || 
             result.error?.toLowerCase().includes("exists") ||
             result.error?.toLowerCase().includes("duplicate")) {
           setError("This email is already registered. Please sign in instead.");
@@ -300,10 +320,6 @@ export function useRegistration(ssoData?: SSOData | null) {
         }
         setIsLoading(false);
         return;
-      }
-
-      if (result.emailWarning) {
-        console.warn("[registration] welcome email failed:", result.emailWarning);
       }
 
       const signInResult = await signIn("credentials", {
@@ -364,15 +380,8 @@ export function useRegistration(ssoData?: SSOData | null) {
     otherSkills, otherSkillInput, setOtherSkillInput, addOtherSkill, removeOtherSkill,
     workStart, setWorkStart,
     workEnd, setWorkEnd,
-    jobTitle, setJobTitle,
     careerStage, setCareerStage,
     yearsExperience, setYearsExperience,
-    studentCurrency,
-    studentHourlyRate,
-    womenRateCurrency,
-    womenRateTable,
-    generalRateCurrency,
-    generalRateTable,
 
     phoneCountry, setPhoneCountry,
     phone, setPhone,

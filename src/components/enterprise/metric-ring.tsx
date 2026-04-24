@@ -31,8 +31,7 @@ export function MetricRing({
 }: MetricRingProps) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const safeValue = isFinite(value) ? value : 0;
-  const progress = Math.min(safeValue / max, 1);
+  const progress = Math.min(value / max, 1);
   const offset = circumference * (1 - progress);
   const colors = colorMap[color];
 
@@ -62,7 +61,7 @@ export function MetricRing({
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-base font-bold text-brown-900 tracking-tight">
-          {max === 100 ? Math.round(safeValue) : safeValue}
+          {max === 100 ? Math.round(value) : value}
           {max === 100 && <span className="text-[10px] text-beige-500">%</span>}
         </span>
         {label && (

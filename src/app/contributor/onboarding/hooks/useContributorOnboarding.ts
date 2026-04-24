@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { usePricingConfig } from "@/lib/hooks/usePricingConfig";
 import { onboardContributor } from "@/lib/actions/register";
+import { fetchInternal } from "@/lib/api/client";
 import { COUNTRIES_DATA } from "@/app/auth/register/data";
 import { getAgeFromDob } from "@/app/auth/register/helpers";
 import type { ContributorType, SSOData } from "@/app/auth/register/types";
@@ -115,17 +115,8 @@ export function useContributorOnboarding() {
   const [otherSkillInput,     setOtherSkillInput]     = useState("");
   const [workStart,           setWorkStart]           = useState("");
   const [workEnd,             setWorkEnd]             = useState("");
-  const [jobTitle,            setJobTitle]            = useState("");
   const [careerStage,         setCareerStage]         = useState("");
   const [yearsExperience,     setYearsExperience]     = useState("");
-  const {
-    studentCurrency,
-    studentHourlyRate,
-    womenRateCurrency,
-    womenRateTable,
-    generalRateCurrency,
-    generalRateTable,
-  } = usePricingConfig();
 
   /* ─── Step 3: Verification ─── */
   const [phoneCountry,      setPhoneCountry]      = useState("India");
@@ -202,14 +193,38 @@ export function useContributorOnboarding() {
   async function sendEmailOTP() {
     if (!verificationEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(verificationEmail)) { setError("Please enter a valid email address"); return; }
     setError(""); setEmailOtpLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setEmailOtpLoading(false); setEmailOtpSent(true); startEmailCooldown();
+    try {
+      const res = await fetchInternal("/api/auth/otp/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: verificationEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.message); return; }
+      setEmailOtpSent(true); startEmailCooldown();
+    } catch {
+      setError("Failed to send email. Please check your connection and try again.");
+    } finally {
+      setEmailOtpLoading(false);
+    }
   }
   async function verifyEmailOTP() {
     if (emailOtp.length !== 6) { setError("Please enter the 6-digit email code"); return; }
     setError(""); setEmailOtpLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setEmailOtpLoading(false); setEmailVerified(true);
+    try {
+      const res = await fetchInternal("/api/auth/otp/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: verificationEmail, code: emailOtp }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.message); return; }
+      setEmailVerified(true);
+    } catch {
+      setError("Verification failed. Please try again.");
+    } finally {
+      setEmailOtpLoading(false);
+    }
   }
 
   /* ─── Step navigation ─── */
@@ -229,10 +244,6 @@ export function useContributorOnboarding() {
     if (departmentCategory === "other" && !departmentOther.trim()) { setError("Please specify your department name"); return; }
     if (primarySkills.length < 1) { setError("Please add at least one primary skill"); return; }
     if (!availability)       { setError("Please enter your weekly availability"); return; }
-    if ((contribType === "women_workforce" || contribType === "general_workforce") && !yearsExperience) {
-      setError("Please select your years of experience");
-      return;
-    }
     setError(""); setStep(3);
   }
 
@@ -329,15 +340,8 @@ export function useContributorOnboarding() {
     otherSkills, otherSkillInput, setOtherSkillInput, addOtherSkill, removeOtherSkill,
     workStart, setWorkStart,
     workEnd, setWorkEnd,
-    jobTitle, setJobTitle,
     careerStage, setCareerStage,
     yearsExperience, setYearsExperience,
-    studentCurrency,
-    studentHourlyRate,
-    womenRateCurrency,
-    womenRateTable,
-    generalRateCurrency,
-    generalRateTable,
 
     // Step 3
     phoneCountry, setPhoneCountry,

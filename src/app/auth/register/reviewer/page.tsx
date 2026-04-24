@@ -82,7 +82,7 @@ export default function ReviewerRegisterPage() {
     setIsLoading(true);
     await new Promise(r => setTimeout(r, 1200));
     setIsLoading(false);
-    router.push("/auth/mfa-setup?redirect=/mentor/dashboard");
+    router.push("/enterprise/reviewer");
   };
 
   return (
