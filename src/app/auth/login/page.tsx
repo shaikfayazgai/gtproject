@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { signIn, getSession } from "next-auth/react";
 import { authApi } from "@/lib/api/auth";
 import { ApiError, fetchInternal } from "@/lib/api/client";
@@ -35,6 +35,7 @@ const STATS = [
 
 function LoginPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const isMfaEnabled = useAuthStore((s) => s.isMfaEnabled);
 
   const rawCallbackUrl = searchParams.get("callbackUrl");
@@ -174,6 +175,16 @@ function LoginPageContent() {
 
   /* ── Verify TOTP code via Glimmora API ── */
   const handleMFA = useCallback(async () => {
+    if (isLoading) return;
+    if (mfaCode.length !== 6) {
+      setError("Please enter the 6-digit code");
+      return;
+    }
+    if (!mfaPendingTokenRef.current) {
+      setError("MFA session expired. Please sign in again.");
+      setStep("credentials");
+      return;
+    }
     setError("");
     setIsLoading(true);
     try {
@@ -194,13 +205,7 @@ function LoginPageContent() {
       setError(msg);
       setIsLoading(false);
     }
-  }, [mfaCode, loginDest, callbackUrl]);
-
-  useEffect(() => {
-    if (step === "mfa" && mfaCode.length === 6 && !isLoading) {
-      handleMFA();
-    }
-  }, [mfaCode, step, isLoading, handleMFA]);
+  }, [mfaCode, loginDest, callbackUrl, userRole, isLoading]);
 
   /* ── Sign In click: validate only. Session is created on Skip / after MFA. ── */
   const handleCredentials = async (e: React.FormEvent) => {
@@ -245,6 +250,12 @@ function LoginPageContent() {
       // MFA required — skip signIn, store the pending token and show TOTP step
       if (validateData.mfaRequired) {
         mfaPendingTokenRef.current = validateData.mfaPendingToken ?? "";
+        const ur = (validateData.user?.role as string) || "";
+        if (ur) setUserRole(ur);
+        const mfaDest =
+          callbackUrl ||
+          (ur === "reviewer" ? "/enterprise/reviewer" : "/enterprise/dashboard");
+        setLoginDest(mfaDest);
         setStep("mfa");
         setIsLoading(false);
         return;
@@ -702,7 +713,13 @@ function LoginPageContent() {
                 variant="primary"
                 size="lg"
                 className="w-full"
-                onClick={() => { const dest = loginDest || callbackUrl || "/enterprise/dashboard"; window.location.href = `/auth/mfa-setup?redirect=${dest}`; }}
+                onClick={() => {
+                  const dest =
+                    loginDest ||
+                    callbackUrl ||
+                    (userRole === "reviewer" ? "/enterprise/reviewer" : "/enterprise/dashboard");
+                  window.location.href = `/auth/mfa-setup?redirect=${encodeURIComponent(dest)}`;
+                }}
               >
                 <Shield className="w-4 h-4" /> Set Up MFA Now
               </Button>
@@ -798,7 +815,7 @@ function LoginPageContent() {
                 </div>
               )}
 
-              {!isLoading && mfaCode.length < 6 && (
+              {!isLoading && (
                 <Button type="submit" variant="gradient-cta" size="lg" className="w-full" disabled={mfaCode.length !== 6}>
                   Verify &amp; Sign In <ArrowRight className="w-4 h-4" />
                 </Button>
