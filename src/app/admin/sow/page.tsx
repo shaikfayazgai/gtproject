@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp } from "@/lib/utils/motion-variants";
-import { mockSOWs } from "@/mocks/data/enterprise-sow";
 import { useAdminManualSOWList } from "@/lib/hooks/use-manual-sow";
 import { useAdminSowList } from "@/lib/hooks/use-sow-wizard";
 import type { SOW, SOWApprovalStage } from "@/types/enterprise";
@@ -312,9 +311,10 @@ export default function AdminSOWOversightPage() {
   const searchRef = React.useRef<HTMLInputElement>(null);
 
   /* ── API: manual + AI SOW lists (admin scope — enterprise service token) ── */
-  const { data: manualSowListRes, isLoading: manualLoading } = useAdminManualSOWList();
-  const { data: aiSowListRes,     isLoading: aiLoading     } = useAdminSowList();
+  const { data: manualSowListRes, isLoading: manualLoading, isError: manualError } = useAdminManualSOWList();
+  const { data: aiSowListRes,     isLoading: aiLoading, isError: aiError     } = useAdminSowList();
   const isLoading = manualLoading || aiLoading;
+  const hasError = manualError || aiError;
 
   const manualSows = React.useMemo(
     () => extractList(manualSowListRes).map((item) => normaliseToSOW(item, "manual_upload")),
@@ -325,9 +325,9 @@ export default function AdminSOWOversightPage() {
     [aiSowListRes],
   );
 
-  /* Merge AI + manual SOWs from API; fall back to mockSOWs when empty */
+  /* Merge AI + manual SOWs from API (no mock fallback) */
   const apiCombined = React.useMemo(() => [...aiSows, ...manualSows], [aiSows, manualSows]);
-  const sows: SOW[] = apiCombined.length > 0 ? apiCombined : mockSOWs;
+  const sows: SOW[] = apiCombined;
 
   React.useEffect(() => {
     setMounted(true);
@@ -390,6 +390,32 @@ export default function AdminSOWOversightPage() {
     ? Math.round(sows.reduce((a, s) => a + s.riskScore.overall, 0) / sows.length) : 0;
 
   if (!mounted || isLoading) return <PageSkeleton />;
+
+  // Show error message if API failed
+  if (hasError) {
+    return (
+      <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
+        <motion.div variants={fadeUp} className="flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gold-600 mb-1.5">Platform Admin</p>
+            <h1 className="font-heading text-[28px] font-bold text-brown-950 leading-tight">SOW Oversight</h1>
+          </div>
+        </motion.div>
+        <motion.div variants={fadeUp} className="rounded-2xl bg-amber-50 border border-amber-200 px-6 py-8 text-center">
+          <AlertTriangle className="w-12 h-12 text-amber-600 mx-auto mb-4" />
+          <p className="text-lg font-semibold text-amber-900 mb-2">Unable to Load SOWs</p>
+          <p className="text-amber-700 text-sm mb-4">We couldn't retrieve the SOW data at this time. Please try refreshing the page or contact support if the problem continues.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium text-sm transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh Page
+          </button>
+        </motion.div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">

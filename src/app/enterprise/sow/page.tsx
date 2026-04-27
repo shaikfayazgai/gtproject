@@ -62,15 +62,13 @@ function formatDate(iso: string): string {
 type SortField = "title" | "client" | "intake" | "status" | "sensitivity" | "risk" | "version" | "modified";
 type SortDir = "asc" | "desc";
 
-/* FSD §7.1.3: STATUS filter options */
+/* FSD §7.1.3: STATUS filter options (only showing submitted SOWs) */
 const statusFilterOptions = [
   { value: "all",       label: "STATUS: ALL" },
-  { value: "draft",     label: "Draft" },
   { value: "in_review", label: "In Review" },
   { value: "pending_commercial_review", label: "Pending Commercial Review" },
   { value: "approved",  label: "Approved" },
   { value: "rejected",  label: "Rejected" },
-  { value: "archived",  label: "Archived" },
 ];
 
 /* FSD §7.1.3: INTAKE filter options */
@@ -321,7 +319,9 @@ export default function SOWListPage() {
 
   /* Merge AI + manual SOWs from API; fall back to Zustand store if no API */
   const apiCombined = [...aiSows, ...manualSows];
-  const allSows = apiCombined.length > 0 ? apiCombined : storeSows;
+  const allSows = (apiCombined.length > 0 ? apiCombined : storeSows)
+    /* Filter to show only SOWs that have been submitted for approval (exclude draft) */
+    .filter((s) => !["draft"].includes(s.status));
 
 
   const [sortField, setSortField] = React.useState<SortField>("modified");
@@ -349,12 +349,10 @@ export default function SOWListPage() {
     let list = [...allSows];
     if (statusFilter !== "all") {
       switch (statusFilter) {
-        case "draft": list = list.filter((s) => s.status === "draft"); break;
         case "in_review": list = list.filter((s) => ["review", "approval"].includes(s.status)); break;
         case "pending_commercial_review": list = list.filter((s) => s.status === "pending_commercial_review"); break;
         case "approved": list = list.filter((s) => s.status === "approved"); break;
         case "rejected": list = list.filter((s) => s.status === "rejected"); break;
-        case "archived": list = list.filter((s) => s.status === "archived"); break;
       }
     }
 

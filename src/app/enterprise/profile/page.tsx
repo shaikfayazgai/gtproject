@@ -2,10 +2,7 @@
 
 import * as React from "react";
 import { useState, useCallback, useRef, useEffect } from "react";
-import { fetchInternal } from "@/lib/api/client";
-import { sowApi } from "@/lib/api/sow";
 import { useSession } from "next-auth/react";
-import { useCurrentUser } from "@/lib/hooks/use-auth";
 import {
   User,
   Camera,
@@ -24,10 +21,6 @@ import {
   QrCode,
   KeyRound,
   Info,
-
-
-
-  
   Pencil,
 } from "lucide-react";
 import {
@@ -75,14 +68,12 @@ function getPasswordStrength(password: string): {
 
 function validatePassword(password: string): string[] {
   const errors: string[] = [];
-  if (password.length < 12)
-    errors.push("Must be at least 12 characters");
+  if (password.length < 12) errors.push("Must be at least 12 characters");
   if (!/[A-Z]/.test(password))
     errors.push("Must contain at least 1 uppercase letter");
   if (!/[a-z]/.test(password))
     errors.push("Must contain at least 1 lowercase letter");
-  if (!/[0-9]/.test(password))
-    errors.push("Must contain at least 1 digit");
+  if (!/[0-9]/.test(password)) errors.push("Must contain at least 1 digit");
   if (!/[^A-Za-z0-9]/.test(password))
     errors.push("Must contain at least 1 special character");
   return errors;
@@ -90,7 +81,16 @@ function validatePassword(password: string): string[] {
 
 /* ─────────────────────── Mock Recovery Codes ─────────────────────── */
 
-const MOCK_RECOVERY_CODES: string[] = [];
+const MOCK_RECOVERY_CODES = [
+  "A7K9-M2X4",
+  "B3P8-N6W1",
+  "C5R2-Q9Y7",
+  "D1T6-S4Z3",
+  "E8U0-V5H2",
+  "F4W3-X7J9",
+  "G6Y1-Z8K5",
+  "H2A9-B0L4",
+];
 
 /* ═══════════════════════════════════════════════════════════════════ */
 /*  Profile Page                                                      */
@@ -99,51 +99,21 @@ const MOCK_RECOVERY_CODES: string[] = [];
 export default function ProfilePage() {
   /* ── Personal Information State ── */
   const { data: session } = useSession();
-  const { data: currentUser, isLoading: isUserLoading } = useCurrentUser();
-  const sessionUser = session?.user as any;
-
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [displayName, setDisplayName] = useState("");
+  const [firstName, setFirstName] = useState(
+    session?.user?.name?.split(" ")[0] ?? "",
+  );
+  const [lastName, setLastName] = useState(
+    session?.user?.name?.split(" ")[1] ?? "",
+  );
+  const [displayName, setDisplayName] = useState(session?.user?.name ?? "");
+  const [email] = useState(session?.user?.email ?? "");
   const [jobTitle, setJobTitle] = useState("");
   const [phone, setPhone] = useState("");
-  const [department, setDepartment] = useState("");
-
-  // Derive email from API first, then session (avoids the useState-async-session trap)
-  const email = currentUser?.email ?? session?.user?.email ?? "";
-
-  // Populate fields from API response
-  useEffect(() => {
-    if (currentUser) {
-      setFirstName(currentUser.firstName ?? "");
-      setLastName(currentUser.lastName ?? "");
-      setDisplayName(`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim());
-      setJobTitle(currentUser.role ?? "");
-      setPhone(currentUser.phone ?? "");
-    } else {
-      const u = session?.user as any;
-      // Try firstName/lastName directly first
-      if (u?.firstName) setFirstName(u.firstName);
-      if (u?.lastName) setLastName(u.lastName);
-      if (u?.firstName || u?.lastName) {
-        setDisplayName(`${u?.firstName ?? ""} ${u?.lastName ?? ""}`.trim());
-      } else if (u?.name) {
-      // Fallback to name split
-      const parts = u.name.split(" ");
-      setFirstName(parts[0] ?? "");
-      setLastName(parts.slice(1).join(" ") ?? "");
-      setDisplayName(u.name);
-    }
-    if (u?.role) setJobTitle(u.role);
-    if (u?.adminDept) setDepartment(u.adminDept);
-  }
-}, [currentUser, session?.user]);
-
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [displayNameCustomized, setDisplayNameCustomized] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [personalErrors, setPersonalErrors] = useState<Record<string, string>>(
-    {}
+    {},
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -155,11 +125,11 @@ export default function ProfilePage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>(
-    {}
+    {},
   );
 
   /* ── MFA State ── */
-  const mfaEnabled = currentUser?.mfaEnabled ?? true;
+  const [mfaEnabled] = useState(true);
   const [mfaMethod, setMfaMethod] = useState("totp");
   const [verificationCode, setVerificationCode] = useState("");
   const [showRecoveryCodes, setShowRecoveryCodes] = useState(false);
@@ -183,27 +153,36 @@ export default function ProfilePage() {
   /* ── Handlers ── */
 
   const handlePhotoUpload = useCallback(
-  async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!["image/png", "image/jpeg"].includes(file.type)) {
-      toast.error("Invalid file type", "Please upload a PNG or JPG image.");
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("File too large", "Maximum file size is 2MB.");
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    setProfilePhoto(url);
-    try {
-      await sowApi.uploadProfilePicture(file);
-      toast.success("Profile photo updated.");
-    } catch {
-      toast.error("Failed to upload photo.");
-    }
-  }, []
-);
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (!["image/png", "image/jpeg"].includes(file.type)) {
+        toast.error("Invalid file type", "Please upload a PNG or JPG image.");
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("File too large", "Maximum file size is 2MB.");
+        return;
+      }
+
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        if (img.width < 100 || img.height < 100) {
+          toast.error(
+            "Image too small",
+            "Minimum dimensions are 100x100 pixels.",
+          );
+          URL.revokeObjectURL(url);
+          return;
+        }
+        setProfilePhoto(url);
+      };
+      img.src = url;
+    },
+    [],
+  );
 
   const handleFirstNameChange = useCallback(
     (value: string) => {
@@ -212,7 +191,7 @@ export default function ProfilePage() {
         setDisplayName(`${value} ${lastName}`.trim());
       }
     },
-    [lastName, displayNameCustomized]
+    [lastName, displayNameCustomized],
   );
 
   const handleLastNameChange = useCallback(
@@ -222,7 +201,7 @@ export default function ProfilePage() {
         setDisplayName(`${firstName} ${value}`.trim());
       }
     },
-    [firstName, displayNameCustomized]
+    [firstName, displayNameCustomized],
   );
 
   const handleDisplayNameChange = useCallback((value: string) => {
@@ -241,7 +220,7 @@ export default function ProfilePage() {
     else if (!nameRegex.test(firstName))
       errors.firstName = "Only letters, spaces, and hyphens are allowed.";
 
-    if (!lastName || lastName.length < 1)
+    if (!lastName || lastName.length < 2)
       errors.lastName = "Last name must be at least 2 characters.";
     else if (lastName.length > 50)
       errors.lastName = "Last name must be under 50 characters.";
@@ -258,17 +237,13 @@ export default function ProfilePage() {
     return Object.keys(errors).length === 0;
   }, [firstName, lastName, displayName, jobTitle]);
 
-  const handleSavePersonalInfo = useCallback(async (): Promise<boolean> => {
-    if (!validatePersonalInfo()) return false;
-    try {
-      await sowApi.updateProfile({ firstName, lastName, phone, adminTitle: jobTitle, adminDept: department });
+  const handleSavePersonalInfo = useCallback((): boolean => {
+    if (validatePersonalInfo()) {
       toast.success("Personal information updated.");
       return true;
-    } catch {
-      toast.error("Failed to save. Please try again.");
-      return false;
     }
-  }, [validatePersonalInfo, firstName, lastName, phone, jobTitle, department]);
+    return false;
+  }, [validatePersonalInfo]);
 
   const handleUpdatePassword = useCallback(() => {
     const errors: Record<string, string> = {};
@@ -280,8 +255,7 @@ export default function ProfilePage() {
       errors.newPassword = "New password is required.";
     } else {
       const validationErrors = validatePassword(newPassword);
-      if (validationErrors.length > 0)
-        errors.newPassword = validationErrors[0];
+      if (validationErrors.length > 0) errors.newPassword = validationErrors[0];
     }
 
     if (!confirmPassword) {
@@ -291,10 +265,7 @@ export default function ProfilePage() {
     }
 
     // Mock: PWD-003 check
-    if (
-      newPassword &&
-      ["Password123!", "OldPass2024#"].includes(newPassword)
-    ) {
+    if (newPassword && ["Password123!", "OldPass2024#"].includes(newPassword)) {
       errors.newPassword =
         "This password was recently used. Choose a different one.";
     }
@@ -344,10 +315,7 @@ export default function ProfilePage() {
   }, []);
 
   const toggleNotification = useCallback(
-    (
-      key: keyof typeof notifications,
-      channel: "email" | "inApp"
-    ) => {
+    (key: keyof typeof notifications, channel: "email" | "inApp") => {
       setNotifications((prev) => ({
         ...prev,
         [key]: {
@@ -356,7 +324,7 @@ export default function ProfilePage() {
         },
       }));
     },
-    []
+    [],
   );
 
   /* ═══════════════════════════════════════════════════════════════ */
@@ -398,15 +366,32 @@ export default function ProfilePage() {
               </div>
             </div>
             {!isEditing ? (
-              <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+              >
                 <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
               </Button>
             ) : (
               <div className="flex items-center gap-2 shrink-0">
-                <Button variant="outline" size="sm" onClick={() => { setIsEditing(false); setPersonalErrors({}); }}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setPersonalErrors({});
+                  }}
+                >
                   Cancel
                 </Button>
-                <Button variant="primary" size="sm" onClick={async () => { const ok = await handleSavePersonalInfo(); if (ok) setIsEditing(false); }}>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    if (handleSavePersonalInfo()) setIsEditing(false);
+                  }}
+                >
                   Save
                 </Button>
               </div>
@@ -423,8 +408,6 @@ export default function ProfilePage() {
                     alt="Profile"
                     className="h-full w-full object-cover"
                   />
-                ) : isUserLoading ? (
-                  <div className="h-10 w-10 rounded-full bg-beige-300 animate-pulse" />
                 ) : (
                   <span className="text-3xl font-heading font-semibold text-brown-400">
                     {firstName[0]}
@@ -455,48 +438,29 @@ export default function ProfilePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>First Name</Label>
-                {isUserLoading ? (
-                  <div className="h-10 rounded-xl bg-beige-200 animate-pulse" />
-                ) : (
-                  <div className="text-sm text-brown-950 py-2.5 px-3 rounded-xl bg-beige-50/50 border border-beige-200 min-h-[40px]">
-                    {firstName || "—"}
-                  </div>
-                )}
+                <div className="text-sm text-brown-950 py-2.5 px-3 rounded-xl bg-beige-50/50 border border-beige-200 min-h-[40px]">
+                  {firstName || "—"}
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Last Name</Label>
-                {isUserLoading ? (
-                  <div className="h-10 rounded-xl bg-beige-200 animate-pulse" />
-                ) : (
-                  <div className="text-sm text-brown-950 py-2.5 px-3 rounded-xl bg-beige-50/50 border border-beige-200 min-h-[40px]">
-                    {lastName || "—"}
-                  </div>
-                )}
+                <div className="text-sm text-brown-950 py-2.5 px-3 rounded-xl bg-beige-50/50 border border-beige-200 min-h-[40px]">
+                  {lastName || "—"}
+                </div>
               </div>
             </div>
 
             {/* Username — readonly */}
             <div className="space-y-1.5">
               <Label>Username</Label>
-              {isUserLoading ? (
-                <div className="h-10 rounded-xl bg-beige-200 animate-pulse" />
-              ) : (
-                <div className="text-sm text-brown-950 py-2.5 px-3 rounded-xl bg-beige-50/50 border border-beige-200 min-h-[40px]">
-                  {displayName || "—"}
-                </div>
-              )}
+              <div className="text-sm text-brown-950 py-2.5 px-3 rounded-xl bg-beige-50/50 border border-beige-200 min-h-[40px]">
+                {displayName || "—"}
+              </div>
             </div>
 
             {/* Work Email — readonly */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="email">Work Email</Label>
-                {!isUserLoading && currentUser && (
-                  <Badge variant={currentUser.emailVerified ? "teal" : "gold"} size="sm" dot>
-                    {currentUser.emailVerified ? "Verified" : "Unverified"}
-                  </Badge>
-                )}
-              </div>
+              <Label htmlFor="email">Work Email</Label>
               <Input
                 id="email"
                 value={email}
@@ -522,7 +486,9 @@ export default function ProfilePage() {
                     maxLength={100}
                   />
                   {personalErrors.jobTitle && (
-                    <p className="text-xs text-red-500">{personalErrors.jobTitle}</p>
+                    <p className="text-xs text-red-500">
+                      {personalErrors.jobTitle}
+                    </p>
                   )}
                 </>
               ) : (
@@ -534,14 +500,7 @@ export default function ProfilePage() {
 
             {/* Phone Number — editable */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="phone">Phone Number</Label>
-                {!isUserLoading && currentUser && (
-                  <Badge variant={currentUser.phoneVerified ? "teal" : "gold"} size="sm" dot>
-                    {currentUser.phoneVerified ? "Verified" : "Unverified"}
-                  </Badge>
-                )}
-              </div>
+              <Label htmlFor="phone">Phone Number</Label>
               {isEditing ? (
                 <Input
                   id="phone"
@@ -553,22 +512,6 @@ export default function ProfilePage() {
               ) : (
                 <div className="text-sm text-brown-950 py-2.5 px-3 rounded-xl bg-beige-50/50 border border-beige-200 min-h-[40px]">
                   {phone || "—"}
-                </div>
-              )}
-            </div>
-            {/* Department */}
-            <div className="space-y-1.5">
-              <Label htmlFor="department">Department</Label>
-              {isEditing ? (
-                <Input
-                  id="department"
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  placeholder="e.g. Engineering"
-                />
-              ) : (
-                <div className="text-sm text-brown-950 py-2.5 px-3 rounded-xl bg-beige-50/50 border border-beige-200 min-h-[40px]">
-                  {department || "—"}
                 </div>
               )}
             </div>
@@ -680,10 +623,10 @@ export default function ProfilePage() {
                       passwordStrength.label === "Weak"
                         ? "text-red-500"
                         : passwordStrength.label === "Fair"
-                        ? "text-gold-600"
-                        : passwordStrength.label === "Strong"
-                        ? "text-forest-600"
-                        : "text-teal-600"
+                          ? "text-gold-600"
+                          : passwordStrength.label === "Strong"
+                            ? "text-forest-600"
+                            : "text-teal-600"
                     }`}
                   >
                     {passwordStrength.label}
@@ -801,29 +744,17 @@ export default function ProfilePage() {
                     MFA Status
                   </p>
                   <p className="text-xs text-beige-500">
-                    {currentUser?.mfaEnrollmentRequired
-                      ? "Enrollment required. Please set up MFA to secure your account."
-                      : "Required by your organization. MFA cannot be disabled."}
+                    Required by your organization. MFA cannot be disabled.
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <Badge variant={mfaEnabled ? "teal" : "gold"} size="sm" dot>
-                  {mfaEnabled ? "Enabled" : "Disabled"}
+                <Badge variant="teal" size="sm" dot>
+                  Enabled
                 </Badge>
                 <Switch checked={mfaEnabled} disabled />
               </div>
             </div>
-
-            {/* MFA Enrollment Required Warning */}
-            {currentUser?.mfaEnrollmentRequired && !mfaEnabled && (
-              <div className="flex items-start gap-2 p-3 rounded-xl bg-gold-50 border border-gold-200 text-gold-800">
-                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                <p className="text-xs leading-relaxed">
-                  Your organization requires MFA. Complete setup below to avoid losing access.
-                </p>
-              </div>
-            )}
 
             {/* MFA Method */}
             <div className="space-y-1.5">
@@ -833,9 +764,8 @@ export default function ProfilePage() {
                   <SelectValue placeholder="Select MFA method" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="totp">
-                    Authenticator App (TOTP)
-                  </SelectItem>
+                  <SelectItem value="totp">Authenticator App (TOTP)</SelectItem>
+                  <SelectItem value="sms">SMS OTP</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -884,9 +814,7 @@ export default function ProfilePage() {
 
                 {/* Verification Code */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="verificationCode">
-                    Verification Code
-                  </Label>
+                  <Label htmlFor="verificationCode">Verification Code</Label>
                   <Input
                     id="verificationCode"
                     value={verificationCode}
@@ -901,6 +829,22 @@ export default function ProfilePage() {
                   />
                   <p className="text-xs text-beige-500">
                     Enter the code from your authenticator app to verify setup.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* SMS OTP info */}
+            {mfaMethod === "sms" && (
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-beige-100/40 border border-beige-200/50">
+                <Smartphone className="h-5 w-5 text-beige-500 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-brown-800">
+                    SMS OTP will be sent to your registered phone number.
+                  </p>
+                  <p className="text-xs text-beige-500">
+                    Make sure your phone number is up to date in Personal
+                    Information above.
                   </p>
                 </div>
               </div>
@@ -1068,7 +1012,10 @@ export default function ProfilePage() {
               </div>
               <div className="w-20 flex justify-center">
                 <div className="relative">
-                  <Switch checked={notifications.slaApproaching.inApp} disabled />
+                  <Switch
+                    checked={notifications.slaApproaching.inApp}
+                    disabled
+                  />
                   <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] text-beige-400 whitespace-nowrap">
                     Required
                   </span>

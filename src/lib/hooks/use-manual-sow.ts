@@ -440,19 +440,26 @@ export function useSubmitSOW(sowId: string | null, flow: "ai" | "manual") {
 
   return useMutation({
     mutationFn: (opts?: { notes?: string }) => {
+      console.log("useSubmitSOW.mutationFn called:", { sowId, flow });
       if (!sowId) throw new Error("No SOW id");
       if (flow === "ai") {
+        console.log("Calling sowApi.sowAction");
         return sowApi.sowAction(sowId, { action: "submit" });
       }
-      return sowApi.confirmAndSubmit(sowId, { confirms_accuracy: true, notes: opts?.notes });
+      console.log("Calling sowApi.generateManualSOW with sowId:", sowId);
+      return sowApi.generateManualSOW(sowId);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("useSubmitSOW.onSuccess:", { sowId, data });
       if (!sowId) return;
       // Invalidate manual-sow caches
       qc.invalidateQueries({ queryKey: manualSowKeys.sow(sowId) });
       qc.invalidateQueries({ queryKey: manualSowKeys.list() });
       // Invalidate approval pipeline so approve page loads fresh data
       qc.invalidateQueries({ queryKey: manualSowKeys.approvalStages(sowId) });
+    },
+    onError: (error) => {
+      console.error("useSubmitSOW.onError:", { sowId, error: error instanceof Error ? error.message : error });
     },
   });
 }

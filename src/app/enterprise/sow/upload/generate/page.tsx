@@ -28,13 +28,6 @@ const AI_SOW_STEPS: FlowStep[] = [
 ];
 import { StatusBanner } from "@/components/enterprise/sow/StatusBanner";
 import { SowBadge, riskVariant } from "@/components/enterprise/sow/SowBadge";
-import {
-  mockPreviewMetrics,
-  mockGeneratedSowSections,
-  mockRiskAssessment,
-  mockSourceTraceability,
-  mockGenerationHallucinationLayers,
-} from "@/mocks/data/sow-upload-flow";
 import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
 import { useHallucinationAnalysis, useRiskAssessment, useSow } from "@/lib/hooks/use-sow-wizard";
 import { useManualSOW, useSOWPreview, useHallucinationLayers, useSubmitSOW, useApprovalStages } from "@/lib/hooks/use-manual-sow";
@@ -388,7 +381,7 @@ function SectionCard({ title, children }: { title: string; children: React.React
   );
 }
 
-/* ═══ Full read-only commercial-details preview ═══ */
+/* ═══ Full read-only details preview ═══ */
 function ReadOnlyDetailsPreview({ details }: { details: any }) {
   const bc = details?.businessContext ?? {};
   const ds = details?.deliveryScope ?? {};
@@ -559,35 +552,39 @@ export default function GeneratePreviewPage({
 
   type HallucinationLayer = SOWReviewHallucinationLayer;
 
-  // Merge priority: prop overrides > fetched API data > mocks.
+  // Track whether data loaded successfully
+  const dataLoadedSuccessfully = !!(reviewData || activeFetchedReview);
+
+  // Merge priority: prop overrides > fetched API data (no mock fallback)
   const metrics: SOWReviewMetrics = {
-    ...mockPreviewMetrics,
+    confidence: 0,
+    riskScore: 0,
+    hallucinationFlags: 0,
+    completeness: 0,
     ...(activeFetchedReview?.metrics ?? {}),
     ...(reviewData?.metrics ?? {}),
   };
   const riskData: SOWReviewRiskData = {
-    ...mockRiskAssessment,
+    riskLevel: "unknown",
+    riskScore: 0,
+    factors: [],
     ...(activeFetchedRisk ?? {}),
     ...(reviewData?.riskAssessment ?? {}),
-    factors:
-      reviewData?.riskAssessment?.factors
-      ?? activeFetchedRisk?.factors
-      ?? mockRiskAssessment.factors,
   };
   const hallucinationLayers: HallucinationLayer[] =
     reviewData?.hallucinationLayers
     ?? activeFetchedHallucination
-    ?? (mockGenerationHallucinationLayers as HallucinationLayer[]);
+    ?? [];
   const sowSections: SOWReviewSection[] =
-    reviewData?.sections ?? activeFetchedReview?.sections ?? mockGeneratedSowSections;
-  const traceability: SOWReviewTraceability[] = reviewData?.traceability ?? mockSourceTraceability;
+    reviewData?.sections ?? activeFetchedReview?.sections ?? [];
+  const traceability: SOWReviewTraceability[] = reviewData?.traceability ?? [];
 
   // Back-navigation target is flow-specific.
   // AI wizard → return to the 10-step generator (parent toggles state).
   // Manual upload → return to the details form (router navigation).
   const backTarget = flow === "ai"
     ? { label: "Back to Review",             href: "/enterprise/sow/generate" }
-    : { label: "Back to Commercial Details", href: "/enterprise/sow/upload/commercial-details" };
+    : { label: "Back to Commercial Details", href: "/enterprise/sow/upload/details" };
 
   const handleBack = () => {
     if (onBack) {
@@ -694,17 +691,26 @@ export default function GeneratePreviewPage({
       // Pre-fetch the approval pipeline so the approve page loads instantly
       refetchApprovalPipeline();
       setSubmitted(true);
+      // Redirect to SOW list after successful submission
+      setTimeout(() => {
+        router.push("/enterprise/sow");
+      }, 600);
     };
 
     if (!sowId) {
+      console.warn("handleSubmit: sowId is missing", { sowIdProp, storeId: store.uploadedSowId });
       onSubmitSuccess();
       return;
     }
 
+    console.log("handleSubmit: Calling generateManualSOW with sowId:", sowId);
     submitSOW.mutate(undefined, {
       onSuccess: onSubmitSuccess,
-      onError: (err) =>
-        setSubmitError(err instanceof Error ? err.message : "Failed to submit SOW. Please try again."),
+      onError: (err) => {
+        const errMsg = err instanceof Error ? err.message : "Failed to submit SOW. Please try again.";
+        console.error("handleSubmit: Mutation error:", errMsg);
+        setSubmitError(errMsg);
+      },
     });
   };
 
@@ -742,6 +748,19 @@ export default function GeneratePreviewPage({
             : "Assembling your document from extracted content and commercial inputs."}
         </p>
       </motion.div>
+
+      {/* Data loading error */}
+      {genPhase === "complete" && !dataLoadedSuccessfully && (
+        <motion.div variants={fadeUp} className="rounded-xl bg-amber-50 border border-amber-200 px-5 py-4 mb-6">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-[13px] font-medium text-amber-900">Document data could not be loaded</p>
+              <p className="text-[12px] text-amber-700 mt-1">The document details couldn't be retrieved. Please refresh the page or contact support if the problem continues.</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* ═══ READ-ONLY DETAILS PREVIEW (visible during generating phase) ═══ */}
       {genPhase === "generating" && (
