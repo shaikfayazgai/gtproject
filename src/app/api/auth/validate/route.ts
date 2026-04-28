@@ -50,14 +50,28 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Backend now signals first-login force-change via user.requiresPasswordChange === true
+    // (no longer a 403). Frontend will then call /auth/login to get a token and redirect to
+    // the change-password page.
+    const requiresPasswordChange =
+      userObj.requiresPasswordChange === true ||
+      (userObj as { requires_password_change?: boolean }).requires_password_change === true;
+    if (requiresPasswordChange) {
+      return NextResponse.json({
+        ok: true,
+        passwordChangeRequired: true,
+        redirectTo: "/auth/change-password",
+      });
+    }
+
     return NextResponse.json({ ok: true, role });
   } catch (err) {
     if (err instanceof ApiError) {
-      // Backend signals special 403s with a structured detail body.
-      // Read it from err.body first; fall back to JSON-parsing err.message
-      // for older ApiErrors that don't carry the body.
+      // Backend signals special 403s with a structured detail body
+      // (e.g. MOBILE_2FA_REQUIRED or ACCOUNT_DISABLED). Surface the code
+      // so the login page can route appropriately.
       if (err.status === 403) {
-        let detail: { code?: string; message?: string; redirect_to?: string } | undefined;
+        let detail: { code?: string; message?: string } | undefined;
         const bodyDetail = (err.body as { detail?: typeof detail } | undefined)?.detail;
         if (bodyDetail) {
           detail = bodyDetail;
@@ -68,25 +82,12 @@ export async function POST(req: NextRequest) {
               detail = {
                 code: typeof parsed.code === "string" ? parsed.code : undefined,
                 message: typeof parsed.message === "string" ? parsed.message : undefined,
-                redirect_to: typeof parsed.redirect_to === "string" ? parsed.redirect_to : undefined,
               };
             }
           } catch {
             /* not JSON — leave detail undefined */
           }
         }
-
-        // First-login temp password → tell the login page to route to /auth/change-password.
-        if (detail?.code === "PASSWORD_CHANGE_REQUIRED") {
-          return NextResponse.json({
-            ok: true,
-            passwordChangeRequired: true,
-            redirectTo: detail.redirect_to ?? "/auth/change-password",
-            message: detail.message ?? "Temporary password must be changed before login.",
-          });
-        }
-
-        // Any other 403 (e.g. MOBILE_2FA_REQUIRED) → surface code so the page can route.
         const code = detail?.code ?? "FORBIDDEN";
         const message = detail?.message ?? err.message;
         return NextResponse.json({ ok: false, error: code, message });

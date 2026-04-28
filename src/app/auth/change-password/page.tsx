@@ -1,15 +1,14 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles, AlertCircle, CheckCircle2, RefreshCw,
   Lock, Shield, ShieldCheck, KeyRound, Zap, Eye, EyeOff,
 } from "lucide-react";
 import { Input, Label } from "@/components/ui";
-import { fetchInternal } from "@/lib/api/client";
 
 const PLATFORM_STATS = [
   { value: "50K+",   label: "Contributors" },
@@ -44,10 +43,11 @@ function getStrength(pw: string) {
 }
 
 function ChangePasswordContent() {
-  const router       = useRouter();
-  const searchParams = useSearchParams();
-  const email        = searchParams.get("email") ?? "";
+  const router = useRouter();
 
+  const [accessToken, setAccessToken] = useState<string>("");
+  const [email, setEmail]             = useState<string>("");
+  const [bootstrapped, setBootstrapped] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword,     setNewPassword]     = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -56,7 +56,21 @@ function ChangePasswordContent() {
   const [error,           setError]           = useState("");
   const [success,         setSuccess]         = useState(false);
 
-  if (!email) {
+  // Load the temporary token + email handed off by the login page.
+  // Stored in sessionStorage so it's scoped to this tab and cleared on close.
+  useEffect(() => {
+    try {
+      const tok = sessionStorage.getItem("_first_login_token") ?? "";
+      const em  = sessionStorage.getItem("_first_login_email") ?? "";
+      setAccessToken(tok);
+      setEmail(em);
+    } catch {
+      /* sessionStorage unavailable */
+    }
+    setBootstrapped(true);
+  }, []);
+
+  if (bootstrapped && !accessToken) {
     return (
       <div className="w-full flex items-start gap-16 max-w-7xl mx-auto px-8">
         <div className="w-full max-w-[440px] mx-auto flex flex-col justify-center pt-8">
@@ -73,9 +87,9 @@ function ChangePasswordContent() {
               <AlertCircle className="w-7 h-7 text-red-500" />
             </div>
             <div>
-              <h1 className="font-heading text-[22px] font-bold text-brown-950">Missing email</h1>
+              <h1 className="font-heading text-[22px] font-bold text-brown-950">Session expired</h1>
               <p className="text-sm text-beige-500 mt-2">
-                Please sign in first so we know which account to update.
+                Please sign in again to change your password.
               </p>
             </div>
             <Link
@@ -106,23 +120,40 @@ function ChangePasswordContent() {
     setError("");
     setIsLoading(true);
     try {
-      const res = await fetchInternal("/api/auth/change-password", {
+      const apiBase = process.env.NEXT_PUBLIC_GLIMMORA_API_URL ?? "";
+      const res = await fetch(`${apiBase}/api/v1/auth/password/change`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({
-          email,
-          currentPassword,
-          newPassword,
-          confirmPassword,
+          current_password: currentPassword,
+          new_password: newPassword,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data?.message ?? "Failed to change password.");
+        const msg =
+          (data as { detail?: string | { message?: string } })?.detail &&
+          typeof (data as { detail?: { message?: string } }).detail === "object"
+            ? (data as { detail: { message?: string } }).detail.message
+            : (data as { detail?: string }).detail;
+        if (res.status === 401) {
+          setError("Current password is incorrect.");
+        } else if (res.status === 403) {
+          setError(typeof msg === "string" ? msg : "This account has been deactivated.");
+        } else {
+          setError(typeof msg === "string" ? msg : "Failed to change password.");
+        }
         return;
       }
       setSuccess(true);
-      // Clear sensitive values immediately
+      // Sensitive cleanup: discard the temp token + form values.
+      try {
+        sessionStorage.removeItem("_first_login_token");
+        sessionStorage.removeItem("_first_login_email");
+      } catch { /* ignore */ }
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -220,21 +251,21 @@ function ChangePasswordContent() {
 
               <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
 
-                {/* Email (read-only) */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    readOnly
-                    className="h-11 bg-beige-50 cursor-not-allowed"
-                  />
-                </div>
+                {email && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                      Email
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      readOnly
+                      className="h-11 bg-beige-50 cursor-not-allowed"
+                    />
+                  </div>
+                )}
 
-                {/* Current (temp) password */}
                 <div className="space-y-1.5">
                   <Label htmlFor="currentPassword" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                     Temporary Password
@@ -262,7 +293,6 @@ function ChangePasswordContent() {
                   </div>
                 </div>
 
-                {/* New password */}
                 <div className="space-y-1.5">
                   <Label htmlFor="newPassword" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                     New Password
@@ -293,7 +323,6 @@ function ChangePasswordContent() {
                   )}
                 </div>
 
-                {/* Confirm new password */}
                 <div className="space-y-1.5">
                   <Label htmlFor="confirmPassword" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                     Confirm New Password
@@ -319,7 +348,6 @@ function ChangePasswordContent() {
                   )}
                 </div>
 
-                {/* Requirements */}
                 <div className="rounded-xl bg-beige-50 border border-beige-100 p-4 space-y-2.5">
                   <p className="text-[11px] font-semibold uppercase tracking-widest text-beige-400 mb-1">
                     Requirements
