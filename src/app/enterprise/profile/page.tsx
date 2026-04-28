@@ -38,6 +38,7 @@ import {
   SelectItem,
 } from "@/components/ui";
 import { toast } from "@/lib/stores/toast-store";
+import { useCurrentUser } from "@/lib/hooks/use-auth";
 
 /* ─────────────────────── Password Strength ─────────────────────── */
 
@@ -99,6 +100,7 @@ const MOCK_RECOVERY_CODES = [
 export default function ProfilePage() {
   /* ── Personal Information State ── */
   const { data: session } = useSession();
+  const { data: currentUser, isLoading: isUserLoading } = useCurrentUser();
   const [firstName, setFirstName] = useState(
     session?.user?.name?.split(" ")[0] ?? "",
   );
@@ -106,7 +108,6 @@ export default function ProfilePage() {
     session?.user?.name?.split(" ")[1] ?? "",
   );
   const [displayName, setDisplayName] = useState(session?.user?.name ?? "");
-  const [email] = useState(session?.user?.email ?? "");
   const [jobTitle, setJobTitle] = useState("");
   const [phone, setPhone] = useState("");
 
