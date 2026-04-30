@@ -26,6 +26,7 @@ import type { ModuleConfig } from "@/lib/config/navigation";
 import { mockPlans, mockTeams } from "@/mocks/data/enterprise-projects";
 import { mockSOWs } from "@/mocks/data/enterprise-sow";
 import { useNotificationStore } from "@/lib/stores/notification-store";
+import { useManualSOW } from "@/lib/hooks/use-manual-sow";
 
 const segmentLabels: Record<string, string> = {
   apg: "Policies", "sow-forms": "SOW Intake Forms", "clause-library": "Clause Library",
@@ -38,6 +39,12 @@ const templateNames: Record<string, string> = {
   "tpl-003": "Technology Platform SOW", "tpl-004": "Retail E-Commerce SOW",
   "tpl-005": "General Purpose SOW", "tpl-006": "Government RFP SOW",
 };
+
+const UUID_RE = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+
+function isUuid(s: string) {
+  return UUID_RE.test(s);
+}
 
 function getFriendlyLabel(segment: string, _prev: string[]): string | null {
   if (segmentLabels[segment]) return segmentLabels[segment];
@@ -87,6 +94,19 @@ export function TopBar({ config }: TopBarProps) {
   const { data: session } = useSession();
   const { openMobile } = useSidebarStore();
   const [searchFocused, setSearchFocused] = React.useState(false);
+
+  const uuidSegment = React.useMemo(() => {
+    const segments = pathname.split("/").filter(Boolean);
+    return segments.find(isUuid) ?? null;
+  }, [pathname]);
+
+  const sowDetailQuery = useManualSOW(uuidSegment);
+  const sowTitle = React.useMemo(() => {
+    if (!sowDetailQuery.data) return null;
+    const d = sowDetailQuery.data as Record<string, unknown>;
+    const inner = (d.data ?? d) as Record<string, unknown>;
+    return (inner.title ?? inner.project_title ?? inner.name ?? null) as string | null;
+  }, [sowDetailQuery.data]);
   const userEmail = session?.user?.email || "";
   // Fallback to the email local-part when the session has no display name
   // (common for SSO/OTP users), so the dropdown never shows a bare "User".
@@ -124,19 +144,27 @@ React.useEffect(() => {
     const moduleRoot = allSegments.find((seg) => moduleRoots.includes(seg)) || allSegments[0];
     const hiddenPrefixes = moduleRoots;
     const crumbs = allSegments
-      .map((seg, i) => ({
-        seg,
-        label: getFriendlyLabel(seg, allSegments.slice(0, i)) ??
-          seg.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-        href: "/" + allSegments.slice(0, i + 1).join("/"),
-        hidden: hiddenPrefixes.includes(seg),
-      }))
+      .map((seg, i) => {
+        let label: string;
+        if (isUuid(seg)) {
+          label = sowTitle ?? seg.slice(0, 8).toUpperCase();
+        } else {
+          label = getFriendlyLabel(seg, allSegments.slice(0, i)) ??
+            seg.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        }
+        return {
+          seg,
+          label,
+          href: "/" + allSegments.slice(0, i + 1).join("/"),
+          hidden: hiddenPrefixes.includes(seg),
+        };
+      })
       .filter((crumb) => !crumb.hidden);
     const dashboardHref = "/" + moduleRoot + "/dashboard";
     const isOnDashboard = crumbs.length === 1 && crumbs[0].seg === "dashboard";
     if (!isOnDashboard) crumbs.unshift({ seg: "dashboard", label: "Dashboard", href: dashboardHref, hidden: false });
     return crumbs.map((c, i) => ({ ...c, isLast: i === crumbs.length - 1 }));
-  }, [pathname]);
+  }, [pathname, sowTitle]);
 
   const pageTitle = breadcrumbs[breadcrumbs.length - 1]?.label || "Dashboard";
 

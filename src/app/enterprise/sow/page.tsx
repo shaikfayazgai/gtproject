@@ -24,6 +24,11 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
   draft:                      { label: "Draft",                    color: "var(--color-gray-600)",   bg: "var(--color-gray-100)" },
   review:                     { label: "In Review",                color: "var(--color-teal-700)",   bg: "var(--color-teal-50)" },
   approval:                   { label: "In Review",                color: "var(--color-teal-700)",   bg: "var(--color-teal-50)" },
+  submitted:                  { label: "In Review",                color: "var(--color-teal-700)",   bg: "var(--color-teal-50)" },
+  in_review:                  { label: "In Review",                color: "var(--color-teal-700)",   bg: "var(--color-teal-50)" },
+  under_review:               { label: "In Review",                color: "var(--color-teal-700)",   bg: "var(--color-teal-50)" },
+  pending_review:             { label: "In Review",                color: "var(--color-teal-700)",   bg: "var(--color-teal-50)" },
+  pending_approval:           { label: "In Review",                color: "var(--color-teal-700)",   bg: "var(--color-teal-50)" },
   pending_commercial_review:  { label: "Pending Commercial Review", color: "var(--color-gold-700)",  bg: "var(--color-gold-50)" },
   approved:                   { label: "Approved",                 color: "var(--color-forest-700)", bg: "var(--color-forest-50)" },
   rejected:                   { label: "Rejected",                 color: "var(--danger)",           bg: "var(--danger-light)" },
@@ -276,14 +281,40 @@ export default function SOWListPage() {
       if (bizOwner.includes(", ")) client = bizOwner.split(", ").pop()?.trim() ?? "";
     }
 
-    /* Risk score — check quality_metrics first (AI SOWs), then risk_score/riskScore */
+    /* Risk score — try all known paths for both AI and manual SOWs */
     const qm = (item.quality_metrics ?? item.qualityMetrics ?? {}) as Record<string, unknown>;
+    const gen = (typeof item.generated === "object" && item.generated !== null ? item.generated : {}) as Record<string, unknown>;
+    const genRisk = (typeof gen.risk === "object" && gen.risk !== null ? gen.risk : {}) as Record<string, unknown>;
+    const topRisk = (typeof item.risk === "object" && item.risk !== null ? item.risk : {}) as Record<string, unknown>;
+    const riskAssessment = (typeof item.risk_assessment === "object" && item.risk_assessment !== null ? item.risk_assessment : {}) as Record<string, unknown>;
     const riskRaw = item.risk_score ?? item.riskScore ?? qm.risk_score ?? qm.riskScore;
     let riskOverall = 0;
-    if (typeof riskRaw === "number") {
+    // 1. Manual SOW: generated.risk.risk_score or generated.risk.overall
+    if (genRisk.risk_score != null) {
+      riskOverall = Number(genRisk.risk_score);
+    } else if (genRisk.overall != null) {
+      riskOverall = Number(genRisk.overall);
+    // 2. risk_assessment object (manual SOW)
+    } else if (riskAssessment.risk_score != null) {
+      riskOverall = Number(riskAssessment.risk_score);
+    } else if (riskAssessment.overall != null) {
+      riskOverall = Number(riskAssessment.overall);
+    } else if (riskAssessment.overall_score != null) {
+      riskOverall = Number(riskAssessment.overall_score);
+    // 3. Top-level risk object: { risk_score: N } or { overall: N }
+    } else if (topRisk.risk_score != null) {
+      riskOverall = Number(topRisk.risk_score);
+    } else if (topRisk.overall != null) {
+      riskOverall = Number(topRisk.overall);
+    // 4. Top-level numeric fields
+    } else if (typeof riskRaw === "number") {
       riskOverall = riskRaw;
+    } else if (item.overall_risk_score != null) {
+      riskOverall = Number(item.overall_risk_score);
+    // 5. risk_score object with .overall
     } else if (riskRaw && typeof riskRaw === "object") {
       riskOverall = Number((riskRaw as Record<string, unknown>).overall ?? 0);
+    // 6. AI SOW fallback: derive from confidence
     } else if (mode === "ai_generated") {
       const conf = Number(qm.overall_confidence ?? item.confidence_score ?? item.confidenceScore ?? 0);
       riskOverall = conf > 0 ? Math.round(100 - conf) : 0;
@@ -291,7 +322,14 @@ export default function SOWListPage() {
 
     const rawApprovalStages = ((item.approval_stages ?? item.approvalStages ?? []) as import("@/types/enterprise").SOWApprovalStage[]);
     const rawStatus = String(item.status ?? "draft");
-    const derivedStatus = deriveStatusFromStages(rawApprovalStages, rawStatus);
+    // Normalise API status values that aren't in statusConfig to a known key
+    const STATUS_MAP: Record<string, string> = {
+      submitted: "review", in_review: "review", under_review: "review",
+      pending_review: "review", pending_approval: "review",
+      generated: "review", complete: "review", completed: "review",
+    };
+    const normalisedStatus = STATUS_MAP[rawStatus] ?? rawStatus;
+    const derivedStatus = deriveStatusFromStages(rawApprovalStages, normalisedStatus);
 
     return {
       id:               String(item.id ?? item._id ?? item.sow_id ?? item.wizard_id ?? ""),
@@ -319,9 +357,18 @@ export default function SOWListPage() {
 
   /* Merge AI + manual SOWs from API; fall back to Zustand store if no API */
   const apiCombined = [...aiSows, ...manualSows];
+
+  // Manual SOWs: only show after confirmAndSubmit (exclude upload-pipeline statuses)
+  const MANUAL_EXCLUDED = ["draft", "uploading", "processing", "extracting", "extraction", "uploaded", "created", "new"];
+  // AI SOWs: show everything except plain draft
+  const AI_EXCLUDED = ["draft"];
+
   const allSows = (apiCombined.length > 0 ? apiCombined : storeSows)
-    /* Filter to show only SOWs that have been submitted for approval (exclude draft) */
-    .filter((s) => !["draft"].includes(s.status));
+    .filter((s) =>
+      s.intakeMode === "ai_generated"
+        ? !AI_EXCLUDED.includes(s.status)
+        : !MANUAL_EXCLUDED.includes(s.status)
+    );
 
 
   const [sortField, setSortField] = React.useState<SortField>("modified");
