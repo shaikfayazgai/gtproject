@@ -13,7 +13,6 @@ import {
   Link2, Scale, Gavel, Upload, Eye, Pencil,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import type { SOWReviewData } from "../upload/generate/page";
 import { cn } from "@/lib/utils/cn";
 
 const SOWAIDraftReviewPage = dynamic(() => import("../upload/generate/page"), { ssr: false });
@@ -45,111 +44,6 @@ const HALLUCINATION_LAYERS = [
   "Confidence Scoring", "Pattern Matching", "Human Approval", "Audit Logging",
 ];
 
-/* ── AI-SOW API response → SOWReviewData mapper ──
-   The generate endpoint's response shape is evolving, so we defensively
-   accept both snake_case and camelCase keys. Fields that come back
-   undefined fall through to the mocks inside SOWAIDraftReviewPage. */
-function mapGenerateResponseToReviewData(payload: unknown): SOWReviewData | null {
-  if (!payload || typeof payload !== "object") return null;
-  const p = payload as Record<string, any>;
-  const data = (p.data && typeof p.data === "object") ? p.data : p;
-
-  const pick = <T,>(...keys: string[]): T | undefined => {
-    for (const k of keys) if (data[k] != null) return data[k] as T;
-    return undefined;
-  };
-
-  // Metrics may be nested under various bag names or flat on data.
-  const metricsBags: Record<string, any>[] = [
-    data.metrics, data.quality_metrics, data.qualityMetrics,
-    data.ai_metrics, data.aiMetrics, data.scores, data.analysis, data.summary,
-    data,
-  ].filter((b) => b && typeof b === "object" && !Array.isArray(b)) as Record<string, any>[];
-
-  const pickMetric = (...keys: string[]): number | undefined => {
-    for (const bag of metricsBags) {
-      for (const k of keys) {
-        const v = bag?.[k];
-        if (v != null && (typeof v === "number" || (typeof v === "string" && !isNaN(Number(v))))) {
-          return Number(v);
-        }
-      }
-    }
-    return undefined;
-  };
-
-  const confidence = pickMetric("overall_confidence", "confidence", "confidence_score", "confidenceScore", "ai_confidence", "extraction_confidence", "confidence_percentage");
-  const riskScore = pickMetric("risk_score", "riskScore", "overall_risk_score", "risk", "total_risk");
-  const hallucinationFlags = pickMetric("hallucination_flags_count", "hallucination_flags", "hallucinationFlags", "hallucination_count", "flags", "flag_count");
-  const completeness = pickMetric("completeness_percentage", "completeness", "completeness_score", "completenessScore", "coverage");
-
-  const rawSections = pick<any[]>("sections", "sow_sections", "generated_sections");
-  const sections = Array.isArray(rawSections)
-    ? rawSections.map((s) => ({
-        title: String(s.title ?? s.section_title ?? s.heading ?? ""),
-        body: String(s.content ?? s.body ?? s.text ?? ""),
-      })).filter((s) => s.title || s.body)
-    : undefined;
-
-  const riskPayload = pick<any>("risk_assessment", "riskAssessment", "risk");
-  const rawFactors = riskPayload?.factors ?? pick<any[]>("risk_factors", "riskFactors");
-  const factors = Array.isArray(rawFactors)
-    ? rawFactors.map((f: any) => ({
-        factor: String(f.factor ?? f.name ?? ""),
-        weight: String(f.weight ?? ""),
-        score: Number(f.score ?? 0),
-      }))
-    : undefined;
-
-  const rawLayers = pick<any[]>("hallucination_layers", "hallucinationLayers", "layers");
-  const hallucinationLayers = Array.isArray(rawLayers)
-    ? rawLayers.map((l: any) => ({
-        layer: l.layer ?? l.layer_id ?? l.id,
-        name: l.name ?? l.layer_name,
-        status: l.status,
-        details: l.details ?? l.description ?? l.message,
-      }))
-    : undefined;
-
-  const rawTraceability = pick<any[]>("traceability", "source_traceability", "sourceTraceability");
-  const traceability = Array.isArray(rawTraceability)
-    ? rawTraceability.map((t: any) => ({
-        section: String(t.section ?? t.name ?? ""),
-        source: String(t.source ?? t.origin ?? ""),
-      }))
-    : undefined;
-
-  const metricsPartial = {
-    ...(confidence != null ? { confidence } : {}),
-    ...(riskScore != null ? { riskScore } : {}),
-    ...(hallucinationFlags != null ? { hallucinationFlags } : {}),
-    ...(completeness != null ? { completeness } : {}),
-  };
-
-  const riskPartial = {
-    ...(riskPayload?.risk_level ?? riskPayload?.riskLevel ? { riskLevel: String(riskPayload.risk_level ?? riskPayload.riskLevel) } : {}),
-    ...(riskScore != null ? { riskScore } : {}),
-    ...(factors ? { factors } : {}),
-  };
-
-  const anyField =
-    Object.keys(metricsPartial).length > 0 ||
-    sections ||
-    Object.keys(riskPartial).length > 0 ||
-    hallucinationLayers ||
-    traceability;
-  if (!anyField) return null;
-
-  // Only emit arrays when non-empty; an empty array would shadow the
-  // full-SOW fetch (`useSow`) downstream via `reviewData.sections ?? fetched`.
-  return {
-    ...(Object.keys(metricsPartial).length > 0 ? { metrics: metricsPartial } : {}),
-    ...(sections && sections.length > 0 ? { sections } : {}),
-    ...(Object.keys(riskPartial).length > 0 ? { riskAssessment: riskPartial } : {}),
-    ...(hallucinationLayers && hallucinationLayers.length > 0 ? { hallucinationLayers } : {}),
-    ...(traceability && traceability.length > 0 ? { traceability } : {}),
-  };
-}
 
 /* ── AI wizard formData → ReadOnlyDetailsPreview shape ──
    SOWAIDraftReviewPage's preview is keyed by the manual-flow commercialDetails
@@ -1299,8 +1193,6 @@ function SOWGenerateWizardPageInner() {
   const [cameFromReview, setCameFromReview] = React.useState(false);
   const [generationComplete, setGenerationComplete] = React.useState(false);
   const [generatedSowId, setGeneratedSowId] = React.useState<string | null>(null);
-  const [generatedReviewData, setGeneratedReviewData] = React.useState<SOWReviewData | null>(null);
-
   // ── API integration (wizard session + step mutations) ──
   const [wizardId, setWizardId] = React.useState<string | null>(() => {
     if (typeof window === "undefined") return null;
@@ -1650,8 +1542,6 @@ function SOWGenerateWizardPageInner() {
               inner?.sow_id ?? inner?._id ?? inner?.id ??
               (data as any)?.sow_id ?? (data as any)?._id ?? (data as any)?.id ?? null;
             if (id) setGeneratedSowId(String(id));
-            const mapped = mapGenerateResponseToReviewData(data);
-            if (mapped) setGeneratedReviewData(mapped);
           },
           onError: (err) => setApiError(friendlyApiError(err)),
         },
@@ -1733,7 +1623,6 @@ function SOWGenerateWizardPageInner() {
       <SOWAIDraftReviewPage
         sowId={generatedSowId}
         flow="ai"
-        reviewData={generatedReviewData ?? undefined}
         detailsOverride={wizardFormDataToDetails(formData as unknown as Record<string, any>)}
         onBack={() => {
           // Return to the wizard form. Keep generatedSowId/reviewData so the
@@ -1743,8 +1632,8 @@ function SOWGenerateWizardPageInner() {
           window.scrollTo({ top: 0, behavior: "smooth" });
         }}
         onRejectRegenerate={() => {
-          // Discard the generated draft and restart the wizard from step 0.
           setGenerationComplete(false);
+          setGeneratedSowId(null);
           setCurrentStep(0);
           window.scrollTo({ top: 0, behavior: "smooth" });
         }}
@@ -2015,6 +1904,24 @@ function SOWGenerateWizardPageInner() {
                             onMouseLeave={(e) => { if (canAdvance(currentStep)) { e.currentTarget.style.boxShadow = '0 1px 6px rgba(166,119,99,0.20), inset 0 1px 0 rgba(255,255,255,0.15)'; e.currentTarget.style.transform = ''; } }}
                           >
                             {saveStepMutation.isPending ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</> : <>Next <ArrowRight style={{ width: 12, height: 12 }} /></>}
+                          </button>
+                        ) : generatedSowId ? (
+                          <button
+                            onClick={() => setGenerationComplete(true)}
+                            className="flex items-center gap-1.5 rounded-lg transition-all duration-200"
+                            style={{
+                              padding: '8px 20px',
+                              background: 'linear-gradient(135deg, #2A6068, #1a4049)',
+                              color: '#FFFFFF',
+                              fontSize: 12, fontWeight: 600,
+                              border: '1px solid rgba(42,96,104,0.30)',
+                              boxShadow: '0 2px 10px rgba(42,96,104,0.25), inset 0 1px 0 rgba(255,255,255,0.15)',
+                              cursor: 'pointer',
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(42,96,104,0.35), inset 0 1px 0 rgba(255,255,255,0.2)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 2px 10px rgba(42,96,104,0.25), inset 0 1px 0 rgba(255,255,255,0.15)'; e.currentTarget.style.transform = ''; }}
+                          >
+                            <ArrowRight style={{ width: 13, height: 13 }} /> Review & Submit SOW
                           </button>
                         ) : (
                           <button

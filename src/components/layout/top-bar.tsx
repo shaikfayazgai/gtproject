@@ -21,11 +21,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { ModuleConfig } from "@/lib/config/navigation";
 import { mockPlans, mockTeams } from "@/mocks/data/enterprise-projects";
 import { mockSOWs } from "@/mocks/data/enterprise-sow";
 import { useNotificationStore } from "@/lib/stores/notification-store";
+import { useManualSOW } from "@/lib/hooks/use-manual-sow";
 
 const segmentLabels: Record<string, string> = {
   apg: "Policies", "sow-forms": "SOW Intake Forms", "clause-library": "Clause Library",
@@ -38,6 +39,12 @@ const templateNames: Record<string, string> = {
   "tpl-003": "Technology Platform SOW", "tpl-004": "Retail E-Commerce SOW",
   "tpl-005": "General Purpose SOW", "tpl-006": "Government RFP SOW",
 };
+
+const UUID_RE = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+
+function isUuid(s: string) {
+  return UUID_RE.test(s);
+}
 
 function getFriendlyLabel(segment: string, _prev: string[]): string | null {
   if (segmentLabels[segment]) return segmentLabels[segment];
@@ -55,13 +62,21 @@ function getFriendlyLabel(segment: string, _prev: string[]): string | null {
 
 function NotificationBell() {
   const { notifications } = useNotificationStore();
+  const { data: session } = useSession();
   const unread = notifications.filter((n) => !n.read);
   const hasHigh = unread.some((n) => n.severity === "high");
   const badgeColor = hasHigh ? "bg-red-500" : "bg-gold-500";
 
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  const notificationsHref =
+    role === "contributor" ? "/contributor/notifications"
+    : role === "mentor"     ? "/mentor/notifications"
+    : role === "admin"      ? "/admin/notifications"
+    : "/enterprise/notifications";
+
   return (
     <Link
-      href="/enterprise/notifications"
+      href={notificationsHref}
       className="relative flex items-center justify-center w-8 h-8 rounded-full text-gray-500 bg-white/50 border border-white/30 hover:bg-white/70 transition-all"
       aria-label={`Notifications, ${unread.length} unread`}
       suppressHydrationWarning
@@ -87,6 +102,19 @@ export function TopBar({ config }: TopBarProps) {
   const { data: session } = useSession();
   const { openMobile } = useSidebarStore();
   const [searchFocused, setSearchFocused] = React.useState(false);
+
+  const uuidSegment = React.useMemo(() => {
+    const segments = pathname.split("/").filter(Boolean);
+    return segments.find(isUuid) ?? null;
+  }, [pathname]);
+
+  const sowDetailQuery = useManualSOW(uuidSegment);
+  const sowTitle = React.useMemo(() => {
+    if (!sowDetailQuery.data) return null;
+    const d = sowDetailQuery.data as Record<string, unknown>;
+    const inner = (d.data ?? d) as Record<string, unknown>;
+    return (inner.title ?? inner.project_title ?? inner.name ?? null) as string | null;
+  }, [sowDetailQuery.data]);
   const userEmail = session?.user?.email || "";
   // Fallback to the email local-part when the session has no display name
   // (common for SSO/OTP users), so the dropdown never shows a bare "User".
@@ -104,25 +132,47 @@ export function TopBar({ config }: TopBarProps) {
       .slice(0, 2)
       .toUpperCase();
 
+  const [profilePhoto, setProfilePhoto] = React.useState<string | null>(null);
+
+React.useEffect(() => {
+  const loadPhoto = () => {
+    const saved = localStorage.getItem("profilePhoto");
+    if (saved) setProfilePhoto(saved);
+  };
+
+  loadPhoto();
+
+  window.addEventListener("profilePhotoUpdated", loadPhoto);
+  return () => window.removeEventListener("profilePhotoUpdated", loadPhoto);
+}, []);
+
   const breadcrumbs = React.useMemo(() => {
     const allSegments = pathname.split("/").filter(Boolean);
     const moduleRoots = ["enterprise", "contributor", "mentor", "analytics", "admin"];
     const moduleRoot = allSegments.find((seg) => moduleRoots.includes(seg)) || allSegments[0];
     const hiddenPrefixes = moduleRoots;
     const crumbs = allSegments
-      .map((seg, i) => ({
-        seg,
-        label: getFriendlyLabel(seg, allSegments.slice(0, i)) ??
-          seg.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-        href: "/" + allSegments.slice(0, i + 1).join("/"),
-        hidden: hiddenPrefixes.includes(seg),
-      }))
+      .map((seg, i) => {
+        let label: string;
+        if (isUuid(seg)) {
+          label = sowTitle ?? seg.slice(0, 8).toUpperCase();
+        } else {
+          label = getFriendlyLabel(seg, allSegments.slice(0, i)) ??
+            seg.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        }
+        return {
+          seg,
+          label,
+          href: "/" + allSegments.slice(0, i + 1).join("/"),
+          hidden: hiddenPrefixes.includes(seg),
+        };
+      })
       .filter((crumb) => !crumb.hidden);
     const dashboardHref = "/" + moduleRoot + "/dashboard";
     const isOnDashboard = crumbs.length === 1 && crumbs[0].seg === "dashboard";
     if (!isOnDashboard) crumbs.unshift({ seg: "dashboard", label: "Dashboard", href: dashboardHref, hidden: false });
     return crumbs.map((c, i) => ({ ...c, isLast: i === crumbs.length - 1 }));
-  }, [pathname]);
+  }, [pathname, sowTitle]);
 
   const pageTitle = breadcrumbs[breadcrumbs.length - 1]?.label || "Dashboard";
 
@@ -191,44 +241,69 @@ export function TopBar({ config }: TopBarProps) {
 
 
           {/* Avatar */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button suppressHydrationWarning className="rounded-full focus:outline-none focus:ring-2 focus:ring-gold-200/40 focus:ring-offset-1">
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer text-white text-xs font-semibold transition-shadow"
-                  style={{
-                    background: "linear-gradient(135deg, #A67763, #D0B060)",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-                  }}
-                >
-                  {userInitials}
-                </div>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-84" style={{ background: "#ffffff", border: "1px solid rgba(0,0,0,0.08)" }}>
-              <DropdownMenuLabel>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-white text-sm font-semibold"
-                    style={{ background: "linear-gradient(135deg, #5B9BA2, #4D5741)" }}>{userInitials}</div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{userName}</p>
-                    <p className="text-xs text-gray-500 lowercase">{userEmail}</p>
-                  </div>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push(config.basePath + "/settings")}><Settings className="w-4 h-4" /> <span>Settings</span></DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-[var(--danger)] focus:text-[var(--danger-hover)] focus:bg-[var(--danger-light)]"
-                onClick={() => signOut({ callbackUrl: "/auth/login" })}
-              >
-                <LogOut className="w-4 h-4" /> <span>Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+{/* Avatar */}
+<DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <button
+      suppressHydrationWarning
+      className="rounded-full focus:outline-none focus:ring-2 focus:ring-gold-200/40 focus:ring-offset-1"
+    >
+      <Avatar size="sm">
+        <AvatarImage src={profilePhoto || ""} alt="User avatar" />
+        <AvatarFallback>
+          {userInitials}
+        </AvatarFallback>
+      </Avatar>
+    </button>
+  </DropdownMenuTrigger>
+
+  <DropdownMenuContent
+    align="end"
+    className="w-84"
+    style={{ background: "#ffffff", border: "1px solid rgba(0,0,0,0.08)" }}
+  >
+    <DropdownMenuLabel>
+      <div className="flex items-center gap-3">
+        <Avatar size="md">
+          <AvatarImage src={profilePhoto || ""} alt="User avatar" />
+          <AvatarFallback>
+            {userInitials}
+          </AvatarFallback>
+        </Avatar>
+
+        <div>
+          <p className="text-sm font-semibold text-gray-900">
+            {userName}
+          </p>
+          <p className="text-xs text-gray-500 lowercase">
+            {userEmail}
+          </p>
         </div>
       </div>
+    </DropdownMenuLabel>
+
+    <DropdownMenuSeparator />
+
+    <DropdownMenuItem
+      onClick={() => router.push(config.basePath + "/settings")}
+    >
+      <Settings className="w-4 h-4" />
+      <span>Settings</span>
+    </DropdownMenuItem>
+
+    <DropdownMenuSeparator />
+
+    <DropdownMenuItem
+      className="text-[var(--danger)] focus:text-[var(--danger-hover)] focus:bg-[var(--danger-light)]"
+      onClick={() => signOut({ callbackUrl: "/auth/login" })}
+    >
+      <LogOut className="w-4 h-4" />
+      <span>Log out</span>
+    </DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>
+        </div> {/* right section */}
+      </div> {/* main container */}
     </header>
   );
 }

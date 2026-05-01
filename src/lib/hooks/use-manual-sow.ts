@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { sowApi } from "@/lib/api/sow";
+import { sowKeys } from "./use-sow-wizard";
 
 // ── Query keys ────────────────────────────────────────────────────────────
 
@@ -323,9 +324,9 @@ export function useSaveCommercialSection(sowId: string | null) {
 
 export function useValidateCommercialSection(sowId: string | null) {
   return useMutation({
-    mutationFn: (section: string) => {
+    mutationFn: ({ section, data }: { section: string; data: Record<string, unknown> }) => {
       if (!sowId) throw new Error("No SOW id");
-      return sowApi.validateCommercialSection(sowId, section);
+      return sowApi.validateCommercialSection(sowId, section, data);
     },
   });
 }
@@ -440,26 +441,20 @@ export function useSubmitSOW(sowId: string | null, flow: "ai" | "manual") {
 
   return useMutation({
     mutationFn: (opts?: { notes?: string }) => {
-      console.log("useSubmitSOW.mutationFn called:", { sowId, flow });
       if (!sowId) throw new Error("No SOW id");
       if (flow === "ai") {
-        console.log("Calling sowApi.sowAction");
         return sowApi.sowAction(sowId, { action: "submit" });
       }
-      console.log("Calling sowApi.generateManualSOW with sowId:", sowId);
-      return sowApi.generateManualSOW(sowId);
+      return sowApi.confirmAndSubmit(sowId, { confirms_accuracy: true, notes: opts?.notes });
     },
-    onSuccess: (data) => {
-      console.log("useSubmitSOW.onSuccess:", { sowId, data });
+    onSuccess: () => {
       if (!sowId) return;
-      // Invalidate manual-sow caches
       qc.invalidateQueries({ queryKey: manualSowKeys.sow(sowId) });
       qc.invalidateQueries({ queryKey: manualSowKeys.list() });
-      // Invalidate approval pipeline so approve page loads fresh data
       qc.invalidateQueries({ queryKey: manualSowKeys.approvalStages(sowId) });
-    },
-    onError: (error) => {
-      console.error("useSubmitSOW.onError:", { sowId, error: error instanceof Error ? error.message : error });
+      // Invalidate AI SOW list so submitted AI SOWs appear in the repository
+      qc.invalidateQueries({ queryKey: sowKeys.sows() });
+      qc.invalidateQueries({ queryKey: sowKeys.sow(sowId) });
     },
   });
 }
@@ -473,6 +468,15 @@ const STAGE_NUMBER: Record<string, number> = {
   legal: 3,
   security: 4,
   final: 5,
+};
+
+/** 1-based number → stage string key (used in the POST URL) */
+const STAGE_KEY: Record<number, string> = {
+  1: "business",
+  2: "glimmora_commercial",
+  3: "legal",
+  4: "security",
+  5: "final",
 };
 
 /** Query key for per-SOW approval pipeline */
@@ -500,7 +504,7 @@ export function useRecordApprovalDecision(sowId: string | null) {
       reviewer,
     }: {
       stage: number;
-      decision: "approve" | "request_changes" | "reject_regenerate";
+      decision: "approve" | "request_changes" | "reject_regenerate" | string;
       comments?: string;
       reviewer?: string;
     }) => {
@@ -508,6 +512,7 @@ export function useRecordApprovalDecision(sowId: string | null) {
       return sowApi.recordApprovalDecision(sowId, stage, {
         decision,
         comments,
+        // Always send decided_by so the backend can record who made the decision
         ...(reviewer ? { reviewer, decided_by: reviewer } : {}),
       });
     },
@@ -607,13 +612,36 @@ export function useMarkMessageRead(sowId: string | null) {
   });
 }
 
-// ── Hallucination layers ──────────────────────────────────────────────────
+// ── Hallucination layers (manual SOW) ────────────────────────────────────
 
 export function useHallucinationLayers(sowId: string | null) {
   return useQuery({
     queryKey: manualSowKeys.hallucinationLayers(sowId ?? ""),
     queryFn: () => sowApi.getHallucinationLayers(sowId!),
     enabled: !!sowId,
+  });
+}
+
+// ── AI SOW: hallucination analysis + risk assessment ──────────────────────
+
+const aiAnalysisKeys = {
+  hallucination: (id: string) => ["ai-sow", id, "hallucination-analysis"] as const,
+  riskAssessment: (id: string) => ["ai-sow", id, "risk-assessment"] as const,
+};
+
+export function useHallucinationAnalysis(sowId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: aiAnalysisKeys.hallucination(sowId ?? ""),
+    queryFn: () => sowApi.getHallucinationAnalysis(sowId!),
+    enabled: !!sowId && enabled,
+  });
+}
+
+export function useRiskAssessment(sowId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: aiAnalysisKeys.riskAssessment(sowId ?? ""),
+    queryFn: () => sowApi.getRiskAssessment(sowId!),
+    enabled: !!sowId && enabled,
   });
 }
 

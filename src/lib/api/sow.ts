@@ -235,7 +235,7 @@ export const sowApi = {
    * to that role.
    */
   listSowsAsAdmin(): Promise<BaseResponse> {
-    return sowCall<BaseResponse>("/api/v1/sows");
+    return sowCall<BaseResponse>("/api/v1/sows/enterprise/all");
   },
 
   getSow(sowId: string): Promise<BaseResponse> {
@@ -247,11 +247,11 @@ export const sowApi = {
   },
 
   getHallucinationAnalysis(sowId: string): Promise<BaseResponse> {
-    return sowCall<BaseResponse>(`/api/v1/sows/${sowId}/hallucination-analysis`);
+    return sowCall<BaseResponse>(`/api/v1/sows/${sowId}/hallucination-analysis`, "GET", undefined, false, true);
   },
 
   getRiskAssessment(sowId: string): Promise<BaseResponse> {
-    return sowCall<BaseResponse>(`/api/v1/sows/${sowId}/risk-assessment`);
+    return sowCall<BaseResponse>(`/api/v1/sows/${sowId}/risk-assessment`, "GET", undefined, false, true);
   },
 
   // ── Approval Pipeline ──
@@ -265,6 +265,8 @@ export const sowApi = {
       `/api/v1/approvals/${sowId}/stage/${stage}/decide`,
       "POST",
       payload,
+      false,
+      true, // use enterprise token — approval is an enterprise-scoped action
     );
   },
 
@@ -400,8 +402,8 @@ export const sowApi = {
     return sowCall<BaseResponse>(`/api/v1/sow/${sowId}/commercial-details/${section}`, "PATCH", data);
   },
 
-  validateCommercialSection(sowId: string, section: string): Promise<BaseResponse> {
-    return sowCall<BaseResponse>(`/api/v1/sow/${sowId}/commercial-details/${section}/validate`, "POST");
+  validateCommercialSection(sowId: string, section: string, data: Record<string, unknown>): Promise<BaseResponse> {
+    return sowCall<BaseResponse>(`/api/v1/sow/${sowId}/commercial-details/${section}/validate`, "POST", data);
   },
 
   markSectionComplete(sowId: string, section: string): Promise<BaseResponse> {

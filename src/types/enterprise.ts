@@ -804,7 +804,7 @@ export interface ApprovalAuthorities {
   sowSubmitter?: string;
   businessOwnerApprover: string;
   finalApprover: string;
-  legalReviewer?: string;
+  legalComplianceReviewer?: string;
   securityReviewer?: string;
 }
 
