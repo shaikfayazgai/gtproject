@@ -225,8 +225,12 @@ React.useEffect(() => {
           >
             <Search className="w-[13px] h-[13px] shrink-0 text-gray-400" />
             <input
-              type="text"
+              type="search"
+              name="global-search"
               placeholder="Search everything…"
+              autoComplete="off"
+              data-1p-ignore="true"
+              data-lpignore="true"
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
               className="border-none outline-none bg-transparent w-full text-[13px] text-gray-700 placeholder:text-gray-400"
