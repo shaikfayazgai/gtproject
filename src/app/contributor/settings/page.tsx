@@ -815,6 +815,8 @@ export default function SettingsPage() {
                 <label className="text-[11px] font-medium text-gray-500 block mb-1.5">Current Password</label>
                 <input
                   type="password"
+                  name="current-password"
+                  autoComplete="current-password"
                   placeholder="Enter current password"
                   value={currentPassword}
                   onChange={(e) => { setCurrentPassword(e.target.value); setPasswordError(null); }}
@@ -826,6 +828,8 @@ export default function SettingsPage() {
                 <label className="text-[11px] font-medium text-gray-500 block mb-1.5">New Password</label>
                 <input
                   type="password"
+                  name="new-password"
+                  autoComplete="new-password"
                   placeholder="Min. 8 characters"
                   value={newPassword}
                   onChange={(e) => { setNewPassword(e.target.value); setPasswordError(null); }}
@@ -837,6 +841,8 @@ export default function SettingsPage() {
                 <label className="text-[11px] font-medium text-gray-500 block mb-1.5">Confirm New Password</label>
                 <input
                   type="password"
+                  name="confirm-new-password"
+                  autoComplete="new-password"
                   placeholder="Re-enter new password"
                   value={confirmPassword}
                   onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(null); }}

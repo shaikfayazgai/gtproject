@@ -1514,9 +1514,9 @@ export default function EarningsPage() {
           const earnedAt     = e.earned_at     ?? e.earnedAt     ?? "";
           const paidAt       = e.paid_at       ?? e.paidAt       ?? null;
           const payoutRef    = e.payout_id     ?? e.payoutId     ?? e.payout_ref ?? null;
-          const rateCard     = e.rate_card     ?? e.rateCard     ?? (task ? task.pricing.model : null);
-          const rate         = e.rate          ?? (task ? task.pricing.amount : gross);
-          const effort       = e.effort        ?? e.estimated_hours ?? (task ? `${task.estimatedHours} hours` : null);
+          const rateCard     = e.rate_card     ?? e.rateCard     ?? task?.pricing?.model  ?? null;
+          const rate         = e.rate          ?? task?.pricing?.amount ?? gross;
+          const effort       = e.effort        ?? e.estimated_hours ?? (task?.estimatedHours != null ? `${task.estimatedHours} hours` : null);
           const taskLink     = e.task_id       ?? e.taskId       ?? (task ? task.id : null);
           const notes        = e.notes         ?? e.description  ?? null;
 
