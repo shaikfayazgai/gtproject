@@ -9,10 +9,11 @@ export function getContributorAccessToken(session: Session | null | undefined): 
   if (!session?.user) return null;
   const token = session.user.accessToken;
   if (typeof token === "string" && token.length > 0) return token;
-  // Dev fallback: SSO sign-ins that hit the MFA-pending bypass land here with
-  // an empty Glimmora API token. Returning a placeholder lets contributor pages
-  // proceed past their `if (!token) return;` guards so the mock layer
-  // (NEXT_PUBLIC_USE_CONTRIBUTOR_MOCKS, on by default in dev) can respond.
-  if (process.env.NODE_ENV !== "production") return "dev-contributor-placeholder";
+  // Return a placeholder when the mock layer is active so contributor pages
+  // proceed past their `if (!token) return;` guards.
+  const mocksEnabled =
+    process.env.NEXT_PUBLIC_USE_CONTRIBUTOR_MOCKS === "true" ||
+    (process.env.NEXT_PUBLIC_USE_CONTRIBUTOR_MOCKS !== "false" && process.env.NODE_ENV !== "production");
+  if (mocksEnabled) return "dev-contributor-placeholder";
   return null;
 }
