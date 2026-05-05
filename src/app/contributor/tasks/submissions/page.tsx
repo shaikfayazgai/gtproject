@@ -143,7 +143,7 @@ export default function SubmissionsPage() {
 
   React.useEffect(() => {
     if (sessionStatus === "authenticated") {
-      load(getContributorAccessToken(session));
+      load(getContributorAccessToken(session) ?? "");
     } else if (sessionStatus === "unauthenticated") {
       setLoading(false);
       setError("Not authenticated.");

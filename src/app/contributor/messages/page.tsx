@@ -225,7 +225,7 @@ export default function MessagesPage() {
 
   React.useEffect(() => {
     if (sessionStatus === "authenticated") {
-      loadThreads(getContributorAccessToken(session));
+      loadThreads(getContributorAccessToken(session) ?? "");
     } else if (sessionStatus === "unauthenticated") {
       setLoadingThreads(false);
       setThreadsError("Not authenticated.");

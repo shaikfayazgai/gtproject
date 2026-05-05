@@ -720,7 +720,7 @@ export default function SOWDetailPage() {
   // Normalise risk assessment API response → { overall, completeness, confidence, compliance, patternMatch }
   const apiRiskBreakdown = React.useMemo(() => {
     if (!riskAssessmentApiData) return null;
-    const raw = riskAssessmentApiData as Record<string, unknown>;
+    const raw = riskAssessmentApiData as unknown as Record<string, unknown>;
     // Unwrap { success, data } wrapper if present
     const d = (typeof raw.data === "object" && raw.data !== null
       ? raw.data
@@ -1727,6 +1727,7 @@ export default function SOWDetailPage() {
                             failed: { badge: "brown" as const, icon: X, label: "Failed" },
                             skipped: { badge: "beige" as const, icon: Clock, label: "Skipped" },
                           }[layer.status];
+                          if (!statusConfig) return null;
                           return (
                             <div key={layer.layer} className="flex items-start gap-3 p-3 rounded-xl bg-beige-50/50 border border-beige-200/30">
                               <div className={cn(

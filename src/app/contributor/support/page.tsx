@@ -1647,7 +1647,7 @@ type FormId = "ticket" | "grievance" | "safety" | null;
 export default function SupportPage() {
   const { data: session, status: sessionStatus } = useSession();
   const tokenRef = React.useRef<string>("");
-  tokenRef.current = getContributorAccessToken(session);
+  tokenRef.current = getContributorAccessToken(session) ?? "";
   const token = tokenRef.current;
 
   const [activeTab,            setActiveTab]            = React.useState<TabId>("help");

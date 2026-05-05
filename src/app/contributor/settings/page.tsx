@@ -185,7 +185,7 @@ export default function SettingsPage() {
   const toggleNotif = async (key: NotifKey) => {
     if (!notifPrefs || savingNotif) return;
 
-    const token = getContributorAccessToken(session);
+    const token = getContributorAccessToken(session) ?? "";
 
     // Optimistic update
     const next = { ...notifPrefs, [key]: !notifPrefs[key] };
@@ -335,7 +335,7 @@ export default function SettingsPage() {
 
     if (twoFaEnabled) return; // already enabled — just show status
 
-    const token = getContributorAccessToken(session);
+    const token = getContributorAccessToken(session) ?? "";
 
     setIsSettingUp2FA(true);
     try {
@@ -891,7 +891,7 @@ export default function SettingsPage() {
                 <button
                   disabled={isDisabling2FA || !disablePassword || disableOtp.length < 6}
                   onClick={async () => {
-                    const token = getContributorAccessToken(session);
+                    const token = getContributorAccessToken(session) ?? "";
                     setIsDisabling2FA(true);
                     try {
                       const updated = await disable2FA(token, {
@@ -921,7 +921,7 @@ export default function SettingsPage() {
                 <button
                   disabled={isSettingUp2FA || isVerifying2FA || twoFaCode.length < 6}
                   onClick={async () => {
-                    const token = getContributorAccessToken(session);
+                    const token = getContributorAccessToken(session) ?? "";
                     setIsVerifying2FA(true);
                     try {
                       const updated = await verify2FA(token, twoFaCode);
@@ -1035,7 +1035,7 @@ export default function SettingsPage() {
                   !deactivateReason.trim()
                 }
                 onClick={async () => {
-                  const token = getContributorAccessToken(session);
+                  const token = getContributorAccessToken(session) ?? "";
                   setIsDeactivating(true);
                   try {
                     await deactivateAccount(token, {

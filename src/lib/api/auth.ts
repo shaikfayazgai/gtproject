@@ -82,6 +82,24 @@ export interface TokenPair {
   token_type: string;
 }
 
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * Extracts the authorization URL from the contributor workspace OAuth authorize
+ * endpoint response. The API may return a plain string or a JSON object with
+ * a url / authorize_url / authorization_url / redirect_url field.
+ */
+export function parseContributorWorkspaceAuthorizeResponse(raw: unknown): string | null {
+  if (typeof raw === "string" && raw.startsWith("http")) return raw;
+  if (raw && typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    const url =
+      obj.url ?? obj.authorize_url ?? obj.authorization_url ?? obj.redirect_url ?? obj.authorizeUrl;
+    if (typeof url === "string") return url;
+  }
+  return null;
+}
+
 // ── Type guard ─────────────────────────────────────────────────────────────
 
 export function isMfaPending(response: LoginResponse): response is MfaPendingResponse {
@@ -96,19 +114,6 @@ export function isMfaVerifyPending(response: LoginResponse): boolean {
 // ── Auth API ───────────────────────────────────────────────────────────────
 
 export const authApi = {
-  /**
-   * Build the URL that starts a Google or Microsoft sign-in. Open via top-level
-   * browser navigation (window.location.href) — the backend returns 302 → IdP
-   * login page, then handles the OAuth dance and redirects back to
-   * /auth/oauth/callback with tokens (or an MFA prompt) in the query string.
-   * Do NOT call this with fetch() — fetch follows redirects opaquely and the
-   * user must land on the IdP's page directly.
-   */
-  getOAuthAuthorizeUrl(provider: "google" | "microsoft"): string {
-    const baseUrl = process.env.NEXT_PUBLIC_GLIMMORA_API_URL ?? "";
-    return `${baseUrl}/api/v1/auth/oauth/${provider}/authorize`;
-  },
-
   /**
    * Microsoft OAuth diagnostic — returns the exact redirect URI the backend
    * expects to be registered in Azure App Registration, plus tenant config

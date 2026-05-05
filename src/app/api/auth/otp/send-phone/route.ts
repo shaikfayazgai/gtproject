@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomInt } from "node:crypto";
+import { SignJWT } from "jose";
 
 function getSecret() {
   const s = process.env.AUTH_SECRET;
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const code = String(crypto.randomInt(100000, 999999));
+    const code = String(randomInt(100000, 999999));
     const expiresAt = Date.now() + 5 * 60 * 1000;
     const token = await new SignJWT({ phone: normalized.e164, code, expiresAt })
       .setProtectedHeader({ alg: "HS256" })

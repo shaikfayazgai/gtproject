@@ -231,7 +231,7 @@ export default function SubmissionDetailPage() {
       setError("Not authenticated.");
       return;
     }
-    const token = getContributorAccessToken(session);
+    const token = getContributorAccessToken(session) ?? "";
 
     setLoading(true);
     setError(null);

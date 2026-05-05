@@ -111,7 +111,7 @@ export function TopBar({ config }: TopBarProps) {
   const sowDetailQuery = useManualSOW(uuidSegment);
   const sowTitle = React.useMemo(() => {
     if (!sowDetailQuery.data) return null;
-    const d = sowDetailQuery.data as Record<string, unknown>;
+    const d = sowDetailQuery.data as unknown as Record<string, unknown>;
     const inner = (d.data ?? d) as Record<string, unknown>;
     return (inner.title ?? inner.project_title ?? inner.name ?? null) as string | null;
   }, [sowDetailQuery.data]);
