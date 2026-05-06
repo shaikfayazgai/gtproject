@@ -303,6 +303,7 @@ export default function SOWDetailPage() {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const [isDecomposing, setIsDecomposing] = React.useState(false);
+  const [decompositionStarted, setDecompositionStarted] = React.useState(false);
   const allSows = useSowStore((s) => s.sows);
   const addSow = useSowStore((s) => s.addSow);
   const updateSow = useSowStore((s) => s.updateSow);
@@ -517,14 +518,16 @@ export default function SOWDetailPage() {
         (res.data as Record<string, unknown> | null)?.plan_id ?? ""
       );
       await queryClient.invalidateQueries({ queryKey: ["enterprise", "decomposition", "plans"] });
-      router.push(planId ? `/enterprise/decomposition/${planId}` : "/enterprise/decomposition");
+      if (planId) updateSow(sowId, { planId });
+      setDecompositionStarted(true);
+      router.push("/enterprise/decomposition");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to start decomposition";
       toast.error("Decomposition failed", msg);
     } finally {
       setIsDecomposing(false);
     }
-  }, [isDecomposing, apiSowData, sowId, session, sow, router, queryClient]);
+  }, [isDecomposing, apiSowData, sowId, session, sow, router, queryClient, updateSow]);
 
   const linkedProject = sow ? mockProjects.find((p) => p.sowId === sow.id) : undefined;
 
@@ -720,7 +723,7 @@ export default function SOWDetailPage() {
   // Normalise risk assessment API response → { overall, completeness, confidence, compliance, patternMatch }
   const apiRiskBreakdown = React.useMemo(() => {
     if (!riskAssessmentApiData) return null;
-    const raw = riskAssessmentApiData as Record<string, unknown>;
+    const raw = riskAssessmentApiData as unknown as Record<string, unknown>;
     // Unwrap { success, data } wrapper if present
     const d = (typeof raw.data === "object" && raw.data !== null
       ? raw.data
@@ -1727,6 +1730,7 @@ export default function SOWDetailPage() {
                             failed: { badge: "brown" as const, icon: X, label: "Failed" },
                             skipped: { badge: "beige" as const, icon: Clock, label: "Skipped" },
                           }[layer.status];
+                          if (!statusConfig) return null;
                           return (
                             <div key={layer.layer} className="flex items-start gap-3 p-3 rounded-xl bg-beige-50/50 border border-beige-200/30">
                               <div className={cn(
@@ -2312,12 +2316,12 @@ export default function SOWDetailPage() {
                       </div>
                       {sow.planId ? (
                         <Link
-                          href={`/enterprise/decomposition/${sow.planId}`}
+                          href={`/enterprise/decomposition`}
                           className="flex items-center gap-1.5 shrink-0 px-4 py-2 rounded-xl text-[12px] font-semibold text-white transition-all"
                           style={{ background: "linear-gradient(135deg,#2A6068,#1D4A50)", boxShadow: "0 2px 8px rgba(42,96,104,0.30)" }}
                         >
                           <GitBranch className="w-3.5 h-3.5" />
-                          View Plan
+                          View Decomposition
                         </Link>
                       ) : sow.intakeMode === "ai_generated" ? (
                         <button
@@ -2327,7 +2331,7 @@ export default function SOWDetailPage() {
                           style={{ background: "linear-gradient(135deg,#2A6068,#1D4A50)", boxShadow: "0 2px 8px rgba(42,96,104,0.30)" }}
                         >
                           <GitBranch className="w-3.5 h-3.5" />
-                          {isDecomposing ? "Starting…" : "Start Decomposition"}
+                          {isDecomposing ? "Starting…" : decompositionStarted ? "View Decomposition" : "Start Decomposition"}
                         </button>
                       ) : (
                         <Link

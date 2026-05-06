@@ -121,7 +121,7 @@ export default function LearningPage() {
 
   /* Keep a ref so callbacks always have the latest token without re-creating them */
   const tokenRef = React.useRef<string>("");
-  tokenRef.current = getContributorAccessToken(session);
+  tokenRef.current = getContributorAccessToken(session) ?? "";
 
   /* filters */
   const [filterType,     setFilterType]     = React.useState("");
@@ -150,7 +150,7 @@ export default function LearningPage() {
 
   React.useEffect(() => {
     if (sessionStatus === "authenticated") {
-      load(getContributorAccessToken(session));
+      load(getContributorAccessToken(session) ?? "");
     } else if (sessionStatus === "unauthenticated") {
       setLoading(false);
       setError("Not authenticated. Please log in.");

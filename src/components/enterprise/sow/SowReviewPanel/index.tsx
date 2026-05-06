@@ -19,6 +19,8 @@ import type {
 const TABS = [
   { key: "sow",           label: "Generated SOW" },
   { key: "hallucination", label: "Hallucination Analysis" },
+  { key: "risk",          label: "Risk Assessment" },
+  { key: "traceability",  label: "Traceability" },
 ] as const;
 type TabKey = typeof TABS[number]["key"];
 

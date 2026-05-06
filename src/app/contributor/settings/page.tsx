@@ -186,7 +186,7 @@ export default function SettingsPage() {
   const toggleNotif = async (key: NotifKey) => {
     if (!notifPrefs || savingNotif) return;
 
-    const token = getContributorAccessToken(session);
+    const token = getContributorAccessToken(session) ?? "";
 
     // Optimistic update
     const next = { ...notifPrefs, [key]: !notifPrefs[key] };
@@ -336,7 +336,7 @@ export default function SettingsPage() {
 
     if (twoFaEnabled) return; // already enabled — just show status
 
-    const token = getContributorAccessToken(session);
+    const token = getContributorAccessToken(session) ?? "";
 
     setIsSettingUp2FA(true);
     try {
@@ -815,6 +815,8 @@ export default function SettingsPage() {
                 <label className="text-[11px] font-medium text-gray-500 block mb-1.5">Current Password</label>
                 <input
                   type="password"
+                  name="current-password"
+                  autoComplete="current-password"
                   placeholder="Enter current password"
                   value={currentPassword}
                   onChange={(e) => { setCurrentPassword(e.target.value); setPasswordError(null); }}
@@ -826,6 +828,8 @@ export default function SettingsPage() {
                 <label className="text-[11px] font-medium text-gray-500 block mb-1.5">New Password</label>
                 <input
                   type="password"
+                  name="new-password"
+                  autoComplete="new-password"
                   placeholder="Min. 8 characters"
                   value={newPassword}
                   onChange={(e) => { setNewPassword(e.target.value); setPasswordError(null); }}
@@ -837,6 +841,8 @@ export default function SettingsPage() {
                 <label className="text-[11px] font-medium text-gray-500 block mb-1.5">Confirm New Password</label>
                 <input
                   type="password"
+                  name="confirm-new-password"
+                  autoComplete="new-password"
                   placeholder="Re-enter new password"
                   value={confirmPassword}
                   onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(null); }}
@@ -992,7 +998,7 @@ export default function SettingsPage() {
                 <button
                   disabled={isDisabling2FA || !disablePassword || disableOtp.length < 6}
                   onClick={async () => {
-                    const token = getContributorAccessToken(session);
+                    const token = getContributorAccessToken(session) ?? "";
                     setIsDisabling2FA(true);
                     try {
                       const updated = await disable2FA(token, {
@@ -1022,7 +1028,7 @@ export default function SettingsPage() {
                 <button
                   disabled={isSettingUp2FA || isVerifying2FA || twoFaCode.length < 6}
                   onClick={async () => {
-                    const token = getContributorAccessToken(session);
+                    const token = getContributorAccessToken(session) ?? "";
                     setIsVerifying2FA(true);
                     try {
                       const updated = await verify2FA(token, twoFaCode);
@@ -1136,7 +1142,7 @@ export default function SettingsPage() {
                   !deactivateReason.trim()
                 }
                 onClick={async () => {
-                  const token = getContributorAccessToken(session);
+                  const token = getContributorAccessToken(session) ?? "";
                   setIsDeactivating(true);
                   try {
                     await deactivateAccount(token, {

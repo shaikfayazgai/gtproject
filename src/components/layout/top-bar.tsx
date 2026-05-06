@@ -191,7 +191,7 @@ export function TopBar({ config }: TopBarProps) {
   const sowDetailQuery = useManualSOW(uuidSegment);
   const sowTitle = React.useMemo(() => {
     if (!sowDetailQuery.data) return null;
-    const d = sowDetailQuery.data as Record<string, unknown>;
+    const d = sowDetailQuery.data as unknown as Record<string, unknown>;
     const inner = (d.data ?? d) as Record<string, unknown>;
     return (inner.title ?? inner.project_title ?? inner.name ?? null) as string | null;
   }, [sowDetailQuery.data]);
@@ -291,80 +291,32 @@ React.useEffect(() => {
 
         <div className="flex items-center gap-2.5">
           {/* Search */}
-          <div ref={searchContainerRef} className="relative hidden md:block">
-            <div
-              className={cn(
-                "relative flex items-center gap-2 rounded-full transition-all duration-300",
-                searchFocused ? "w-72" : "w-52",
-              )}
-              style={{
-                background: searchFocused ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.55)",
-                border: searchFocused ? "1px solid rgba(0,0,0,0.10)" : "1px solid rgba(0,0,0,0.06)",
-                padding: "6px 14px",
-                boxShadow: searchFocused ? "0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.5)" : "inset 0 1px 0 rgba(255,255,255,0.5)",
-              }}
-            >
-              <Search className="w-[13px] h-[13px] shrink-0 text-gray-400" />
-              <input
-                type="text"
-                placeholder={isContributor ? "Search tasks, learning…" : "Search everything…"}
-                value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
-                onFocus={() => { setSearchFocused(true); setSearchOpen(true); }}
-                onBlur={() => setSearchFocused(false)}
-                disabled={!isContributor}
-                className="border-none outline-none bg-transparent w-full text-[13px] text-gray-700 placeholder:text-gray-400 disabled:cursor-not-allowed"
-              />
-              {searchLoading ? (
-                <Loader2 className="w-3 h-3 shrink-0 text-gray-400 animate-spin" />
-              ) : !searchFocused ? (
-                <kbd className="font-mono whitespace-nowrap shrink-0 text-[9px] text-gray-400 bg-black/[0.04] border border-black/[0.06] px-1.5 py-px rounded">⌘K</kbd>
-              ) : null}
-            </div>
-
-            {/* Results dropdown */}
-            {isContributor && searchOpen && searchQuery.trim().length >= 2 && (
-              <div
-                className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 max-h-96 overflow-y-auto rounded-xl bg-white border border-black/[0.08] shadow-lg"
-                style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.10)" }}
-              >
-                {searchLoading && searchResults === null ? (
-                  <div className="px-4 py-6 text-center text-[12px] text-gray-400">Searching…</div>
-                ) : searchResults && searchResults.length === 0 ? (
-                  <div className="px-4 py-6 text-center text-[12px] text-gray-400">
-                    No matches for &ldquo;{searchQuery.trim()}&rdquo;
-                  </div>
-                ) : searchResults && searchResults.length > 0 ? (
-                  <ul className="py-1">
-                    {searchResults.map((r) => {
-                      const Icon = ResultIcon(r.type);
-                      return (
-                        <li key={`${r.type}-${r.id}`}>
-                          <button
-                            type="button"
-                            onClick={() => handleResultClick(r)}
-                            disabled={!r.url}
-                            className="w-full flex items-start gap-2.5 px-3.5 py-2.5 text-left hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
-                          >
-                            <div className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center shrink-0 mt-0.5">
-                              <Icon className="w-3.5 h-3.5 text-gray-400" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[13px] font-medium text-gray-800 truncate">{r.title}</p>
-                              {r.subtitle && (
-                                <p className="text-[11px] text-gray-400 truncate mt-0.5">{r.subtitle}</p>
-                              )}
-                            </div>
-                            <span className="text-[10px] uppercase tracking-wide font-semibold text-gray-300 shrink-0 mt-1">
-                              {r.type}
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : null}
-              </div>
+          <div
+            className={cn(
+              "relative hidden md:flex items-center gap-2 rounded-full transition-all duration-300",
+              searchFocused ? "w-60" : "w-52"
+            )}
+            style={{
+              background: searchFocused ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.55)",
+              border: searchFocused ? "1px solid rgba(0,0,0,0.10)" : "1px solid rgba(0,0,0,0.06)",
+              padding: "6px 14px",
+              boxShadow: searchFocused ? "0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.5)" : "inset 0 1px 0 rgba(255,255,255,0.5)",
+            }}
+          >
+            <Search className="w-[13px] h-[13px] shrink-0 text-gray-400" />
+            <input
+              type="search"
+              name="global-search"
+              placeholder="Search everything…"
+              autoComplete="off"
+              data-1p-ignore="true"
+              data-lpignore="true"
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              className="border-none outline-none bg-transparent w-full text-[13px] text-gray-700 placeholder:text-gray-400"
+            />
+            {!searchFocused && (
+              <kbd className="font-mono whitespace-nowrap shrink-0 text-[9px] text-gray-400 bg-black/[0.04] border border-black/[0.06] px-1.5 py-px rounded">⌘K</kbd>
             )}
           </div>
 
