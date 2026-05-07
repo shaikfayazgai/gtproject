@@ -301,14 +301,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid path" }, { status: 400 });
     }
 
-    const res = await fetch(`${GLIMMORA_API}${path}`, {
-      method: method || "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      ...(payload ? { body: JSON.stringify(payload) } : {}),
-    });
+    const backendFetch = (t: string) =>
+      fetch(`${GLIMMORA_API}${path}`, {
+        method: method || "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${t}`,
+        },
+        ...(payload ? { body: JSON.stringify(payload) } : {}),
+      });
+
+    let res = await backendFetch(token);
+
+    // On 401 the cached token has expired — bust the cache and retry once
+    // with a freshly acquired enterprise token.
+    if (res.status === 401) {
+      cachedToken = null;
+      const freshToken = await acquireEnterpriseToken();
+      if (freshToken) {
+        token = freshToken;
+        tokenSource = "enterprise-service-fallback-retry";
+        res = await backendFetch(freshToken);
+      }
+    }
 
     const data = await res.json().catch(() => ({}));
 

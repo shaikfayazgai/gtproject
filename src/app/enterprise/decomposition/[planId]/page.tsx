@@ -12,7 +12,7 @@ import {
   ClipboardList, History, Package, RotateCcw, TrendingUp, CreditCard, Users, BarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { fetchInternal } from "@/lib/api/client";
+import { fetchInternal, ApiError } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui";
 import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
 import type {
@@ -487,7 +487,7 @@ export default function PlanDetailPage() {
     }
     if (raw && (raw._id || raw.id || raw.plan_id)) {
       return {
-        id: (raw._id ?? raw.id ?? raw.plan_id ?? planId) as string,
+        id: (raw.plan_id ?? raw.id ?? raw._id ?? planId) as string,
         sowId: (raw.sow_id ?? raw.sowId ?? raw.sow_reference ?? "") as string,
         title: (raw.title ?? raw.project_name ?? "Untitled Plan") as string,
         status: normalizeStatus((raw.status ?? "draft") as string),
@@ -511,11 +511,22 @@ export default function PlanDetailPage() {
     return null;
   }, [apiPlanRes, planId]);
 
+  // Extract the raw plan object once — reused by tasks and milestones below
+  const planRaw = React.useMemo<Record<string, unknown> | null>(() => {
+    const resp = apiPlanRes as unknown;
+    if (!resp || typeof resp !== "object") return null;
+    const obj = resp as Record<string, unknown>;
+    if (obj.data && typeof obj.data === "object" && !Array.isArray(obj.data)) return obj.data as Record<string, unknown>;
+    if (obj.plan_id || obj._id || obj.id) return obj;
+    return null;
+  }, [apiPlanRes]);
+
   const tasks: DecompositionTask[] = React.useMemo(() => {
     if (!plan) return [];
-    // Handle both {data: {tasks: [...]}} and direct {tasks: [...]}
-    const resp = apiTasksRes as unknown;
-    const raw = (resp && typeof resp === "object" && (resp as Record<string, unknown>).data)
+    // Prefer tasks embedded in the plan response; fall back to separate endpoint
+    const fromPlan = planRaw?.tasks ?? planRaw?.task_list;
+    const resp = fromPlan ?? (apiTasksRes as unknown);
+    const raw = (!fromPlan && resp && typeof resp === "object" && (resp as Record<string, unknown>).data)
       ? (resp as Record<string, unknown>).data
       : resp;
     const arr = (Array.isArray(raw) ? raw : (raw as Record<string, unknown> | null)?.tasks ?? null) as Record<string, unknown>[] | null;
@@ -530,7 +541,7 @@ export default function PlanDetailPage() {
             : [];
 
         return {
-          id: String(t._id ?? t.id ?? t.task_id ?? ""),
+          id: String(t.task_id ?? t.id ?? t._id ?? ""),
           planId: (t.plan_id ?? t.planId ?? planId) as string,
           milestoneId: (t.milestone_id ?? t.milestoneId ?? t.milestone ?? "") as string,
           title: (t.title ?? t.task_name ?? "") as string,
@@ -551,22 +562,23 @@ export default function PlanDetailPage() {
       });
     }
     return [];
-  }, [apiTasksRes, plan, planId]);
+  }, [apiTasksRes, planRaw, plan, planId]);
 
   const milestones: PlanMilestone[] = React.useMemo(() => {
     if (!plan) return [];
-    // Handle both {data: {milestones: {...}}} and direct {milestones: {...}}
-    const resp = apiMilestonesRes as unknown;
-    const raw = (resp && typeof resp === "object" && (resp as Record<string, unknown>).data)
+    // Prefer milestones embedded in the plan response; fall back to separate endpoint
+    const fromPlan = planRaw?.milestones ?? planRaw?.milestone_list;
+    const resp = fromPlan ?? (apiMilestonesRes as unknown);
+    const raw = (!fromPlan && resp && typeof resp === "object" && (resp as Record<string, unknown>).data)
       ? (resp as Record<string, unknown>).data
       : resp;
     // Backend can return: {milestones: {M1: [...tasks], M2: [...]}} (dict) or [{...}, {...}] (array)
-    const milestonesRaw = (raw as Record<string, unknown> | null)?.milestones ?? raw;
+    const milestonesRaw = fromPlan ?? (raw as Record<string, unknown> | null)?.milestones ?? raw;
 
     // Case 1: Array of milestone objects
     if (Array.isArray(milestonesRaw) && milestonesRaw.length > 0) {
       return milestonesRaw.map((m: Record<string, unknown>) => ({
-        id: (m._id ?? m.id ?? "") as string,
+        id: (m.milestone_id ?? m.id ?? m._id ?? "") as string,
         planId: (m.plan_id ?? m.planId ?? planId) as string,
         title: (m.title ?? "") as string,
         description: (m.description ?? "") as string,
@@ -601,10 +613,76 @@ export default function PlanDetailPage() {
     }
 
     return [];
-  }, [apiMilestonesRes, plan, planId]);
+  }, [apiMilestonesRes, planRaw, plan, planId]);
 
   const sowTitle = plan?.sowId ?? "";
   const recommendations: AIRecommendation[] = [];
+
+  // ── All hooks must be declared before any early return ──
+  const { holdProject } = useProjectHoldStore();
+  const { push: pushNotification } = useNotificationStore();
+  const { data: session } = useSession();
+
+  const [expandedMilestones, setExpandedMilestones] = React.useState<Set<string>>(new Set());
+  const [expandedTasks, setExpandedTasks] = React.useState<Set<string>>(new Set());
+  const [dismissedRecs, setDismissedRecs] = React.useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = React.useState<"list" | "gantt">("list");
+  const [activeTab, setActiveTab] = React.useState(() => searchParams.get("tab") ?? "project_plan");
+  const [aiGenerating, setAiGenerating] = React.useState(() => searchParams.get("ai") === "generating");
+  const [checkedItems, setCheckedItems] = React.useState<Set<number>>(new Set());
+
+  // Expand first 2 milestones once data loads
+  React.useEffect(() => {
+    if (milestones.length > 0) {
+      setExpandedMilestones(new Set(milestones.slice(0, 2).map((m) => m.id)));
+    }
+  }, [milestones.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Seed dismissed recs from data
+  React.useEffect(() => {
+    setDismissedRecs(new Set(recommendations.filter((r) => r.dismissed).map((r) => r.id)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* ── AI generation timer ── */
+  React.useEffect(() => {
+    if (!aiGenerating || !plan) return;
+
+    const timer = setTimeout(() => {
+      setAiGenerating(false);
+
+      pushNotification({
+        title: "AI Decomposition Complete",
+        body: `Task breakdown for "${plan.title}" is ready. Review your milestones and tasks.`,
+        severity: "medium",
+        href: `/enterprise/decomposition/${plan.id}`,
+      });
+
+      toast.success("AI Decomposition Complete", `Task breakdown for "${plan.title}" is ready.`);
+
+      const userEmail = session?.user?.email;
+      if (userEmail) {
+        fetchInternal("/api/email/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: "sow_stage_approved",
+            subject: `AI Task Breakdown Ready — ${plan.title}`,
+            payload: {
+              stageName: "AI Decomposition",
+              projectTitle: plan.title,
+              approvedBy: session?.user?.name ?? "Glimmora AI",
+              comments: "Your project has been decomposed into milestones and tasks. Please review the breakdown and proceed.",
+            },
+            to: userEmail,
+          }),
+        }).catch(() => {});
+      }
+    }, 20_000);
+
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiGenerating]);
 
   /* ── Loading skeleton ── */
   if (planLoading) {
@@ -682,22 +760,23 @@ export default function PlanDetailPage() {
 
   /* ── Error state ── */
   if (planError) {
+    const is404 = planErrorObj instanceof ApiError && planErrorObj.status === 404;
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center px-6">
         <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center mb-4">
           <AlertTriangle className="w-6 h-6 text-red-500" />
         </div>
-        <p className="text-sm font-semibold text-gray-800 mb-1">Failed to load plan</p>
-        <p className="text-xs text-gray-500 max-w-md mb-3">
-          {planErrorObj instanceof Error ? planErrorObj.message : "Unknown error"}
+        <p className="text-sm font-semibold text-gray-800 mb-1">
+          {is404 ? "Plan not found" : "Failed to load plan"}
         </p>
-        <p className="text-xs text-gray-400">Plan ID: {planId}</p>
-        <details className="text-left w-full max-w-lg mt-3">
-          <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Debug info</summary>
-          <pre className="mt-2 p-3 bg-gray-50 rounded-lg text-[10px] text-gray-600 overflow-auto max-h-40">
-            {JSON.stringify({ error: planErrorObj, response: apiPlanRes }, null, 2)}
-          </pre>
-        </details>
+        <p className="text-xs text-gray-500 max-w-md mb-4">
+          {is404
+            ? "This decomposition plan no longer exists or you don't have access to it."
+            : planErrorObj instanceof Error ? planErrorObj.message : "Unknown error"}
+        </p>
+        <Link href="/enterprise/decomposition" className="text-sm text-brown-500 hover:text-brown-600 font-medium">
+          Back to plans
+        </Link>
       </div>
     );
   }
@@ -714,59 +793,6 @@ export default function PlanDetailPage() {
   }
 
   const effectiveProjectId = (plan as { projectId?: string }).projectId ?? "proj-001";
-  const { holdProject } = useProjectHoldStore();
-
-  const [expandedMilestones, setExpandedMilestones] = React.useState<Set<string>>(() => new Set(milestones.slice(0, 2).map((m) => m.id)));
-  const [expandedTasks, setExpandedTasks] = React.useState<Set<string>>(new Set());
-  const [dismissedRecs, setDismissedRecs] = React.useState<Set<string>>(() => new Set(recommendations.filter((r) => r.dismissed).map((r) => r.id)));
-  const [viewMode, setViewMode] = React.useState<"list" | "gantt">("list");
-  const [activeTab, setActiveTab] = React.useState(() => searchParams.get("tab") ?? "project_plan");
-  const [aiGenerating, setAiGenerating] = React.useState(() => searchParams.get("ai") === "generating");
-  const { push: pushNotification } = useNotificationStore();
-  const { data: session } = useSession();
-
-  /* ── 60s AI generation timer ── */
-  React.useEffect(() => {
-    if (!aiGenerating) return;
-
-    const timer = setTimeout(() => {
-      setAiGenerating(false);
-
-      // In-app notification
-      pushNotification({
-        title: "AI Decomposition Complete",
-        body: `Task breakdown for "${plan.title}" is ready. Review your milestones and tasks.`,
-        severity: "medium",
-        href: `/enterprise/decomposition/${plan.id}`,
-      });
-
-      // Toast
-      toast.success("AI Decomposition Complete", `Task breakdown for "${plan.title}" is ready.`);
-
-      // Email notification (fire-and-forget)
-      const userEmail = session?.user?.email;
-      if (userEmail) {
-        fetchInternal("/api/email/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            event: "sow_stage_approved",
-            subject: `AI Task Breakdown Ready — ${plan.title}`,
-            payload: {
-              stageName: "AI Decomposition",
-              projectTitle: plan.title,
-              approvedBy: session?.user?.name ?? "Glimmora AI",
-              comments: "Your project has been decomposed into milestones and tasks. Please review the breakdown and proceed.",
-            },
-            to: userEmail,
-          }),
-        }).catch(() => {/* silent */});
-      }
-    }, 20_000);
-
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiGenerating]);
 
   const toggleMilestone = (id: string) => setExpandedMilestones((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleTask = (id: string) => setExpandedTasks((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -784,7 +810,6 @@ export default function PlanDetailPage() {
     "I confirm the project timeline fits within the SOW dates.",
     "I confirm the required skills and seniority levels match the project needs.",
   ];
-  const [checkedItems, setCheckedItems] = React.useState<Set<number>>(new Set());
   const toggleCheck = (i: number) => setCheckedItems((p) => { const n = new Set(p); n.has(i) ? n.delete(i) : n.add(i); return n; });
 
   return (

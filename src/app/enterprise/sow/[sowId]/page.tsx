@@ -468,7 +468,7 @@ export default function SOWDetailPage() {
         industry: raw.industry ? String(raw.industry) : undefined,
         gapAnalysisScore: raw.gap_analysis_score ? Number(raw.gap_analysis_score) : raw.gapAnalysisScore ? Number(raw.gapAnalysisScore) : undefined,
         approvalStages,
-        planId: raw.plan_id ? String(raw.plan_id) : raw.planId ? String(raw.planId) : undefined,
+        planId: raw.plan_id ? String(raw.plan_id) : raw.planId ? String(raw.planId) : allSows.find((s) => s.id === sowId)?.planId ?? undefined,
         templateId: raw.template_id ? String(raw.template_id) : raw.templateId ? String(raw.templateId) : undefined,
       } satisfies import("@/types/enterprise").SOW;
     }
@@ -518,16 +518,15 @@ export default function SOWDetailPage() {
         (res.data as Record<string, unknown> | null)?.plan_id ?? ""
       );
       await queryClient.invalidateQueries({ queryKey: ["enterprise", "decomposition", "plans"] });
-      if (planId) updateSow(sowId, { planId });
+      addSow({ ...sow, planId: planId || sowId });
       setDecompositionStarted(true);
-      router.push("/enterprise/decomposition");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to start decomposition";
       toast.error("Decomposition failed", msg);
     } finally {
       setIsDecomposing(false);
     }
-  }, [isDecomposing, apiSowData, sowId, session, sow, router, queryClient, updateSow]);
+  }, [isDecomposing, apiSowData, sowId, session, sow, router, queryClient, addSow]);
 
   const linkedProject = sow ? mockProjects.find((p) => p.sowId === sow.id) : undefined;
 

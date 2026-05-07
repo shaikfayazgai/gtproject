@@ -263,6 +263,7 @@ export const decompositionApi = {
     return decompositionCall<BaseResponse>(
       `/api/v1/enterprise/decomposition/plans/actions/kickoff?plan_id=${payload.plan_id}`,
       "POST",
+      payload,
     );
   },
 

@@ -15,6 +15,7 @@ import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue, Skeleton } from "@/components/ui";
 import type { DecompositionPlan, PlanStatus } from "@/types/enterprise";
 import { useKickoff, useWithdraw } from "@/lib/hooks/use-decomposition";
+import { decompositionApi } from "@/lib/api/decomposition";
 import { ApiError } from "@/lib/api/client";
 import { useQuery } from "@tanstack/react-query";
 import { listEnterpriseDecompositionPlans } from "@/lib/api/decomposition-plans";
@@ -67,7 +68,7 @@ function PrimaryActionButton({ plan, onClick, onKickoff, onWithdraw }: { plan: D
     return (
       <button onClick={onClick}
         className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-bold text-white bg-gold-500 hover:bg-gold-600 transition-all shadow-sm">
-        Review Plan
+        View Plan
       </button>
     );
   }
@@ -232,7 +233,7 @@ export default function DecompositionPlansPage() {
     if (!rawArr || rawArr.length === 0) return [];
 
     return rawArr.map((p) => ({
-      id: (p._id ?? p.id ?? p.plan_id ?? "") as string,
+      id: (p.plan_id ?? p.id ?? p._id ?? "") as string,
       sowId: (p.sow_id ?? p.sowId ?? p.sow_reference ?? "") as string,
       title: (p.title ?? p.project_name ?? "Untitled Plan") as string,
       status: normalizeStatus((p.status ?? "draft") as string),
@@ -257,6 +258,13 @@ export default function DecompositionPlansPage() {
   const handleKickoff = (plan: DecompositionPlan) => {
     kickoffMutation.mutate({ plan_id: plan.id });
     setPaymentPlan(plan);
+  };
+
+  const handleViewPlan = (plan: DecompositionPlan) => {
+    decompositionApi.getPlan(plan.id).catch(() => {}).finally(() => {
+      const suffix = justPaidIds.has(plan.id) ? "?ai=generating" : "";
+      router.push(`/enterprise/decomposition/${plan.id}${suffix}`);
+    });
   };
 
   const handlePaymentSuccess = (paidPlanId: string) => {
@@ -557,8 +565,7 @@ export default function DecompositionPlansPage() {
                         plan={plan}
                         onClick={(e) => {
                           e.stopPropagation();
-                          const suffix = justPaidIds.has(plan.id) ? "?ai=generating" : "";
-                          router.push(`/enterprise/decomposition/${plan.id}${suffix}`);
+                          handleViewPlan(plan);
                         }}
                         onKickoff={() => handleKickoff(plan)}
                         onWithdraw={(id) => withdrawMutation.mutate(id)}

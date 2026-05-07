@@ -32,6 +32,7 @@ import type { ModuleConfig } from "@/lib/config/navigation";
 import { mockPlans, mockTeams } from "@/mocks/data/enterprise-projects";
 import { mockSOWs } from "@/mocks/data/enterprise-sow";
 import { useNotificationStore } from "@/lib/stores/notification-store";
+import { useSowStore } from "@/lib/stores/sow-store";
 import { useManualSOW } from "@/lib/hooks/use-manual-sow";
 
 const segmentLabels: Record<string, string> = {
@@ -47,9 +48,10 @@ const templateNames: Record<string, string> = {
 };
 
 const UUID_RE = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+const OBJECTID_RE = /^[0-9a-f]{24}$/i;
 
 function isUuid(s: string) {
-  return UUID_RE.test(s);
+  return UUID_RE.test(s) || OBJECTID_RE.test(s);
 }
 
 function getFriendlyLabel(segment: string, _prev: string[]): string | null {
@@ -189,12 +191,16 @@ export function TopBar({ config }: TopBarProps) {
   }, [pathname]);
 
   const sowDetailQuery = useManualSOW(uuidSegment);
+  const allSows = useSowStore((s) => s.sows);
   const sowTitle = React.useMemo(() => {
+    // Check Zustand store first (instant, no network)
+    const stored = uuidSegment ? allSows.find((s) => s.id === uuidSegment) : null;
+    if (stored?.title) return stored.title;
     if (!sowDetailQuery.data) return null;
     const d = sowDetailQuery.data as unknown as Record<string, unknown>;
     const inner = (d.data ?? d) as Record<string, unknown>;
     return (inner.title ?? inner.project_title ?? inner.name ?? null) as string | null;
-  }, [sowDetailQuery.data]);
+  }, [sowDetailQuery.data, allSows, uuidSegment]);
   const userEmail = session?.user?.email || "";
   // Fallback to the email local-part when the session has no display name
   // (common for SSO/OTP users), so the dropdown never shows a bare "User".
