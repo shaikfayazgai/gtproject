@@ -59,7 +59,7 @@ const DEFAULT_STAGE_STATUSES: ApprovalStageStatuses = {
   final_approver: "pending",
 };
 
-function normaliseStageStatus(raw: unknown): ApprovalStageStatus {
+function normaliseStageStatus(raw: unknown): AdminApprovalStageStatus {
   const s = String(raw ?? "").trim().toLowerCase();
   if (s === "approved" || s === "complete" || s === "completed" || s === "done") return "approved";
   if (s === "rejected") return "rejected";
@@ -81,7 +81,7 @@ function normaliseStageStatuses(item: Record<string, unknown>): ApprovalStageSta
     };
   }
 
-  const byStage = new Map<string, ApprovalStageStatus>();
+  const byStage = new Map<string, AdminApprovalStageStatus>();
   const arr = Array.isArray(item.approval_stages) ? (item.approval_stages as Record<string, unknown>[]) : [];
   for (const stage of arr) {
     const stageKey = String(stage.stage ?? stage.stage_key ?? "").toLowerCase();

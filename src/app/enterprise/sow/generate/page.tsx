@@ -1270,7 +1270,7 @@ function SOWGenerateWizardPageInner() {
     // Merge initialFormData as base to ensure all fields exist (handles HMR + draft migration)
     const merged = { ...initialFormData, ...draft.current?.formData };
     // Keep milestone rows fixed to the required three defaults.
-    const milestones = Array.isArray((merged as Partial<FormData>).milestones) ? (merged as Partial<FormData>).milestones : [];
+    const milestones = Array.isArray((merged as Partial<FormData>).milestones) ? ((merged as Partial<FormData>).milestones ?? []) : [];
     const requiredMilestones = initialFormData.milestones;
     const hasExactRequiredMilestones =
       milestones.length === 3
