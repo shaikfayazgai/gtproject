@@ -31,6 +31,8 @@ const statusBadge: Record<
   approved: { variant: "forest", label: "Plan Confirmed" },
   in_progress: { variant: "beige", label: "Plan Locked" },
   completed: { variant: "brown", label: "Completed" },
+  ai_review_in_progress: { variant: "teal", label: "AI Review In Progress" },
+  plan_review_required: { variant: "gold", label: "Plan Review Required" },
 };
 
 /* ── Complexity badge config ── */

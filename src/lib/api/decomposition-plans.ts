@@ -15,6 +15,8 @@ export interface CreatePlanPayload {
   project_name: string;
   minimum_budget?: number;
   maximum_budget?: number;
+  start_date?: string;
+  end_date?: string;
 }
 
 export interface CreatePlanResponse {
@@ -210,7 +212,21 @@ export async function listEnterpriseDecompositionPlans(): Promise<ListPlansRespo
   return data as ListPlansResponse;
 }
 
-export async function confirmEnterpriseDecompositionPlan(planId: string): Promise<ListPlansResponse> {
+export async function postEnterpriseSubmitForReview(planId: string): Promise<ListPlansResponse> {
+  const token = await getEnterpriseToken();
+
+  const res = await fetch(`${BASE_URL}/api/v1/enterprise/decomposition/plans/${planId}/submit-for-review`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  return handleResponse(res);
+}
+
+export async function confirmEnterpriseDecompositionPlan(planId: string, confirmedBy: string): Promise<ListPlansResponse> {
   const token = await getEnterpriseToken();
 
   const res = await fetch(`${BASE_URL}/api/v1/enterprise/decomposition/plans/${planId}/confirm`, {
@@ -219,6 +235,10 @@ export async function confirmEnterpriseDecompositionPlan(planId: string): Promis
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
+    body: JSON.stringify({
+      checklist: { item1: true, item2: true, item3: true },
+      confirmed_by: confirmedBy,
+    }),
   });
 
   const data = await res.json().catch(() => ({}));

@@ -81,7 +81,6 @@ import {
   useDecompositionPlan,
   useTasks,
   useMilestones,
-  useRequestRevision,
   decompositionKeys,
 } from "@/lib/hooks/use-decomposition";
 import {
@@ -91,6 +90,7 @@ import {
   postEnterpriseSubtask,
   patchEnterpriseSubtask,
   deleteEnterpriseSubtask,
+  postEnterpriseSubmitForReview,
 } from "@/lib/api/decomposition-plans";
 
 /* ══════════════════════════════════════════════════════════════
@@ -1824,13 +1824,14 @@ interface EditPlanContentProps {
 function EditPlanContent({ plan, planId, initialTasks, initialMilestones }: EditPlanContentProps) {
   const router = useRouter();
   const qc = useQueryClient();
-  const revisionMutation = useRequestRevision(planId);
 
-  const isApproved = plan.status === "approved" || plan.status === "completed" || plan.status === "in_progress";
+  const isApproved = plan.status === "approved" || plan.status === "completed" || plan.status === "in_progress" || plan.status === "ai_review_in_progress";
   const [showRevisionWarning, setShowRevisionWarning] = React.useState(isApproved);
 
   const [aiReviewOpen, setAiReviewOpen] = React.useState(false);
   const [aiReviewStage, setAiReviewStage] = React.useState(0);
+  const [isSubmittingReview, setIsSubmittingReview] = React.useState(false);
+  const [submitReviewError, setSubmitReviewError] = React.useState<string | null>(null);
   const aiReviewStages = [
     { icon: Layers,      label: "Analyzing plan structure…" },
     { icon: Search,      label: "Checking task dependencies…" },
@@ -1949,29 +1950,37 @@ function EditPlanContent({ plan, planId, initialTasks, initialMilestones }: Edit
 
   const [activeTab, setActiveTab] = React.useState("tasks");
 
-  function handleSubmitAiReview() {
+  async function handleSubmitAiReview() {
+    setIsSubmittingReview(true);
+    setSubmitReviewError(null);
     setAiReviewOpen(true);
     setAiReviewStage(0);
 
-    revisionMutation.mutate(undefined, {
-      onSuccess: () => {
-        let stage = 0;
-        const interval = setInterval(() => {
-          stage += 1;
-          setAiReviewStage(stage);
-          if (stage >= aiReviewStages.length) {
-            clearInterval(interval);
-            setTimeout(() => {
-              setAiReviewOpen(false);
-              router.push(`/enterprise/decomposition/${planId}?show_revision=1`);
-            }, 600);
-          }
-        }, 900);
-      },
-      onError: () => {
-        setAiReviewOpen(false);
-      },
-    });
+    try {
+      await postEnterpriseSubmitForReview(planId);
+
+      qc.invalidateQueries({ queryKey: decompositionKeys.plan(planId) });
+      qc.invalidateQueries({ queryKey: decompositionKeys.tasks(planId) });
+      qc.invalidateQueries({ queryKey: decompositionKeys.plans() });
+
+      let stage = 0;
+      const interval = setInterval(() => {
+        stage += 1;
+        setAiReviewStage(stage);
+        if (stage >= aiReviewStages.length) {
+          clearInterval(interval);
+          setTimeout(() => {
+            setAiReviewOpen(false);
+            router.push(`/enterprise/decomposition/${planId}`);
+          }, 600);
+        }
+      }, 900);
+    } catch (err) {
+      setAiReviewOpen(false);
+      setSubmitReviewError(err instanceof Error ? err.message : "Failed to submit for AI review. Please try again.");
+    } finally {
+      setIsSubmittingReview(false);
+    }
   }
 
   const handleUpdateTask = (updated: EditableTask) => {
@@ -2225,9 +2234,15 @@ function EditPlanContent({ plan, planId, initialTasks, initialMilestones }: Edit
               </button>
               <button
                 onClick={handleSubmitAiReview}
-                className="flex items-center gap-1.5 text-[12px] font-semibold text-white bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700 px-5 py-2 rounded-xl transition-all"
+                disabled={isSubmittingReview}
+                className="flex items-center gap-1.5 text-[12px] font-semibold text-white bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700 px-5 py-2 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Send className="w-3.5 h-3.5" /> Submit AI Review
+                {isSubmittingReview ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+                {isSubmittingReview ? "Submitting…" : "Submit AI Review"}
               </button>
             </div>
           </div>
@@ -2239,6 +2254,17 @@ function EditPlanContent({ plan, planId, initialTasks, initialMilestones }: Edit
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span className="flex-1">{saveError}</span>
             <button onClick={() => setSaveError(null)} className="shrink-0 text-red-400 hover:text-red-600">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </motion.div>
+        )}
+
+        {/* Submit AI review error banner */}
+        {submitReviewError && (
+          <motion.div variants={fadeUp} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 text-[12px]">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span className="flex-1">{submitReviewError}</span>
+            <button onClick={() => setSubmitReviewError(null)} className="shrink-0 text-red-400 hover:text-red-600">
               <X className="w-3.5 h-3.5" />
             </button>
           </motion.div>

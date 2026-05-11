@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { fetchInternal, ApiError } from "@/lib/api/client";
-import { confirmEnterpriseDecompositionPlan } from "@/lib/api/decomposition-plans";
+import { decompositionApi } from "@/lib/api/decomposition";
 import { Skeleton } from "@/components/ui";
 import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
 import type {
@@ -631,6 +631,9 @@ export default function PlanDetailPage() {
   const [aiGenerating, setAiGenerating] = React.useState(() => searchParams.get("ai") === "generating");
   const [checkedItems, setCheckedItems] = React.useState<Set<number>>(new Set());
   const [confirmLoading, setConfirmLoading] = React.useState(false);
+  const [isConfirmed, setIsConfirmed] = React.useState(
+    () => plan?.status === "approved" || plan?.status === "completed" || plan?.status === "in_progress"
+  );
 
   // Expand first 2 milestones once data loads
   React.useEffect(() => {
@@ -819,7 +822,19 @@ export default function PlanDetailPage() {
     if (!allChecked || confirmLoading) return;
     setConfirmLoading(true);
     try {
-      await confirmEnterpriseDecompositionPlan(planId);
+      const updatedBy = session?.user?.email ?? session?.user?.id ?? "";
+      for (const itemId of ["item1", "item2", "item3"]) {
+        await decompositionApi.updateReviewChecklist(planId, {
+          item_id: itemId,
+          is_checked: true,
+          updated_by: updatedBy,
+        });
+      }
+      await decompositionApi.confirmPlan(planId, {
+        checklist: { item1: true, item2: true, item3: true },
+        confirmed_by: updatedBy,
+      });
+      setIsConfirmed(true);
       toast.success("Plan Confirmed", "The decomposition plan has been confirmed successfully.");
     } catch (err) {
       toast.error("Confirmation Failed", err instanceof Error ? err.message : "An error occurred.");
@@ -882,6 +897,77 @@ export default function PlanDetailPage() {
           </div>
         </div>
       </motion.div>
+
+      {/* ═══ CONFIRMATION BANNER ═══ */}
+      <AnimatePresence>
+        {isConfirmed && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 380, damping: 28 }}
+            className="relative flex items-center gap-4 px-5 py-4 mb-6 rounded-2xl border border-forest-200 bg-forest-50 overflow-hidden"
+          >
+            {/* Animated shimmer */}
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-forest-100/60 to-transparent"
+              initial={{ x: "-100%" }}
+              animate={{ x: "100%" }}
+              transition={{ duration: 1.2, ease: "easeInOut", delay: 0.2 }}
+            />
+
+            {/* Icon with pulse ring */}
+            <div className="relative shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-forest-500 flex items-center justify-center">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 18, delay: 0.1 }}
+                >
+                  <CheckCircle2 className="w-4.5 h-4.5 text-white" />
+                </motion.div>
+              </div>
+              <motion.div
+                className="absolute inset-0 rounded-xl border-2 border-forest-400"
+                initial={{ opacity: 0.8, scale: 1 }}
+                animate={{ opacity: 0, scale: 1.6 }}
+                transition={{ duration: 1, ease: "easeOut", delay: 0.15 }}
+              />
+            </div>
+
+            <div className="flex-1 min-w-0 relative">
+              <motion.p
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.15 }}
+                className="text-[13px] font-semibold text-forest-800"
+              >
+                Plan Confirmed
+              </motion.p>
+              <motion.p
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.25 }}
+                className="text-[11px] text-forest-600 mt-0.5"
+              >
+                Contributor matching is now running.
+              </motion.p>
+            </div>
+
+            {/* Animated dots */}
+            <div className="flex items-center gap-1 shrink-0 relative">
+              {[0, 1, 2].map((i) => (
+                <motion.span
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full bg-forest-400"
+                  animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.2, 0.8] }}
+                  transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2, ease: "easeInOut" }}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ═══ KPI ROW ═══ */}
       <motion.div variants={fadeUp} className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
@@ -1178,47 +1264,57 @@ export default function PlanDetailPage() {
               <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
                 <span className="text-sm font-semibold text-gray-800">Review Checklist</span>
               </div>
-              <div className="py-3 px-5 space-y-4">
-                {checklistItems.map((item, i) => (
-                  <div key={i} className="flex items-start gap-3 cursor-pointer" onClick={() => toggleCheck(i)}>
-                    <div className={cn(
-                      "w-4 h-4 rounded shrink-0 mt-0.5 border-2 flex items-center justify-center transition-all",
-                      checkedItems.has(i) ? "bg-teal-500 border-teal-500" : "border-gray-300 bg-white"
-                    )}>
-                      {checkedItems.has(i) && <CheckCircle2 className="w-3 h-3 text-white" />}
-                    </div>
-                    <span className={cn("text-[12px] leading-relaxed", checkedItems.has(i) ? "line-through text-gray-400" : "text-gray-600")}>{item}</span>
+              {isConfirmed ? (
+                <div className="py-8 px-5 flex flex-col items-center gap-3 text-center">
+                  <div className="w-12 h-12 rounded-full bg-forest-50 border border-forest-200 flex items-center justify-center">
+                    <CheckCircle2 className="w-6 h-6 text-forest-500" />
                   </div>
-                ))}
-                <div className="pt-1">
-                  <button
-                    onClick={handleConfirmPlan}
-                    disabled={!allChecked || confirmLoading}
-                    className={cn(
-                      "w-full flex items-center justify-center gap-2 text-[12px] font-semibold py-2.5 rounded-xl transition-all",
-                      allChecked && !confirmLoading
-                        ? "text-white bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 shadow-sm"
-                        : "text-gray-400 bg-gray-100 cursor-not-allowed"
-                    )}
-                  >
-                    {confirmLoading ? (
-                      <>
-                        <motion.span
-                          className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent"
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-                        />
-                        Confirming…
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Confirm Plan
-                      </>
-                    )}
-                  </button>
+                  <p className="text-[13px] font-semibold text-forest-700">Plan Confirmed</p>
+                  <p className="text-[11px] text-gray-400">Contributor matching is now running.</p>
                 </div>
-              </div>
+              ) : (
+                <div className="py-3 px-5 space-y-4">
+                  {checklistItems.map((item, i) => (
+                    <div key={i} className="flex items-start gap-3 cursor-pointer" onClick={() => toggleCheck(i)}>
+                      <div className={cn(
+                        "w-4 h-4 rounded shrink-0 mt-0.5 border-2 flex items-center justify-center transition-all",
+                        checkedItems.has(i) ? "bg-teal-500 border-teal-500" : "border-gray-300 bg-white"
+                      )}>
+                        {checkedItems.has(i) && <CheckCircle2 className="w-3 h-3 text-white" />}
+                      </div>
+                      <span className={cn("text-[12px] leading-relaxed", checkedItems.has(i) ? "line-through text-gray-400" : "text-gray-600")}>{item}</span>
+                    </div>
+                  ))}
+                  <div className="pt-1">
+                    <button
+                      onClick={handleConfirmPlan}
+                      disabled={!allChecked || confirmLoading}
+                      className={cn(
+                        "w-full flex items-center justify-center gap-2 text-[12px] font-semibold py-2.5 rounded-xl transition-all",
+                        allChecked && !confirmLoading
+                          ? "text-white bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 shadow-sm"
+                          : "text-gray-400 bg-gray-100 cursor-not-allowed"
+                      )}
+                    >
+                      {confirmLoading ? (
+                        <>
+                          <motion.span
+                            className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent"
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                          />
+                          Confirming…
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Confirm Plan
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Plan Summary */}

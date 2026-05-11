@@ -46,6 +46,8 @@ const statusMap: Record<PlanStatus, { variant: string; label: string }> = {
   approved: { variant: "forest", label: "Plan Confirmed" },
   in_progress: { variant: "beige", label: "Plan Locked" },
   completed: { variant: "brown", label: "Completed" },
+  ai_review_in_progress: { variant: "teal", label: "AI Review In Progress" },
+  plan_review_required: { variant: "gold", label: "Plan Review Required" },
 };
 
 function formatCost(n: number) { return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 0 }).format(n); }
