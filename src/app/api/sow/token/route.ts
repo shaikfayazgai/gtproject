@@ -135,13 +135,14 @@ export async function GET(req: NextRequest) {
   }
 
   const role = req.nextUrl.searchParams.get("role");
+  const forceRefresh = req.nextUrl.searchParams.get("force_refresh") === "1";
   const jwtRole = jwt.role as string | undefined;
 
   // Try user's own token first
   let token = jwt.glimmoraAccessToken as string | undefined;
 
-  // If token is missing but we have a refresh token, try refreshing now
-  if (!token && jwt.glimmoraRefreshToken) {
+  // Refresh: always when forced, or when token is missing
+  if ((!token || forceRefresh) && jwt.glimmoraRefreshToken) {
     try {
       const refreshRes = await fetch(`${GLIMMORA_API}/api/v1/auth/refresh`, {
         method: "POST",

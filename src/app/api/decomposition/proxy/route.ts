@@ -313,19 +313,44 @@ export async function POST(req: NextRequest) {
 
     let res = await backendFetch(token);
 
-    // On 401 the cached token has expired — bust the cache and retry once
-    // with a freshly acquired enterprise token.
+    // On 401: if we used the user's SOW token, try refreshing it first
+    // before falling back to the service account (service account is a
+    // different tenant and cannot access user-owned resources).
     if (res.status === 401) {
-      cachedToken = null;
-      const freshToken = await acquireEnterpriseToken();
-      if (freshToken) {
-        token = freshToken;
-        tokenSource = "enterprise-service-fallback-retry";
-        res = await backendFetch(freshToken);
+      if (tokenSource === "sow-token-endpoint") {
+        try {
+          const origin = req.nextUrl.origin;
+          const cookie = req.headers.get("cookie") ?? "";
+          const refreshRes = await fetch(`${origin}/api/sow/token?role=enterprise&force_refresh=1`, {
+            headers: cookie ? { cookie } : {},
+          });
+          const refreshJson = await refreshRes.json().catch(() => ({}));
+          const refreshedToken = refreshJson?.token as string | undefined;
+          if (refreshedToken && refreshedToken !== token) {
+            token = refreshedToken;
+            tokenSource = "sow-token-refreshed";
+            res = await backendFetch(refreshedToken);
+          }
+        } catch {
+          // Refresh failed — fall through to service account below
+        }
+      }
+
+      // Still 401 — bust cache and retry with enterprise service account
+      if (res.status === 401) {
+        cachedToken = null;
+        const freshToken = await acquireEnterpriseToken();
+        if (freshToken) {
+          token = freshToken;
+          tokenSource = "enterprise-service-fallback-retry";
+          res = await backendFetch(freshToken);
+        }
       }
     }
 
-    const data = await res.json().catch(() => ({}));
+    const rawText = await res.text().catch(() => "");
+    let data: Record<string, unknown> = {};
+    try { data = rawText ? JSON.parse(rawText) : {}; } catch { data = { raw: rawText }; }
 
     if (!res.ok) {
       console.error(`[Decomposition Proxy] ${method || "GET"} ${path} → ${res.status} (token: ${tokenSource})`, data);
