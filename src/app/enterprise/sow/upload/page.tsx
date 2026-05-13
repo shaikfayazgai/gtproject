@@ -15,7 +15,7 @@ import { WhatHappensNext } from "./components/WhatHappensNext";
 import { RecentUploads } from "./components/RecentUploads";
 import { aiPoweredFeatures } from "@/mocks/data/sow-upload-flow";
 import { useSOWUploadStore, setFileObjectUrl } from "@/lib/stores/sow-upload-store";
-import { useManualSOWList } from "@/lib/hooks/use-manual-sow";
+import { useManualSOWList, useManualSowStatusPolling } from "@/lib/hooks/use-manual-sow";
 import { validateSOWUploadFields, validateSOWField, type SOWUploadFieldErrors } from "@/lib/validations/sow-upload";
 import { sowApi } from "@/lib/api/sow";
 
@@ -74,6 +74,22 @@ function validateFile(file: File): { passed: boolean; errors: string[] } {
   return { passed: errors.length === 0, errors };
 }
 
+/* ═══ Status → parsing stage mapping ═══ */
+
+const STATUS_TO_PARSING_STAGE: Record<string, ParsingStage> = {
+  uploading:  "uploading",
+  extracting: "extracting",
+  extraction: "extracting",
+  analyzing:  "analyzing",
+  detecting:  "detecting",
+  scoring:    "scoring",
+};
+
+const PARSING_TERMINAL_STATUSES = new Set([
+  "review", "uploaded", "created", "complete",
+  "approval", "approved", "rejected", "changes_requested",
+]);
+
 /* ═══ PAGE ═══ */
 
 export default function SOWUploadPage() {
@@ -93,6 +109,25 @@ export default function SOWUploadPage() {
 
   const isParsing = parsingStage !== null && parsingStage !== "complete";
   const isComplete = parsingStage === "complete";
+
+  /* Poll GET /api/v1/sow/{sowId} while parsing — drive stage from real status */
+  const uploadedSowId = store.uploadedSowId ?? null;
+  const { data: statusData } = useManualSowStatusPolling(
+    isParsing ? uploadedSowId : null,
+  );
+
+  React.useEffect(() => {
+    if (!statusData) return;
+    const raw = statusData as { data?: Record<string, unknown> };
+    const status = String(raw?.data?.status ?? "");
+    if (!status) return;
+    const mapped = STATUS_TO_PARSING_STAGE[status];
+    if (mapped) {
+      setParsingStage(mapped);
+    } else if (PARSING_TERMINAL_STATUSES.has(status)) {
+      setParsingStage("complete");
+    }
+  }, [statusData]);
 
   React.useEffect(() => {
     if (isComplete) {
@@ -153,7 +188,8 @@ export default function SOWUploadPage() {
     const errors = validateSOWUploadFields({ projectTitle, clientOrg, linkedSowId });
     if (Object.keys(errors).length > 0) { setFieldErrors(errors); return; }
     setFieldErrors({});
-    /* Save to store */
+    /* Save to store — clear any stale SOW ID from a previous session */
+    store.setUploadedSowId(null);
     store.setProjectTitle(projectTitle);
     store.setClientOrganisation(clientOrg);
     store.setLinkedSowId(linkedSowId === "none" ? null : linkedSowId);
@@ -184,9 +220,7 @@ export default function SOWUploadPage() {
     } catch {
       /* Non-fatal — store won't have a real ID but the flow can continue without API data */
     }
-
-    /* Ensure "complete" fires after all stages */
-    setTimeout(() => setParsingStage("complete"), stages.length * 600);
+    // "complete" is now set by the API status polling effect above
   };
 
   return (

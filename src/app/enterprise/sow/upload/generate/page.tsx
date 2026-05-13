@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, ArrowRight, CheckCircle2, Loader2, AlertTriangle,
-  Sparkles, ShieldCheck, FileText, RefreshCw, X, Zap, TrendingUp,
-  FileCheck2, PenLine, Clock4, Target, Code2, Link2, Calendar,
+  Sparkles, ShieldCheck, FileText, RefreshCw, X, Zap,
+  FileCheck2, PenLine, Target, Code2, Link2, Calendar,
   DollarSign, Gavel, Scale, ClipboardCheck, ClipboardList, Eye,
   MessageSquareDiff,
 } from "lucide-react";
@@ -18,7 +18,8 @@ import { SowReviewPanel } from "@/components/enterprise/sow/SowReviewPanel";
 import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
 import { useManualSowReview } from "@/lib/hooks/use-manual-sow-review";
 import { useAiSowReview }    from "@/lib/hooks/use-ai-sow-review";
-import { useSubmitSOW, useApprovalStages, useGenerationStatus } from "@/lib/hooks/use-manual-sow";
+import { useSubmitSOW, useApprovalStages, useManualSowStatusPolling } from "@/lib/hooks/use-manual-sow";
+import { useAiSowStatusPolling } from "@/lib/hooks/use-sow-wizard";
 
 /* Re-export shared types so `generate/page.tsx` (AI wizard) can import them
    without changing its import path. */
@@ -56,13 +57,6 @@ const PROCESSING_STAGES = [
   { label: "Finalizing updates",           icon: FileCheck2 },
 ];
 
-const STATIC_IMPROVEMENTS = [
-  { icon: TrendingUp,  color: "text-forest-600", bg: "bg-forest-50", border: "border-forest-200", section: "Delivery Scope",        change: "Updated to include a dedicated performance testing phase with defined benchmarks." },
-  { icon: FileCheck2,  color: "text-brown-600",  bg: "bg-brown-50",  border: "border-brown-200",  section: "Budget Section",        change: "Revised to reflect the agreed fixed-price engagement model with milestone-based payments." },
-  { icon: Clock4,      color: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-200", section: "Timeline & Milestones", change: "Added a 2-week UAT buffer and updated Phase 4 end date accordingly." },
-  { icon: ShieldCheck, color: "text-teal-600",   bg: "bg-teal-50",   border: "border-teal-200",   section: "Risk Management",       change: "New clause added for scope change management and change request approval process." },
-  { icon: PenLine,     color: "text-amber-600",  bg: "bg-amber-50",  border: "border-amber-200",  section: "Acceptance Criteria",   change: "Detailed sign-off conditions added per milestone with named approvers." },
-];
 
 /* ── Read-only helpers (shown while generating) ── */
 
@@ -187,8 +181,10 @@ export default function GeneratePreviewPage({
   const [showImprovementsModal, setShowImprovementsModal] = React.useState(false);
   const [processingStageIdx,   setProcessingStageIdx]   = React.useState(-1);
   const [submittedChangeNotes, setSubmittedChangeNotes] = React.useState("");
+  const [apiProgress,          setApiProgress]          = React.useState<number | null>(null);
 
-  const sowId = sowIdProp ?? store.uploadedSowId;
+  // For AI flow, only use sowIdProp — never fall back to the manual upload store ID
+  const sowId = flow === "ai" ? (sowIdProp ?? null) : (sowIdProp ?? store.uploadedSowId);
 
   /* ── Flow-specific data hooks (each only fetches when sowId matches flow) ── */
   const manualReview = useManualSowReview(flow === "manual" ? sowId : null);
@@ -198,13 +194,17 @@ export default function GeneratePreviewPage({
   const submitSOW            = useSubmitSOW(sowId ?? null, flow);
   const { refetch: refetchApprovalPipeline } = useApprovalStages(sowId ?? null);
 
-  /* Poll generation status for the manual flow */
-  const generationStatusQuery = useGenerationStatus(
-    flow === "manual" && sowId ? sowId : null,
-    genPhase === "generating",
+  /* Poll the main SOW detail endpoint — manual uses /sow/{id}, AI uses /sows/{id} */
+  const isGenerating = genPhase === "generating";
+  const manualStatusQuery = useManualSowStatusPolling(
+    flow === "manual" && isGenerating ? sowId : null,
+    isGenerating,
   );
-  const generationStatusValue = (generationStatusQuery.data as { data?: { status?: string } } | undefined)?.data?.status;
-
+  const aiStatusQuery = useAiSowStatusPolling(
+    flow === "ai" && isGenerating ? sowId : null,
+    isGenerating,
+  );
+  const generationStatusQuery = flow === "ai" ? aiStatusQuery : manualStatusQuery;
   /* Redirect after successful submit */
   React.useEffect(() => {
     if (!submitted) return;
@@ -232,19 +232,40 @@ export default function GeneratePreviewPage({
     GEN_STAGES.forEach((_, i) => {
       setTimeout(() => setGenStageIdx(i), (i + 1) * 800);
     });
-    setTimeout(() => {
-      setGenReady(true);
-    }, (GEN_STAGES.length + 1) * 800);
+    // genReady is now set only when the API confirms completion (see effect below)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* React to polled generation status */
+  /* React to polled SOW status — drive progress bar and mark ready on completion */
   React.useEffect(() => {
-    if (generationStatusValue === "completed" || generationStatusValue === "complete") {
+    if (!generationStatusQuery.isSuccess || !generationStatusQuery.data) return;
+    // Both manual (/sow/{id}) and AI (/sows/{id}) return { data: { status, ... } }
+    const raw = generationStatusQuery.data as { data?: Record<string, unknown> };
+    const d = raw?.data;
+    const status = String(d?.status ?? "");
+
+    // Update progress bar if API provides an explicit progress value
+    if (typeof d?.progress === "number") {
+      setApiProgress(d.progress as number);
+      const idx = Math.min(
+        Math.floor(((d.progress as number) / 100) * GEN_STAGES.length),
+        GEN_STAGES.length - 1,
+      );
+      setGenStageIdx(idx);
+    }
+
+    // Terminal statuses: anything that is NOT explicitly in-progress means done
+    const inProgressStatuses = new Set(["pending", "processing", "in_progress", "assembling", "applying", "compliance", "generating", "finalizing", "uploading", "extracting", "extraction", "analyzing", "detecting", "scoring"]);
+    const isInProgress = !status || inProgressStatuses.has(status);
+    if (!isInProgress) {
+      setApiProgress(100);
+      setGenStageIdx(GEN_STAGES.length - 1);
       setGenReady(true);
+      store.setGenerationState("complete");
+      store.setPreviewState({ qualityMetrics: reviewData.metrics, isStaleDocument: false, hardBlocks: [] });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [generationStatusValue]);
+  }, [generationStatusQuery.isSuccess, generationStatusQuery.data]);
 
   const handleBack = () => {
     if (onBack) { onBack(); return; }
@@ -298,9 +319,7 @@ export default function GeneratePreviewPage({
     setGenStageIdx(-1);
     setGenReady(false);
     GEN_STAGES.forEach((_, i) => { setTimeout(() => setGenStageIdx(i), (i + 1) * 800); });
-    setTimeout(() => {
-      setGenReady(true);
-    }, (GEN_STAGES.length + 1) * 800);
+    setTimeout(() => setGenReady(true), (GEN_STAGES.length + 1) * 800);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -506,13 +525,21 @@ export default function GeneratePreviewPage({
                   <div className="flex items-center justify-between mb-2.5">
                     <span className="text-[10px] font-bold tracking-widest uppercase text-gray-400">Overall Progress</span>
                     <span className="num-display text-[14px] font-bold" style={{ color: "#A67763" }}>
-                      {genStageIdx < 0 ? 0 : Math.round(((genStageIdx + 1) / GEN_STAGES.length) * 100)}%
+                      {apiProgress !== null
+                        ? `${Math.round(apiProgress)}%`
+                        : genReady ? "100%"
+                        : genStageIdx < 0 ? "0%"
+                        : `${Math.round(((genStageIdx + 0.5) / GEN_STAGES.length) * 100)}%`}
                     </span>
                   </div>
                   <div className="h-2.5 rounded-full overflow-hidden bg-gray-100">
                     <motion.div
                       className="h-full rounded-full bg-gradient-to-r from-brown-400 to-brown-600"
-                      animate={{ width: genStageIdx < 0 ? "4%" : `${Math.round(((genStageIdx + 1) / GEN_STAGES.length) * 100)}%` }}
+                      animate={{ width: apiProgress !== null
+                        ? `${Math.round(apiProgress)}%`
+                        : genReady ? "100%"
+                        : genStageIdx < 0 ? "4%"
+                        : `${Math.round(((genStageIdx + 0.5) / GEN_STAGES.length) * 100)}%` }}
                       transition={{ duration: 0.65, ease: "easeOut" }}
                       style={{ boxShadow: "0 0 14px rgba(166,119,99,0.50)" }}
                     />
@@ -537,34 +564,24 @@ export default function GeneratePreviewPage({
                   </div>
                 ) : (
                   <>
-                    <div className="flex flex-col gap-2 mt-6">
+                    <div className="flex items-center gap-2 mt-6">
                       <button
-                        onClick={() => { store.setGenerationState("complete"); store.setPreviewState({ qualityMetrics: reviewData.metrics, isStaleDocument: false, hardBlocks: [] }); setGenPhase("complete"); setGenReady(true); }}
-                        className="w-full flex items-center justify-center gap-2 text-[13px] font-semibold text-white bg-gradient-to-r from-forest-500 to-teal-600 hover:from-forest-600 hover:to-teal-700 px-4 py-3 rounded-xl transition-all shadow-sm"
-                        style={{ boxShadow: "0 8px 24px rgba(42,96,104,0.30)" }}
+                        onClick={() => setGenMinimized(true)}
+                        className="flex-1 flex items-center justify-center gap-2 text-[12px] font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 px-4 py-2.5 rounded-xl transition-all"
                       >
-                        <ArrowRight className="w-4 h-4" />
-                        Continue — Review &amp; Submit SOW
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        Wait — Keep Generating
                       </button>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setGenMinimized(true)}
-                          className="flex-1 flex items-center justify-center gap-2 text-[12px] font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 px-4 py-2.5 rounded-xl transition-all"
-                        >
-                          <ArrowLeft className="w-3.5 h-3.5" />
-                          Wait — Keep Generating
-                        </button>
-                        <button
-                          onClick={() => { setGenPhase("idle"); setGenStageIdx(-1); store.setGenerationState("idle"); }}
-                          className="flex items-center justify-center gap-2 text-[12px] font-semibold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 px-4 py-2.5 rounded-xl transition-all"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                          Cancel
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => { setGenPhase("idle"); setGenStageIdx(-1); store.setGenerationState("idle"); }}
+                        className="flex items-center justify-center gap-2 text-[12px] font-semibold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 px-4 py-2.5 rounded-xl transition-all"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        Cancel
+                      </button>
                     </div>
                     <p className="text-center text-[10px] text-gray-400 mt-3">
-                      You can continue to review or wait for generation to complete.
+                      Please wait for generation to complete.
                     </p>
                   </>
                 )}
@@ -585,7 +602,7 @@ export default function GeneratePreviewPage({
           >
             {genReady ? (
               <button
-                onClick={() => sowId ? router.push(`/enterprise/sow/${sowId}`) : setGenPhase("complete")}
+                onClick={() => { store.setGenerationState("complete"); store.setPreviewState({ qualityMetrics: reviewData.metrics, isStaleDocument: false, hardBlocks: [] }); setGenPhase("complete"); setGenMinimized(false); }}
                 className="flex items-center gap-3 px-5 py-3 rounded-2xl text-white text-[12px] font-semibold shadow-xl transition-all hover:scale-[1.02]"
                 style={{ background: "linear-gradient(135deg, #2A6068 0%, #1a4049 100%)", boxShadow: "0 8px 32px rgba(42,96,104,0.35)" }}
               >
@@ -751,23 +768,11 @@ export default function GeneratePreviewPage({
                     <h3 className="font-heading text-[17px] font-bold text-white leading-tight">Document Updated</h3>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 mt-3.5 relative z-10">
-                  {[
-                    { label: "Sections Updated", value: String(STATIC_IMPROVEMENTS.length) },
-                    { label: "Clauses Revised",  value: String(STATIC_IMPROVEMENTS.length) },
-                    { label: "Compliance",       value: "✓ Pass" },
-                  ].map((s) => (
-                    <div key={s.label} className="flex-1 bg-white/15 rounded-lg px-2.5 py-1.5 border border-white/20">
-                      <p className="text-[14px] font-bold text-white leading-none">{s.value}</p>
-                      <p className="text-[8px] text-white/70 mt-0.5">{s.label}</p>
-                    </div>
-                  ))}
-                </div>
               </div>
 
-              <div className="px-4 pt-4 pb-3 space-y-1.5">
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2">Improved Areas</p>
-                {submittedChangeNotes && (
+              {submittedChangeNotes && (
+                <div className="px-4 pt-4 pb-3">
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2">Submitted Changes</p>
                   <motion.div
                     initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
                     className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg border border-amber-100 bg-amber-50/60"
@@ -781,28 +786,8 @@ export default function GeneratePreviewPage({
                     </div>
                     <CheckCircle2 className="w-3 h-3 text-forest-400 shrink-0 mt-0.5" />
                   </motion.div>
-                )}
-                {STATIC_IMPROVEMENTS.map((item, i) => {
-                  const Icon = item.icon;
-                  return (
-                    <motion.div
-                      key={`${item.section}-${i}`}
-                      initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.06 }}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-100 bg-gray-50/60 hover:bg-white hover:border-gray-200 transition-all"
-                    >
-                      <div className={cn("w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border", item.bg, item.border)}>
-                        <Icon className={cn("w-3 h-3", item.color)} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className={cn("text-[10px] font-bold uppercase tracking-wider", item.color)}>{item.section}</p>
-                        <p className="text-[10px] text-gray-500 truncate">{item.change}</p>
-                      </div>
-                      <CheckCircle2 className="w-3 h-3 text-forest-400 shrink-0" />
-                    </motion.div>
-                  );
-                })}
-              </div>
+                </div>
+              )}
 
               <div className="px-4 pb-4">
                 <button
