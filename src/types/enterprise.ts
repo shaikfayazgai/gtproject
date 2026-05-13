@@ -178,6 +178,7 @@ export interface DecompositionPlan {
   totalMilestones: number;
   estimatedHours: number;
   estimatedCost: number;
+  maximumBudget: number;
   complexity: "low" | "medium" | "high" | "critical";
   version: number;
   teamId?: string;
