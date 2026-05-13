@@ -150,10 +150,37 @@ function LoginPageContent() {
         case "CredentialsSignin":
           setError("Incorrect email or password. Please try again.");
           break;
-        case "SsoNotRegistered": {
+        case "SsoNotRegistered":
+        case "OAUTH_NO_ACCOUNT": {
           const ssoEmail = searchParams.get("email");
           setError(ssoEmail ?? "");
           setErrorCode("NO_ACCOUNT");
+          break;
+        }
+        case "EMAIL_ROLE_CONFLICT": {
+          // Backend raised this for an SSO login intent on an account whose
+          // existing role doesn't match the expected_role. With the
+          // intent=login skip in find_or_create_oauth_user this should not
+          // fire any more, but we render it cleanly if it ever does.
+          const desc = searchParams.get("error_description");
+          setError(desc || "This email is already registered with a different role.");
+          setErrorCode("EMAIL_ROLE_CONFLICT");
+          break;
+        }
+        case "OAUTH_ALREADY_REGISTERED": {
+          const ssoEmail = searchParams.get("email");
+          setError(
+            ssoEmail
+              ? `An account already exists for ${ssoEmail}. Sign in below to continue.`
+              : "An account already exists for this email. Sign in below to continue.",
+          );
+          break;
+        }
+        case "OAUTH_DENIED":
+        case "OAUTH_FAILED":
+        case "OAUTH_MISSING_PARAMS": {
+          const desc = searchParams.get("error_description");
+          setError(desc || "Sign-in was cancelled or failed. Please try again.");
           break;
         }
         default:
