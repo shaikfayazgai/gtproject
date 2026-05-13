@@ -121,9 +121,15 @@ function OAuthCallbackContent() {
     async function handleCallback() {
       const error = searchParams.get("error");
       if (error) {
+        // Bounce intent / OAuth errors back to /auth/login so the user sees the
+        // standard inline error UI (red banner above the form), instead of a
+        // separate full-page error here. The login page's URL-error switch
+        // (see auth/login/page.tsx) renders these by `error` code.
         const desc = searchParams.get("error_description") ?? error;
-        setErrorMsg(desc);
-        setStatus("error");
+        const email = searchParams.get("email") ?? "";
+        const params = new URLSearchParams({ error, error_description: desc });
+        if (email) params.set("email", email);
+        router.replace(`/auth/login?${params.toString()}`);
         return;
       }
 
