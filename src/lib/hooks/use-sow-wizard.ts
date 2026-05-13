@@ -140,6 +140,28 @@ export function useSow(sowId: string | null) {
   });
 }
 
+const AI_TERMINAL_STATUSES = new Set([
+  "review", "generated", "draft", "complete",
+  "approval", "approved", "rejected", "changes_requested",
+]);
+
+/** Polls GET /api/v1/sows/{sowId} every 3 s until a terminal status is reached. */
+export function useAiSowStatusPolling(sowId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: [...sowKeys.sow(sowId ?? ""), "status-poll"] as const,
+    queryFn: () => sowApi.getSow(sowId!),
+    enabled: !!sowId && enabled,
+    retry: false,
+    refetchInterval: (query) => {
+      if (query.state.error) return false;
+      const raw = query.state.data as { data?: Record<string, unknown> } | undefined;
+      const status = String(raw?.data?.status ?? "");
+      if (status && AI_TERMINAL_STATUSES.has(status)) return false;
+      return 3000;
+    },
+  });
+}
+
 // ── Delete AI SOW (reject_regenerate action) ──────────────────────────────
 
 export function useDeleteAiSOW() {

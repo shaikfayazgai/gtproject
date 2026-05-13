@@ -72,6 +72,28 @@ export function useManualSOW(sowId: string | null, enabled = true) {
   });
 }
 
+const MANUAL_TERMINAL_STATUSES = new Set([
+  "review", "uploaded", "created", "complete",
+  "approval", "approved", "rejected", "changes_requested",
+]);
+
+/** Polls GET /api/v1/sow/{sowId} every 3 s until a terminal status is reached. */
+export function useManualSowStatusPolling(sowId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: [...manualSowKeys.sow(sowId ?? ""), "status-poll"] as const,
+    queryFn: () => sowApi.getManualSOW(sowId!),
+    enabled: !!sowId && enabled,
+    retry: false,
+    refetchInterval: (query) => {
+      if (query.state.error) return false;
+      const raw = query.state.data as { data?: Record<string, unknown> } | undefined;
+      const status = String(raw?.data?.status ?? "");
+      if (status && MANUAL_TERMINAL_STATUSES.has(status)) return false;
+      return 3000;
+    },
+  });
+}
+
 // ── Generic SOW detail (works for both AI and manual flows) ───────────────
 //
 // Fires both endpoints in parallel:
@@ -439,10 +461,15 @@ export function useGenerationStatus(sowId: string | null, enabled = true) {
     queryKey: manualSowKeys.generationStatus(sowId ?? ""),
     queryFn: () => sowApi.getGenerationStatus(sowId!),
     enabled: !!sowId && enabled,
+    retry: false,
     refetchInterval: (query) => {
-      const status = (query.state.data as { data?: { status?: string } } | undefined)?.data?.status;
-      if (status === "completed" || status === "complete" || status === "failed" || status === "error") return false;
-      return 4000;
+      if (query.state.error) return false;
+      const raw = query.state.data as { data?: { status?: string } } | undefined;
+      const status = raw?.data?.status;
+      // Keep polling only while the API explicitly signals in-progress
+      const inProgress = status === "pending" || status === "processing" || status === "in_progress";
+      if (raw && !inProgress) return false;
+      return 3000;
     },
   });
 }
