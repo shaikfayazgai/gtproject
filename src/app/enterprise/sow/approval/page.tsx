@@ -168,7 +168,7 @@ function normalizeManualList(res: unknown): NormalisedSOW[] {
     const submittedAt = String(item.submitted_at ?? item.submittedAt ?? item.created_at ?? item.createdAt ?? new Date().toISOString());
     return {
       id:         String(item.id ?? item._id ?? ""),
-      title:      String(item.title ?? item.project_title ?? item.document_title ?? "Untitled"),
+      title:      String(item.title ?? item.project_title ?? item.document_title ?? "Untitled").replace(/^statement of work for\s*/i, "").trim(),
       client:     String(item.client ?? item.client_organisation ?? item.clientOrganisation ?? ""),
       intakeMode: "manual_upload" as const,
       status:     String(item.status ?? ""),
@@ -192,8 +192,8 @@ function normalizeAiList(res: unknown): NormalisedSOW[] {
   }
   return arr.map((item) => {
     const gc = (item.generated_content ?? {}) as Record<string, unknown>;
-    const title = gc.document_title ? String(gc.document_title)
-      : String(item.document_title ?? item.title ?? item.project_title ?? `AI SOW ${String(item.wizard_id ?? item.id ?? "").slice(-6).toUpperCase()}`);
+    const title = (gc.document_title ? String(gc.document_title)
+      : String(item.document_title ?? item.title ?? item.project_title ?? `AI SOW ${String(item.wizard_id ?? item.id ?? "").slice(-6).toUpperCase()}`)).replace(/^statement of work for\s*/i, "").trim();
     const bizOwner = String(item.business_owner_approver_id ?? "");
     const client = bizOwner.includes(", ") ? bizOwner.split(", ").pop()?.trim() ?? "" : "";
     const submittedAt = String(item.submitted_at ?? item.created_at ?? new Date().toISOString());
@@ -209,7 +209,10 @@ function normalizeAiList(res: unknown): NormalisedSOW[] {
   });
 }
 
-const MANUAL_APPROVAL_STATUSES = new Set(["approval", "in_review", "review", "pending_commercial_review", "changes_requested", "in_progress"]);
+const APPROVAL_SUBMITTED_STATUSES = new Set([
+  "approval", "submitted", "in_review", "under_review", "pending_review", "pending_approval",
+  "pending_commercial_review", "changes_requested",
+]);
 
 // ── Pipeline dot progress ─────────────────────────────────────────────────
 
@@ -521,8 +524,8 @@ export default function SOWApprovalPipelinePage() {
   const isLoading = manualLoading || aiLoading;
 
   const allSows: NormalisedSOW[] = React.useMemo(() => {
-    const manual = normalizeManualList(manualRes).filter((s) => MANUAL_APPROVAL_STATUSES.has(s.status));
-    const ai     = normalizeAiList(aiRes).filter((s) => s.id);
+    const manual = normalizeManualList(manualRes).filter((s) => APPROVAL_SUBMITTED_STATUSES.has(s.status));
+    const ai     = normalizeAiList(aiRes).filter((s) => s.id && APPROVAL_SUBMITTED_STATUSES.has(s.status));
     const manualIds = new Set(manual.map((s) => s.id));
     return [...ai.filter((s) => !manualIds.has(s.id)), ...manual];
   }, [manualRes, aiRes]);

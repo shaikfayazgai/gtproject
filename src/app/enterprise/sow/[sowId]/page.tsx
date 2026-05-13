@@ -401,7 +401,7 @@ export default function SOWDetailPage() {
         ? ((raw.generated_content ?? {}) as Record<string, unknown>)
         : ({} as Record<string, unknown>);
       const updatedAt = String(raw.updated_at ?? raw.updatedAt ?? raw.created_at ?? raw.createdAt ?? new Date().toISOString());
-      const title = String(gc.document_title ?? raw.title ?? raw.project_title ?? raw.projectTitle ?? "Untitled SOW");
+      const title = String(gc.document_title ?? raw.title ?? raw.project_title ?? raw.projectTitle ?? "Untitled SOW").replace(/^statement of work for\s*/i, "").trim();
       let client = String(raw.client ?? raw.client_organisation ?? raw.clientOrganisation ?? gc.client_name ?? gc.client ?? "");
       if (!client) {
         const bizOwner = String(raw.business_owner_approver_id ?? "");
@@ -514,12 +514,12 @@ export default function SOWDetailPage() {
       const startDate = String(tt.startDate ?? raw?.start_date ?? "");
       const endDate = String(tt.targetEndDate ?? raw?.end_date ?? "");
       const payload = {
-        wizard_id:     String(raw?.wizard_id ?? raw?.id ?? sowId),
-        enterprise_id: String(raw?.enterprise_id ?? (session?.user as { id?: string })?.id ?? ""),
-        sow_reference: sow.id,
-        project_name:  sow.title,
-        ...(minBudget > 0 ? { minimum_budget: minBudget } : {}),
-        ...(maxBudget > 0 ? { maximum_budget: maxBudget } : {}),
+        wizard_id:      String(raw?.wizard_id ?? raw?.id ?? sowId),
+        enterprise_id:  String(raw?.enterprise_id ?? (session?.user as { id?: string })?.id ?? ""),
+        sow_reference:  String(raw?._id ?? raw?.id ?? raw?.sow_id ?? sowId),
+        project_name:   sow.title,
+        minimum_budget: minBudget > 0 ? minBudget : 850000.0,
+        maximum_budget: maxBudget > 0 ? maxBudget : 1200000.0,
         ...(startDate ? { start_date: startDate } : {}),
         ...(endDate ? { end_date: endDate } : {}),
       };

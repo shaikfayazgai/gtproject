@@ -238,8 +238,8 @@ export default function DecompositionPlansPage() {
 
     return rawArr.map((p) => ({
       id: (p.plan_id ?? p.id ?? p._id ?? "") as string,
-      sowId: (p.sow_id ?? p.sowId ?? p.wizard_id ?? p.sow_reference ?? "") as string,
-      title: (p.title ?? p.project_name ?? "Untitled Plan") as string,
+      sowId: (p.sow_reference ?? p.sow_id ?? p.sowId ?? p.wizard_id ?? "") as string,
+      title: String(p.title ?? p.project_name ?? "Untitled Plan").replace(/^statement of work for\s*/i, "").trim(),
       status: normalizeStatus((p.status ?? "draft") as string),
       createdAt: (p.created_at ?? p.createdAt ?? new Date().toISOString()) as string,
       updatedAt: (p.updated_at ?? p.updatedAt ?? new Date().toISOString()) as string,
@@ -248,6 +248,7 @@ export default function DecompositionPlansPage() {
       totalMilestones: Number(p.total_milestones ?? p.totalMilestones ?? p.milestone_count ?? 0),
       estimatedHours: Number(p.estimated_hours ?? p.estimatedHours ?? 0),
       estimatedCost: Number(p.estimated_cost ?? p.estimatedCost ?? 0),
+      maximumBudget: Number(p.maximum_budget ?? p.maximumBudget ?? p.max_budget ?? 0),
       complexity: (p.complexity ?? "medium") as DecompositionPlan["complexity"],
       version: Number(p.version ?? p.plan_version ?? p.sow_version ?? 1),
       teamId: (p.team_id ?? p.teamId) as string | undefined,
@@ -393,7 +394,7 @@ export default function DecompositionPlansPage() {
     {paymentPlan && (
       <MilestonePaymentModal
         title={paymentPlan.title}
-        budget={paymentPlan.estimatedCost}
+        budget={paymentPlan.maximumBudget || paymentPlan.estimatedCost || 1200000}
         pendingId="m1"
         entityId={paymentPlan.id}
         onSuccess={() => handlePaymentSuccess(paymentPlan!.id)}

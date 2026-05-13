@@ -10,11 +10,9 @@ import {
   MoreVertical, Eye, Download, Archive, CheckCircle2, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
+import { stagger, fadeUp, scaleIn, getInitialVariant } from "@/lib/utils/motion-variants";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui";
 import { TablePagination } from "@/components/ui/table-pagination";
-import { mockSOWs, mockSOWSections } from "@/mocks/data/enterprise-sow";
-import { useSowStore } from "@/lib/stores/sow-store";
 import { useManualSOWList, useDeleteManualSOW } from "@/lib/hooks/use-manual-sow";
 import { useSowList, useDeleteAiSOW } from "@/lib/hooks/use-sow-wizard";
 
@@ -121,7 +119,7 @@ function RiskBar({ score }: { score: number }) {
 
 /* ══════════════════════════════════════════ Row Kebab Menu (FSD §7.1.5) ══════════════════════════════════════════ */
 
-function RowKebab({ sow, onAction }: { sow: typeof mockSOWs[0]; onAction: (action: string, sowId: string, sow: typeof mockSOWs[0]) => void }) {
+function RowKebab({ sow, onAction }: { sow: import("@/types/enterprise").SOW; onAction: (action: string, sowId: string, sow: import("@/types/enterprise").SOW) => void }) {
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
 
@@ -169,7 +167,7 @@ function RowKebab({ sow, onAction }: { sow: typeof mockSOWs[0]; onAction: (actio
 
 /* ══════════════════════════════════════════ Recently Viewed Panel (FSD §7.1.3) ══════════════════════════════════════════ */
 
-function RecentlyViewedPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+function RecentlyViewedPanel({ open, onClose, sows }: { open: boolean; onClose: () => void; sows: import("@/types/enterprise").SOW[] }) {
   const ref = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     function handleClick(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); }
@@ -177,20 +175,21 @@ function RecentlyViewedPanel({ open, onClose }: { open: boolean; onClose: () => 
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open, onClose]);
 
-  /* Mock recent items — last 10 accessed, sorted by access time */
-  const recentItems = mockSOWs.slice(0, 5).map((s, i) => ({
-    id: s.id, title: s.title, client: s.client, status: s.status,
-    timeAgo: ["2h ago", "5h ago", "1d ago", "2d ago", "3d ago"][i],
-  }));
+  const recentItems = [...sows]
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .slice(0, 5);
 
   if (!open) return null;
   return (
     <div ref={ref} className="absolute right-0 top-10 z-50 w-80 rounded-xl bg-white border border-beige-200/60"
       style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.10)" }}>
       <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border-hair)" }}>
-        <span className="text-[12px] font-semibold text-brown-800">Recently Viewed</span>
+        <span className="text-[12px] font-semibold text-brown-800">Recently Modified</span>
       </div>
       <div className="max-h-[320px] overflow-y-auto">
+        {recentItems.length === 0 && (
+          <p className="px-4 py-6 text-center text-[12px] text-beige-400">No SOWs yet</p>
+        )}
         {recentItems.map((item) => {
           const sc = statusConfig[item.status] || statusConfig.draft;
           return (
@@ -198,10 +197,9 @@ function RecentlyViewedPanel({ open, onClose }: { open: boolean; onClose: () => 
               <div className="flex items-center gap-3 px-4 py-2.5 hover:bg-beige-50/60 transition-colors cursor-pointer">
                 <div className="flex-1 min-w-0">
                   <div className="text-[12px] font-medium text-brown-900 truncate">{item.title}</div>
-                  <div className="text-[10px] text-beige-400 mt-0.5">{item.client}</div>
+                  <div className="text-[10px] text-beige-400 mt-0.5">{item.client || "—"}</div>
                 </div>
                 <Pill bg={sc.bg} color={sc.color}>{sc.label}</Pill>
-                <span className="text-[10px] text-beige-400 shrink-0">{item.timeAgo}</span>
               </div>
             </Link>
           );
@@ -215,6 +213,7 @@ function RecentlyViewedPanel({ open, onClose }: { open: boolean; onClose: () => 
 
 export default function SOWListPage() {
   const router = useRouter();
+  const [initialVariant] = React.useState<"hidden" | "show">(getInitialVariant);
 
   /* Filters — FSD §7.1.3 */
   const [statusFilter, setStatusFilter] = React.useState("all");
@@ -226,7 +225,6 @@ export default function SOWListPage() {
 
   const [deleteTarget, setDeleteTarget] = React.useState<{ id: string; title: string; intakeMode: "ai_generated" | "manual_upload" } | null>(null);
 
-  const storeSows = useSowStore((s) => s.sows);
   const { data: manualSowListRes, isFetching: manualFetching, isLoading: manualLoading } = useManualSOWList();
   const { data: aiSowListRes, isFetching: aiFetching, isLoading: aiLoading } = useSowList();
   const isFetchingAny = manualFetching || aiFetching;
@@ -272,7 +270,7 @@ export default function SOWListPage() {
     const gc = mode === "ai_generated" ? ((item.generated_content ?? {}) as Record<string, unknown>) : {};
 
     /* Title */
-    const title = String(gc.document_title ?? item.title ?? item.project_title ?? item.document_title ?? "Untitled SOW");
+    const title = String(gc.document_title ?? item.title ?? item.project_title ?? item.document_title ?? "Untitled SOW").replace(/^statement of work for\s*/i, "").trim();
 
     /* Client — AI SOWs store client in business_owner_approver_id as "Name, Company" */
     let client = String(item.client ?? item.client_organisation ?? item.clientOrganisation ?? gc.client_name ?? gc.client ?? "");
@@ -356,7 +354,6 @@ export default function SOWListPage() {
   const manualSows = extractList(manualSowListRes).map((item) => normaliseToSOW(item, "manual_upload"));
   const aiSows = extractList(aiSowListRes).map((item) => normaliseToSOW(item, "ai_generated"));
 
-  /* Merge AI + manual SOWs from API; fall back to Zustand store if no API */
   const apiCombined = [...aiSows, ...manualSows];
 
   // Only show SOWs that have been submitted for approval.
@@ -368,8 +365,7 @@ export default function SOWListPage() {
     "uploaded", "created", "new",
   ]);
 
-  const allSows = (apiCombined.length > 0 ? apiCombined : storeSows)
-    .filter((s) => !PRE_SUBMISSION_STATUSES.has(s.status));
+  const allSows = apiCombined.filter((s) => !PRE_SUBMISSION_STATUSES.has(s.status));
 
 
   const [sortField, setSortField] = React.useState<SortField>("modified");
@@ -563,7 +559,7 @@ export default function SOWListPage() {
 
   return (
     <>
-    <motion.div variants={stagger} initial="hidden" animate="show">
+    <motion.div variants={stagger} initial={initialVariant} animate="show">
 
       {/* ═══ HERO ═══ */}
       <motion.div variants={fadeUp} className="mb-7">
@@ -652,7 +648,7 @@ export default function SOWListPage() {
                 <Clock className="w-3.5 h-3.5" />
                 Recent
               </button>
-              <RecentlyViewedPanel open={recentViewedOpen} onClose={() => setRecentViewedOpen(false)} />
+              <RecentlyViewedPanel open={recentViewedOpen} onClose={() => setRecentViewedOpen(false)} sows={allSows} />
             </div>
           </div>
 
