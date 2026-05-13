@@ -987,7 +987,7 @@ export default function EarningsPage() {
             </div>
 
             {/* Chart */}
-            <EarningsChart token={token} />
+            <EarningsChart token={token ?? ""} />
 
             {/* Earnings Table */}
             <div className="card-parchment">
