@@ -242,19 +242,6 @@ export default function SettingsPage() {
     setAddError("");
   };
 
-  /** Generate a random temporary password: 12 chars, upper+lower+digit+symbol */
-  function generateTempPassword(): string {
-    const upper  = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-    const lower  = "abcdefghjkmnpqrstuvwxyz";
-    const digits = "23456789";
-    const syms   = "@#$!";
-    const all    = upper + lower + digits + syms;
-    const rand   = (s: string) => s[Math.floor(Math.random() * s.length)];
-    const core   = Array.from({ length: 8 }, () => rand(all)).join("");
-    // Guarantee at least one of each required type
-    return rand(upper) + rand(lower) + rand(digits) + rand(syms) + core;
-  }
-
   const handleAddReviewer = async () => {
     setAddError("");
     if (!newEmail || !newFirstName || !newLastName || !newDesignation || !newDepartment || !newUsername || !newLanguage || !newTimeZone) {
@@ -273,36 +260,27 @@ export default function SettingsPage() {
     setAddSaving(true);
     try {
       const adminName = session?.user?.name ?? "Enterprise Admin";
+      const sessionAccessToken = (session?.user as { accessToken?: string } | undefined)?.accessToken;
 
-      // Generate a local temp password upfront — used as fallback if the
-      // Glimmora API is unavailable (e.g. missing admin credentials in .env)
-      const localTempPassword = generateTempPassword();
+      // Create the reviewer in the backend (single source of truth for the password).
+      // If this throws, we must NOT email a locally-generated password — the backend
+      // hasn't stored it and the reviewer would be unable to log in.
+      const result = await authApi.createReviewer({
+        firstName: newFirstName,
+        lastName: newLastName,
+        email: newEmail,
+        designation: newDesignation,
+        department: newDepartment,
+        username: newUsername,
+        language: newLanguage,
+        timeZone: newTimeZone,
+        invitedByName: adminName,
+        accessToken: sessionAccessToken,
+      });
+      const tempPassword = result.temp_password;
 
-      // Try to create the account via the Glimmora backend API.
-      // If this fails (e.g. no admin token configured), we still proceed
-      // with sending the welcome email using the locally generated password.
-      let apiTempPassword: string | undefined;
-      try {
-        const result = await authApi.createReviewer({
-          firstName: newFirstName,
-          lastName: newLastName,
-          email: newEmail,
-          designation: newDesignation,
-          department: newDepartment,
-          username: newUsername,
-          language: newLanguage,
-          timeZone: newTimeZone,
-          invitedByName: adminName,
-        });
-        apiTempPassword = result.temp_password;
-      } catch {
-        // API unavailable — continue with local password
-      }
-
-      const tempPassword = apiTempPassword ?? localTempPassword;
-
-      // Send welcome email via Gmail SMTP (always runs regardless of API result)
-      await fetchInternal("/api/email/send", {
+      // Send welcome email via Gmail SMTP using the backend-issued password.
+      const emailRes = await fetchInternal("/api/email/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -318,6 +296,10 @@ export default function SettingsPage() {
           },
         }),
       });
+      if (!emailRes.ok) {
+        const detail = await emailRes.json().catch(() => ({}));
+        throw new Error(detail?.error ?? detail?.message ?? `Email send failed (HTTP ${emailRes.status}).`);
+      }
 
       const member: TeamMember = {
         id: String(Date.now()),
