@@ -3,7 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { cookies } from "next/headers";
-import { authApi, isMfaPending, isMfaVerifyPending } from "@/lib/api/auth";
+import { authApi, isMfaPending } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import path from "path";
 import fs from "fs";
@@ -127,48 +127,71 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        // Returning null (not throwing) ensures Auth.js returns JSON for client helpers.
+        // Returning null (not throwing) makes Auth.js surface a generic credentials
+        // error to the client without leaking backend specifics.
+        const email = typeof credentials?.email === "string" ? credentials.email.trim().toLowerCase() : "";
+        const password = typeof credentials?.password === "string" ? credentials.password : "";
+        if (!email || !password) return null;
+
         try {
-          const email = typeof credentials?.email === "string" ? credentials.email.trim().toLowerCase() : "";
-          const password = typeof credentials?.password === "string" ? credentials.password : "";
-
-          if (!email || !password) return null;
-
           const response = await authApi.login(email, password);
+          const r = response as unknown as Record<string, unknown>;
+          const status = typeof r.status === "string" ? r.status : undefined;
 
-          // MFA verify (existing TOTP) — handled on login page before signIn; do not mint a session here.
-          if (isMfaVerifyPending(response)) {
+          // Any pending state (totp / sms otp / setup) means we don't mint a session
+          // here — the login page detects these via /api/auth/validate and routes the
+          // user through the appropriate confirmation UI.
+          if (
+            status === "mfa_required" ||
+            status === "mfa_setup_required" ||
+            status === "mfa_pending" ||
+            status === "otp_required"
+          ) {
             return null;
           }
 
-          // MFA setup required — allow a session without full API tokens until setup completes.
-          if (isMfaPending(response)) {
-            const u = (response as { user?: Record<string, string> }).user ?? {};
-            const r = response as unknown as Record<string, unknown>;
-            return {
-              id: u.id ?? "",
-              name: `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim(),
-              email: u.email ?? email,
-              role: (u.role ?? "enterprise") as UserRole,
-              ...(typeof r.access_token === "string" ? { accessToken: r.access_token } : {}),
-              ...(typeof r.refresh_token === "string" ? { refreshToken: r.refresh_token } : {}),
-              ...(typeof r.expires_in === "number" ? { expiresIn: r.expires_in } : {}),
-            };
-          }
-
-          const role = (response.user.role ?? "contributor") as UserRole;
-          console.log("LOGIN RESPONSE:", JSON.stringify(response));
+          // Success shape — must have an access_token + user.
+          const accessToken = typeof r.access_token === "string" ? r.access_token : undefined;
+          const refreshToken = typeof r.refresh_token === "string" ? r.refresh_token : undefined;
+          const expiresIn = typeof r.expires_in === "number" ? r.expires_in : 3600;
+          const user = (r.user ?? {}) as {
+            id?: string;
+            email?: string;
+            firstName?: string;
+            lastName?: string;
+            role?: string;
+            requiresPasswordChange?: boolean;
+            isFirstLogin?: boolean;
+          };
+          if (!accessToken || !user.id) return null;
 
           return {
-            id: response.user.id,
-            name: `${response.user.firstName} ${response.user.lastName}`,
-            email: response.user.email,
-            role,
-            accessToken: response.access_token,
-            refreshToken: response.refresh_token,
-            expiresIn: response.expires_in,
+            id: user.id,
+            name: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
+            email: user.email ?? email,
+            role: (user.role ?? "contributor") as UserRole,
+            provider: "credentials",
+            isNewSsoUser: false,
+            // Surface tokens for the JWT callback. Both naming conventions are
+            // included so the existing JWT handler (which reads accessToken /
+            // refreshToken / expiresIn for the glimmora-oauth provider) and the
+            // glimmora-prefixed names from this provider both work.
+            accessToken,
+            refreshToken,
+            expiresIn,
+            glimmoraAccessToken: accessToken,
+            glimmoraRefreshToken: refreshToken,
+            glimmoraExpiresAt: Math.floor(Date.now() / 1000) + expiresIn,
+            requiresPasswordChange: !!user.requiresPasswordChange,
+            isFirstLogin: !!user.isFirstLogin,
           };
-        } catch {
+        } catch (err) {
+          // ApiError covers 4xx from the backend (wrong creds, account disabled, etc.) —
+          // those are expected, so don't spam logs. Anything else (network / 5xx) is worth
+          // surfacing.
+          if (!(err instanceof ApiError)) {
+            console.error("[auth.credentials] backend login failed", err);
+          }
           return null;
         }
       },
@@ -202,23 +225,46 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user, account }) {
       // Initial sign-in — user object only present on first call
       if (user) {
-        token.id = user.id;
+        const u = user as {
+          id?: string;
+          email?: string | null;
+          name?: string | null;
+          role?: string;
+          accessToken?: string;
+          refreshToken?: string;
+          expiresIn?: number;
+          glimmoraAccessToken?: string;
+          glimmoraRefreshToken?: string;
+          glimmoraExpiresAt?: number;
+          requiresPasswordChange?: boolean;
+          isFirstLogin?: boolean;
+          isNewSsoUser?: boolean;
+          provider?: string;
+        };
+        token.id = u.id;
         // Ensure standard JWT `sub` so getToken / route guards recognize the session after partial sign-in (e.g. MFA setup).
-        if (user.id) {
-          token.sub = user.id;
+        if (u.id) token.sub = u.id;
+        token.role = ((u.role) || "contributor") as UserRole;
+        // Tokens — prefer the glimmora-prefixed names from the credentials provider,
+        // fall back to the unprefixed names used by the glimmora-oauth provider.
+        token.glimmoraAccessToken = u.glimmoraAccessToken ?? u.accessToken;
+        token.glimmoraRefreshToken = u.glimmoraRefreshToken ?? u.refreshToken;
+        if (u.glimmoraExpiresAt) {
+          token.glimmoraExpiresAt = u.glimmoraExpiresAt;
+        } else if (u.expiresIn) {
+          token.glimmoraExpiresAt = Math.floor(Date.now() / 1000) + u.expiresIn;
         }
-        // For Google/Microsoft OAuth, default to contributor role
-        // The role can be updated later during onboarding
-        token.role = ((user as { role?: string }).role || "contributor") as UserRole;
-        token.glimmoraAccessToken = (user as { accessToken?: string }).accessToken;
-        token.glimmoraRefreshToken = (user as { refreshToken?: string }).refreshToken;
-        const expiresIn = (user as { expiresIn?: number }).expiresIn;
-        if (expiresIn) {
-          token.glimmoraExpiresAt = Math.floor(Date.now() / 1000) + expiresIn;
+        if (typeof u.requiresPasswordChange === "boolean") {
+          (token as { requiresPasswordChange?: boolean }).requiresPasswordChange = u.requiresPasswordChange;
         }
+        if (typeof u.isFirstLogin === "boolean") {
+          (token as { isFirstLogin?: boolean }).isFirstLogin = u.isFirstLogin;
+        }
+        if (typeof u.isNewSsoUser === "boolean") token.isNewSsoUser = u.isNewSsoUser;
+        if (u.provider) token.provider = u.provider;
         // Store email and name from OAuth provider
-        if (user.email) token.email = user.email;
-        if (user.name) token.name = user.name;
+        if (u.email) token.email = u.email;
+        if (u.name) token.name = u.name;
       }
       if (account) {
         token.provider = account.provider;
@@ -292,11 +338,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
+        const t = token as typeof token & {
+          requiresPasswordChange?: boolean;
+          isFirstLogin?: boolean;
+        };
         session.user.id           = token.id as string;
         session.user.role         = token.role as UserRole;
         session.user.provider     = token.provider;
         session.user.accessToken  = token.glimmoraAccessToken;
         session.user.isNewSsoUser = token.isNewSsoUser;
+        (session.user as { requiresPasswordChange?: boolean }).requiresPasswordChange =
+          t.requiresPasswordChange;
+        (session.user as { isFirstLogin?: boolean }).isFirstLogin = t.isFirstLogin;
       }
       return session;
     },
