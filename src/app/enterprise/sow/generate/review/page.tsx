@@ -32,6 +32,8 @@ import { useSidebarStore } from "@/lib/stores/sidebar-store";
 import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
 import { useSOWPipelineStore } from "@/lib/stores/sow-pipeline-store";
 import { useSowStore, INITIAL_APPROVAL_STAGES } from "@/lib/stores/sow-store";
+import { useNavigationGuard } from "@/lib/hooks/use-navigation-guard";
+import { NavigationGuardModal } from "@/components/enterprise/sow/NavigationGuardModal";
 
 /* ═══════════════════════════════════════════════════════════
    MOCK DATA
@@ -233,7 +235,23 @@ export default function SOWAIDraftReviewPage() {
 
   const unresolvedCount = hallucinationFlags.filter((f) => !resolvedFlags.has(f.id)).length;
 
+  // Track presence on this page so the SOW Repository banner can offer to resume
+  React.useEffect(() => {
+    sessionStorage.setItem("sow-ai-review-active", "true");
+    return () => { /* keep flag alive on unmount so banner can detect it */ };
+  }, []);
+  React.useEffect(() => {
+    if (submitted) sessionStorage.removeItem("sow-ai-review-active");
+  }, [submitted]);
+
+  // Guard: active while the user has reviewed anything or typed feedback, and hasn't submitted yet
+  const navGuard = useNavigationGuard({
+    isActive: !submitted && (resolvedFlags.size > 0 || changesFeedback.trim().length > 0),
+    allowedPathPrefixes: ["/enterprise/sow/generate/review"],
+  });
+
   return (
+    <>
     <motion.div variants={stagger} initial="hidden" animate="show" style={{ paddingBottom: 80 }}>
 
       {/* ═══ HERO ═══ */}
@@ -877,5 +895,14 @@ export default function SOWAIDraftReviewPage() {
       </motion.div>
 
     </motion.div>
+
+    <NavigationGuardModal
+      open={navGuard.showModal}
+      onStay={navGuard.onStay}
+      onSaveAndLeave={navGuard.onConfirmLeave}
+      onDiscardAndLeave={navGuard.onConfirmLeave}
+      flowLabel="the SOW Draft Review"
+    />
+    </>
   );
 }

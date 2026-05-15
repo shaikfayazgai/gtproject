@@ -25,6 +25,8 @@ import {
 } from "@/components/ui";
 import { useCreateWizard, useSaveStep, useSkipStep, useGenerateSOW, useReviewSummary, useWizard } from "@/lib/hooks/use-sow-wizard";
 import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
+import { useNavigationGuard } from "@/lib/hooks/use-navigation-guard";
+import { NavigationGuardModal } from "@/components/enterprise/sow/NavigationGuardModal";
 
 /* ══════════════════════════════════════════ Steps ══════════════════════════════════════════ */
 
@@ -1427,13 +1429,12 @@ const SOW_STORAGE_KEY = "sow-generator-draft";
 
 const SOW_DRAFT_VERSION = 9; // Increment when FormData structure changes
 
-function loadDraft(): { formData: FormData; currentStep: number; skippedSteps: number[] } | null {
+function loadDraft(): { formData: FormData; currentStep: number; skippedSteps: number[]; generationComplete?: boolean; generatedSowId?: string | null } | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = sessionStorage.getItem(SOW_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    // If draft is from an older version with different field structures, discard it
     if (!parsed.version || parsed.version < SOW_DRAFT_VERSION) {
       sessionStorage.removeItem(SOW_STORAGE_KEY);
       return null;
@@ -1442,7 +1443,13 @@ function loadDraft(): { formData: FormData; currentStep: number; skippedSteps: n
   } catch { return null; }
 }
 
-function saveDraft(formData: FormData, currentStep: number, skippedSteps: Set<number>) {
+function saveDraft(
+  formData: FormData,
+  currentStep: number,
+  skippedSteps: Set<number>,
+  generationComplete = false,
+  generatedSowId: string | null = null,
+) {
   if (typeof window === "undefined") return;
   try {
     sessionStorage.setItem(SOW_STORAGE_KEY, JSON.stringify({
@@ -1450,6 +1457,8 @@ function saveDraft(formData: FormData, currentStep: number, skippedSteps: Set<nu
       formData,
       currentStep,
       skippedSteps: [...skippedSteps],
+      generationComplete,
+      generatedSowId,
     }));
   } catch { /* storage full — ignore */ }
 }
@@ -1552,10 +1561,19 @@ function SOWGenerateWizardPageInner() {
   const [stepErrors, setStepErrors] = React.useState<StepErrors>({});
   const [touchedFields, setTouchedFields] = React.useState<Set<string>>(new Set());
   const [cameFromReview, setCameFromReview] = React.useState(false);
-  const [generationComplete, setGenerationComplete] = React.useState(false);
-  const [generatedSowId, setGeneratedSowId] = React.useState<string | null>(null);
+  const [generationComplete, setGenerationComplete] = React.useState(() => draft.current?.generationComplete ?? false);
+  const [generatedSowId, setGeneratedSowId] = React.useState<string | null>(() => draft.current?.generatedSowId ?? null);
   const [showGenerateConfirm, setShowGenerateConfirm] = React.useState(false);
   const uploadStore = useSOWUploadStore();
+
+  // Navigation guard — block leaving while the wizard has in-progress data
+  const navGuard = useNavigationGuard({
+    isActive: currentStep > 0 || Object.values(formData).some((v) =>
+      typeof v === "string" ? v.trim().length > 0 : Array.isArray(v) ? v.length > 0 : false
+    ),
+    allowedPathPrefixes: ["/enterprise/sow/generate"],
+  });
+
   // ── API integration (wizard session + step mutations) ──
   const [wizardId, setWizardId] = React.useState<string | null>(() => {
     if (typeof window === "undefined") return null;
@@ -1674,8 +1692,8 @@ function SOWGenerateWizardPageInner() {
 
   // Persist draft to sessionStorage on every change
   React.useEffect(() => {
-    saveDraft(formData, currentStep, skippedSteps);
-  }, [formData, currentStep, skippedSteps]);
+    saveDraft(formData, currentStep, skippedSteps, generationComplete, generatedSowId);
+  }, [formData, currentStep, skippedSteps, generationComplete, generatedSowId]);
 
   // Clear custom compliance tags when "custom" checkbox is unchecked
   React.useEffect(() => {
@@ -2111,6 +2129,7 @@ function SOWGenerateWizardPageInner() {
   }
 
   return (
+    <>
     <motion.div variants={stagger} initial="hidden" animate="show">
 
       {/* ═══ GENERATE CONFIRMATION MODAL ═══ */}
@@ -2618,6 +2637,20 @@ function SOWGenerateWizardPageInner() {
       </motion.div>
 
     </motion.div>
+
+    {/* ═══ NAVIGATION GUARD MODAL ═══ */}
+    <NavigationGuardModal
+      open={navGuard.showModal}
+      onStay={navGuard.onStay}
+      onSaveAndLeave={navGuard.onConfirmLeave}
+      onDiscardAndLeave={() => {
+        sessionStorage.removeItem("sow-generator-draft");
+        sessionStorage.removeItem("sow-wizard-id");
+        navGuard.onConfirmLeave();
+      }}
+      flowLabel={`the AI SOW Wizard (Step ${currentStep + 1} of ${STEPS.length})`}
+    />
+    </>
   );
 }
 

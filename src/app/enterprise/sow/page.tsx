@@ -3,11 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   FileText, Search, Plus, DollarSign, Shield, Upload, Sparkles, AlertTriangle,
   ArrowUp, ArrowDown, Clock,
-  MoreVertical, Eye, Download, Archive, CheckCircle2, X,
+  MoreVertical, Eye, Download, Archive, CheckCircle2, X, PlayCircle, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { stagger, fadeUp, scaleIn, getInitialVariant } from "@/lib/utils/motion-variants";
@@ -15,6 +15,203 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@
 import { TablePagination } from "@/components/ui/table-pagination";
 import { useManualSOWList, useDeleteManualSOW } from "@/lib/hooks/use-manual-sow";
 import { useSowList, useDeleteAiSOW } from "@/lib/hooks/use-sow-wizard";
+import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
+
+const SOW_UPLOAD_STORAGE_KEY  = "gt-sow-upload";
+const SOW_WIZARD_DRAFT_KEY    = "sow-generator-draft";
+const SOW_WIZARD_ID_KEY       = "sow-wizard-id";
+const SOW_AI_REVIEW_ACTIVE_KEY = "sow-ai-review-active";
+
+/* ══════════════════════════════════════════ Resume Banner ══════════════════════════════════════════ */
+
+const UPLOAD_STEP_LABELS: Record<number, string> = {
+  1: "Document Upload",
+  2: "Extraction Report",
+  3: "Parsed Review",
+  4: "Gap Analysis",
+  5: "Commercial Details",
+  6: "Generate SOW",
+  7: "Preview & Confirm",
+};
+
+const UPLOAD_STEP_URLS: Record<number, string> = {
+  1: "/enterprise/sow/upload",
+  2: "/enterprise/sow/upload/extraction-report",
+  3: "/enterprise/sow/upload/parsed-review",
+  4: "/enterprise/sow/upload/gaps",
+  5: "/enterprise/sow/upload/details",
+  6: "/enterprise/sow/upload/generate",
+  7: "/enterprise/sow/upload/preview-confirm",
+};
+
+type ResumeSession =
+  | { type: "ai"; step: number; resumeUrl: string; label: string }
+  | { type: "upload"; step: number; resumeUrl: string; label: string };
+
+function ResumeBanner() {
+  const router = useRouter();
+  const [session, setSession] = React.useState<ResumeSession | null>(null);
+  const [dismissed, setDismissed] = React.useState(false);
+
+  React.useEffect(() => {
+    // ── Priority 1: AI Review & Submit (standalone review page) ─────────────
+    try {
+      if (sessionStorage.getItem(SOW_AI_REVIEW_ACTIVE_KEY) === "true") {
+        setSession({
+          type: "ai",
+          step: -1,
+          resumeUrl: "/enterprise/sow/generate/review",
+          label: "AI SOW — Review & Submit",
+        });
+        return;
+      }
+    } catch { /* ignore */ }
+
+    // ── Priority 2: AI wizard draft (sessionStorage) ─────────────────────────
+    try {
+      const raw = sessionStorage.getItem(SOW_WIZARD_DRAFT_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const step: number = parsed?.currentStep ?? 0;
+        const genComplete: boolean = parsed?.generationComplete ?? false;
+        // generationComplete=true means wizard finished and review page is showing
+        if (genComplete) {
+          setSession({
+            type: "ai",
+            step,
+            resumeUrl: `/enterprise/sow/generate?step=${step}`,
+            label: "AI SOW Wizard — Review & Submit",
+          });
+          return;
+        }
+        // currentStep is 0-indexed — step 0 is UI "Step 1"
+        if (typeof step === "number" && step >= 0) {
+          setSession({
+            type: "ai",
+            step,
+            resumeUrl: `/enterprise/sow/generate?step=${step}`,
+            label: `AI SOW Wizard — Step ${step + 1} of 10`,
+          });
+          return;
+        }
+      }
+    } catch { /* ignore */ }
+
+    // ── Priority 3: Manual upload (localStorage via Zustand persist) ─────────
+    try {
+      const raw = localStorage.getItem(SOW_UPLOAD_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const state = parsed?.state ?? parsed;
+        const flowStep: number = state?.currentFlowStep ?? 1;
+        const hasFile = state?.uploadedFile != null;
+        if (hasFile || flowStep > 1) {
+          const stepLabel = UPLOAD_STEP_LABELS[flowStep] ?? "In Progress";
+          setSession({
+            type: "upload",
+            step: flowStep,
+            resumeUrl: UPLOAD_STEP_URLS[flowStep] ?? "/enterprise/sow/upload",
+            label: `Manual Upload — Step ${flowStep} of 7: ${stepLabel}`,
+          });
+        }
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  function handleDiscard() {
+    if (session?.type === "ai") {
+      sessionStorage.removeItem(SOW_WIZARD_DRAFT_KEY);
+      sessionStorage.removeItem(SOW_WIZARD_ID_KEY);
+      sessionStorage.removeItem(SOW_AI_REVIEW_ACTIVE_KEY);
+    } else if (session?.type === "upload") {
+      useSOWUploadStore.getState().reset();
+    }
+    setDismissed(true);
+  }
+
+  if (!session || dismissed) return null;
+
+  const isAi = session.type === "ai";
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.25 }}
+        className="mb-5 rounded-2xl overflow-hidden"
+        style={{
+          border: `1px solid ${isAi ? "rgba(42,96,104,0.25)" : "rgba(166,119,99,0.25)"}`,
+          background: isAi
+            ? "linear-gradient(135deg, rgba(42,96,104,0.06), rgba(91,155,162,0.04))"
+            : "linear-gradient(135deg, rgba(166,119,99,0.07), rgba(196,162,78,0.04))",
+          boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
+        }}
+      >
+        <div className="flex items-center gap-4 px-5 py-4">
+          {/* Icon */}
+          <div
+            className="shrink-0 flex items-center justify-center w-10 h-10 rounded-xl"
+            style={{
+              background: isAi ? "rgba(42,96,104,0.12)" : "rgba(166,119,99,0.12)",
+              border: `1px solid ${isAi ? "rgba(42,96,104,0.2)" : "rgba(166,119,99,0.2)"}`,
+            }}
+          >
+            {isAi
+              ? <Sparkles className="w-4.5 h-4.5" style={{ color: "#2A6068" }} />
+              : <Upload className="w-4.5 h-4.5" style={{ color: "#A67763" }} />}
+          </div>
+
+          {/* Text */}
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-bold" style={{ color: "var(--ink)" }}>
+              You have an in-progress SOW session
+            </p>
+            <p className="text-[12px] mt-0.5" style={{ color: "var(--ink-muted)" }}>
+              <span
+                className="font-semibold"
+                style={{ color: isAi ? "#2A6068" : "#A67763" }}
+              >
+                {session.label}
+              </span>
+              {" "}— pick up right where you left off.
+            </p>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => router.push(session.resumeUrl)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12.5px] font-bold text-white transition-all hover:-translate-y-0.5"
+              style={{
+                background: isAi
+                  ? "linear-gradient(135deg, #2A6068, #3A7A82)"
+                  : "linear-gradient(135deg, #A67763, #8B5A48)",
+                boxShadow: `0 2px 8px ${isAi ? "rgba(42,96,104,0.30)" : "rgba(166,119,99,0.30)"}`,
+              }}
+            >
+              <PlayCircle className="w-3.5 h-3.5" />
+              Resume
+            </button>
+            <button
+              onClick={handleDiscard}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all hover:bg-red-50"
+              style={{
+                border: "1px solid rgba(239,68,68,0.20)",
+                color: "var(--danger, #ef4444)",
+                background: "rgba(239,68,68,0.04)",
+              }}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Discard
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
 
 /* ══════════════════════════════════════════ Status config (per FSD §7.1.4) ══════════════════════════════════════════ */
 
@@ -560,6 +757,9 @@ export default function SOWListPage() {
   return (
     <>
     <motion.div variants={stagger} initial={initialVariant} animate="show">
+
+      {/* ═══ RESUME BANNER ═══ */}
+      <ResumeBanner />
 
       {/* ═══ HERO ═══ */}
       <motion.div variants={fadeUp} className="mb-7">
