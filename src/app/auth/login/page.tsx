@@ -150,10 +150,37 @@ function LoginPageContent() {
         case "CredentialsSignin":
           setError("Incorrect email or password. Please try again.");
           break;
-        case "SsoNotRegistered": {
+        case "SsoNotRegistered":
+        case "OAUTH_NO_ACCOUNT": {
           const ssoEmail = searchParams.get("email");
           setError(ssoEmail ?? "");
           setErrorCode("NO_ACCOUNT");
+          break;
+        }
+        case "EMAIL_ROLE_CONFLICT": {
+          // Backend raised this for an SSO login intent on an account whose
+          // existing role doesn't match the expected_role. With the
+          // intent=login skip in find_or_create_oauth_user this should not
+          // fire any more, but we render it cleanly if it ever does.
+          const desc = searchParams.get("error_description");
+          setError(desc || "This email is already registered with a different role.");
+          setErrorCode("EMAIL_ROLE_CONFLICT");
+          break;
+        }
+        case "OAUTH_ALREADY_REGISTERED": {
+          const ssoEmail = searchParams.get("email");
+          setError(
+            ssoEmail
+              ? `An account already exists for ${ssoEmail}. Sign in below to continue.`
+              : "An account already exists for this email. Sign in below to continue.",
+          );
+          break;
+        }
+        case "OAUTH_DENIED":
+        case "OAUTH_FAILED":
+        case "OAUTH_MISSING_PARAMS": {
+          const desc = searchParams.get("error_description");
+          setError(desc || "Sign-in was cancelled or failed. Please try again.");
           break;
         }
         default:
@@ -445,9 +472,19 @@ function LoginPageContent() {
     setError("");
     setErrorCode("");
     setSsoLoading(provider);
+    // Route through the Glimmora OAuth flow (NOT NextAuth-native), so the
+    // backend's oauth_primary_auth_result owns the response and never returns
+    // an MFA-pending shape (SSO is the sole auth factor for SSO users). Going
+    // through NextAuth-native instead can land users on the inline mfa-prompt
+    // step on /auth/login when the JWT callback's exchangeOAuthCode path
+    // misbehaves in production.
     const redirectAfter = callbackUrl || "/auth/redirect";
-    const providerId = provider === "microsoft" ? "microsoft-entra-id" : "google";
-    signIn(providerId, { callbackUrl: redirectAfter });
+    const params = new URLSearchParams({
+      provider,
+      redirectAfter,
+      intent: "login",
+    });
+    window.location.href = `/api/auth/oauth/authorize?${params.toString()}`;
   };
 
   const resetToCredentials = () => {

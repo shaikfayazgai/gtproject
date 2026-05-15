@@ -181,7 +181,7 @@ const PHASING_STRATEGY: Record<string, string> = {
   sequential: "Sequential phases",
   parallel: "Parallel workstreams",
   sprint_based: "Sprint-based (2-week sprints)",
-  milestone_only: "Milestone-only",
+  milestone_only: "Milestone-based",
   not_decided: "Not yet decided",
 };
 

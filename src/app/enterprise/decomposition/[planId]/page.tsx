@@ -9,10 +9,12 @@ import {
   ChevronRight, GitBranch, Layers, Zap, AlertTriangle, Target, X, Download,
   Sparkles, Brain, Milestone as MilestoneIcon, FileText, ExternalLink,
   FolderOpen, Circle, Lock, Link2, Pencil, LayoutList, GanttChartSquare,
-  ClipboardList, History, Package, RotateCcw, TrendingUp, CreditCard, Users, BarChart2,
+  ClipboardList, History, Package, TrendingUp, CreditCard, Users, BarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { fetchInternal } from "@/lib/api/client";
+import { fetchInternal, ApiError } from "@/lib/api/client";
+import { sowApi } from "@/lib/api/sow";
+import { decompositionApi } from "@/lib/api/decomposition";
 import { Skeleton } from "@/components/ui";
 import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
 import type {
@@ -457,7 +459,6 @@ export default function PlanDetailPage() {
   const { data: apiTasksRes } = useTasks(planId);
   const { data: apiMilestonesRes } = useMilestones(planId);
 
-
   // Map backend status to frontend PlanStatus
   const normalizeStatus = (s: string): PlanStatus => {
     const map: Record<string, PlanStatus> = {
@@ -487,7 +488,7 @@ export default function PlanDetailPage() {
     }
     if (raw && (raw._id || raw.id || raw.plan_id)) {
       return {
-        id: (raw._id ?? raw.id ?? raw.plan_id ?? planId) as string,
+        id: (raw.plan_id ?? raw.id ?? raw._id ?? planId) as string,
         sowId: (raw.sow_id ?? raw.sowId ?? raw.sow_reference ?? "") as string,
         title: (raw.title ?? raw.project_name ?? "Untitled Plan") as string,
         status: normalizeStatus((raw.status ?? "draft") as string),
@@ -498,6 +499,7 @@ export default function PlanDetailPage() {
         totalMilestones: Number(raw.total_milestones ?? raw.totalMilestones ?? (raw.summary as Record<string, unknown>)?.total_milestones ?? 0),
         estimatedHours: Number(raw.estimated_hours ?? raw.estimatedHours ?? ((raw.summary as Record<string, unknown>)?.estimated_total_effort_days as number ?? 0) * 8),
         estimatedCost: Number(raw.estimated_cost ?? raw.estimatedCost ?? 0),
+        maximumBudget: Number(raw.maximum_budget ?? raw.maximumBudget ?? raw.max_budget ?? 0),
         complexity: (raw.complexity ?? "medium") as DecompositionPlan["complexity"],
         version: Number(raw.version ?? raw.plan_version ?? 1),
         teamId: (raw.team_id ?? raw.teamId) as string | undefined,
@@ -511,11 +513,22 @@ export default function PlanDetailPage() {
     return null;
   }, [apiPlanRes, planId]);
 
+  // Extract the raw plan object once — reused by tasks and milestones below
+  const planRaw = React.useMemo<Record<string, unknown> | null>(() => {
+    const resp = apiPlanRes as unknown;
+    if (!resp || typeof resp !== "object") return null;
+    const obj = resp as Record<string, unknown>;
+    if (obj.data && typeof obj.data === "object" && !Array.isArray(obj.data)) return obj.data as Record<string, unknown>;
+    if (obj.plan_id || obj._id || obj.id) return obj;
+    return null;
+  }, [apiPlanRes]);
+
   const tasks: DecompositionTask[] = React.useMemo(() => {
     if (!plan) return [];
-    // Handle both {data: {tasks: [...]}} and direct {tasks: [...]}
-    const resp = apiTasksRes as unknown;
-    const raw = (resp && typeof resp === "object" && (resp as Record<string, unknown>).data)
+    // Prefer tasks embedded in the plan response; fall back to separate endpoint
+    const fromPlan = planRaw?.tasks ?? planRaw?.task_list;
+    const resp = fromPlan ?? (apiTasksRes as unknown);
+    const raw = (!fromPlan && resp && typeof resp === "object" && (resp as Record<string, unknown>).data)
       ? (resp as Record<string, unknown>).data
       : resp;
     const arr = (Array.isArray(raw) ? raw : (raw as Record<string, unknown> | null)?.tasks ?? null) as Record<string, unknown>[] | null;
@@ -530,7 +543,7 @@ export default function PlanDetailPage() {
             : [];
 
         return {
-          id: String(t._id ?? t.id ?? t.task_id ?? ""),
+          id: String(t.task_id ?? t.id ?? t._id ?? ""),
           planId: (t.plan_id ?? t.planId ?? planId) as string,
           milestoneId: (t.milestone_id ?? t.milestoneId ?? t.milestone ?? "") as string,
           title: (t.title ?? t.task_name ?? "") as string,
@@ -547,26 +560,31 @@ export default function PlanDetailPage() {
           aiConfidence: Number(t.ai_confidence ?? t.aiConfidence ?? 0),
           itemStatus: (t.item_status ?? t.itemStatus ?? "proposed") as DecompositionTask["itemStatus"],
           subtasks: (t.subtasks ?? []) as DecompositionTask["subtasks"],
-        };
+          startDate: (t.start_date ?? t.startDate) as string | undefined,
+          endDate: (t.end_date ?? t.endDate) as string | undefined,
+          critical: Boolean(t.critical ?? false),
+          seniority: (t.seniority ?? "") as string,
+        } as unknown as DecompositionTask;
       });
     }
     return [];
-  }, [apiTasksRes, plan, planId]);
+  }, [apiTasksRes, planRaw, plan, planId]);
 
   const milestones: PlanMilestone[] = React.useMemo(() => {
     if (!plan) return [];
-    // Handle both {data: {milestones: {...}}} and direct {milestones: {...}}
-    const resp = apiMilestonesRes as unknown;
-    const raw = (resp && typeof resp === "object" && (resp as Record<string, unknown>).data)
+    // Prefer milestones embedded in the plan response; fall back to separate endpoint
+    const fromPlan = planRaw?.milestones ?? planRaw?.milestone_list;
+    const resp = fromPlan ?? (apiMilestonesRes as unknown);
+    const raw = (!fromPlan && resp && typeof resp === "object" && (resp as Record<string, unknown>).data)
       ? (resp as Record<string, unknown>).data
       : resp;
     // Backend can return: {milestones: {M1: [...tasks], M2: [...]}} (dict) or [{...}, {...}] (array)
-    const milestonesRaw = (raw as Record<string, unknown> | null)?.milestones ?? raw;
+    const milestonesRaw = fromPlan ?? (raw as Record<string, unknown> | null)?.milestones ?? raw;
 
     // Case 1: Array of milestone objects
     if (Array.isArray(milestonesRaw) && milestonesRaw.length > 0) {
       return milestonesRaw.map((m: Record<string, unknown>) => ({
-        id: (m._id ?? m.id ?? "") as string,
+        id: (m.milestone_id ?? m.id ?? m._id ?? "") as string,
         planId: (m.plan_id ?? m.planId ?? planId) as string,
         title: (m.title ?? "") as string,
         description: (m.description ?? "") as string,
@@ -601,10 +619,82 @@ export default function PlanDetailPage() {
     }
 
     return [];
-  }, [apiMilestonesRes, plan, planId]);
+  }, [apiMilestonesRes, planRaw, plan, planId]);
 
   const sowTitle = plan?.sowId ?? "";
   const recommendations: AIRecommendation[] = [];
+
+  // ── All hooks must be declared before any early return ──
+  const { holdProject } = useProjectHoldStore();
+  const { push: pushNotification } = useNotificationStore();
+  const { data: session } = useSession();
+
+  const [expandedMilestones, setExpandedMilestones] = React.useState<Set<string>>(new Set());
+  const [expandedTasks, setExpandedTasks] = React.useState<Set<string>>(new Set());
+  const [dismissedRecs, setDismissedRecs] = React.useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = React.useState<"list" | "gantt">("list");
+  const [activeTab, setActiveTab] = React.useState(() => searchParams.get("tab") ?? "project_plan");
+  const [aiGenerating, setAiGenerating] = React.useState(() => searchParams.get("ai") === "generating");
+  const [checkedItems, setCheckedItems] = React.useState<Set<number>>(new Set());
+  const [confirmLoading, setConfirmLoading] = React.useState(false);
+  const [isConfirmed, setIsConfirmed] = React.useState(
+    () => plan?.status === "approved" || plan?.status === "completed" || plan?.status === "in_progress"
+  );
+  const [promoteLoading, setPromoteLoading] = React.useState(false);
+  const [isPromoted, setIsPromoted] = React.useState(false);
+
+  // Expand first 2 milestones once data loads
+  React.useEffect(() => {
+    if (milestones.length > 0) {
+      setExpandedMilestones(new Set(milestones.slice(0, 2).map((m) => m.id)));
+    }
+  }, [milestones.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Seed dismissed recs from data
+  React.useEffect(() => {
+    setDismissedRecs(new Set(recommendations.filter((r) => r.dismissed).map((r) => r.id)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* ── AI generation timer ── */
+  React.useEffect(() => {
+    if (!aiGenerating || !plan) return;
+
+    const timer = setTimeout(() => {
+      setAiGenerating(false);
+
+      pushNotification({
+        title: "AI Decomposition Complete",
+        body: `Task breakdown for "${plan.title}" is ready. Review your milestones and tasks.`,
+        severity: "medium",
+        href: `/enterprise/decomposition/${plan.id}`,
+      });
+
+      toast.success("AI Decomposition Complete", `Task breakdown for "${plan.title}" is ready.`);
+
+      const userEmail = session?.user?.email;
+      if (userEmail) {
+        fetchInternal("/api/email/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: "sow_stage_approved",
+            subject: `AI Task Breakdown Ready — ${plan.title}`,
+            payload: {
+              stageName: "AI Decomposition",
+              projectTitle: plan.title,
+              approvedBy: session?.user?.name ?? "Glimmora AI",
+              comments: "Your project has been decomposed into milestones and tasks. Please review the breakdown and proceed.",
+            },
+            to: userEmail,
+          }),
+        }).catch(() => {});
+      }
+    }, 20_000);
+
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiGenerating]);
 
   /* ── Loading skeleton ── */
   if (planLoading) {
@@ -682,22 +772,23 @@ export default function PlanDetailPage() {
 
   /* ── Error state ── */
   if (planError) {
+    const is404 = planErrorObj instanceof ApiError && planErrorObj.status === 404;
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center px-6">
         <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center mb-4">
           <AlertTriangle className="w-6 h-6 text-red-500" />
         </div>
-        <p className="text-sm font-semibold text-gray-800 mb-1">Failed to load plan</p>
-        <p className="text-xs text-gray-500 max-w-md mb-3">
-          {planErrorObj instanceof Error ? planErrorObj.message : "Unknown error"}
+        <p className="text-sm font-semibold text-gray-800 mb-1">
+          {is404 ? "Plan not found" : "Failed to load plan"}
         </p>
-        <p className="text-xs text-gray-400">Plan ID: {planId}</p>
-        <details className="text-left w-full max-w-lg mt-3">
-          <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Debug info</summary>
-          <pre className="mt-2 p-3 bg-gray-50 rounded-lg text-[10px] text-gray-600 overflow-auto max-h-40">
-            {JSON.stringify({ error: planErrorObj, response: apiPlanRes }, null, 2)}
-          </pre>
-        </details>
+        <p className="text-xs text-gray-500 max-w-md mb-4">
+          {is404
+            ? "This decomposition plan no longer exists or you don't have access to it."
+            : planErrorObj instanceof Error ? planErrorObj.message : "Unknown error"}
+        </p>
+        <Link href="/enterprise/decomposition" className="text-sm text-brown-500 hover:text-brown-600 font-medium">
+          Back to plans
+        </Link>
       </div>
     );
   }
@@ -714,59 +805,6 @@ export default function PlanDetailPage() {
   }
 
   const effectiveProjectId = (plan as { projectId?: string }).projectId ?? "proj-001";
-  const { holdProject } = useProjectHoldStore();
-
-  const [expandedMilestones, setExpandedMilestones] = React.useState<Set<string>>(() => new Set(milestones.slice(0, 2).map((m) => m.id)));
-  const [expandedTasks, setExpandedTasks] = React.useState<Set<string>>(new Set());
-  const [dismissedRecs, setDismissedRecs] = React.useState<Set<string>>(() => new Set(recommendations.filter((r) => r.dismissed).map((r) => r.id)));
-  const [viewMode, setViewMode] = React.useState<"list" | "gantt">("list");
-  const [activeTab, setActiveTab] = React.useState(() => searchParams.get("tab") ?? "project_plan");
-  const [aiGenerating, setAiGenerating] = React.useState(() => searchParams.get("ai") === "generating");
-  const { push: pushNotification } = useNotificationStore();
-  const { data: session } = useSession();
-
-  /* ── 60s AI generation timer ── */
-  React.useEffect(() => {
-    if (!aiGenerating) return;
-
-    const timer = setTimeout(() => {
-      setAiGenerating(false);
-
-      // In-app notification
-      pushNotification({
-        title: "AI Decomposition Complete",
-        body: `Task breakdown for "${plan.title}" is ready. Review your milestones and tasks.`,
-        severity: "medium",
-        href: `/enterprise/decomposition/${plan.id}`,
-      });
-
-      // Toast
-      toast.success("AI Decomposition Complete", `Task breakdown for "${plan.title}" is ready.`);
-
-      // Email notification (fire-and-forget)
-      const userEmail = session?.user?.email;
-      if (userEmail) {
-        fetchInternal("/api/email/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            event: "sow_stage_approved",
-            subject: `AI Task Breakdown Ready — ${plan.title}`,
-            payload: {
-              stageName: "AI Decomposition",
-              projectTitle: plan.title,
-              approvedBy: session?.user?.name ?? "Glimmora AI",
-              comments: "Your project has been decomposed into milestones and tasks. Please review the breakdown and proceed.",
-            },
-            to: userEmail,
-          }),
-        }).catch(() => {/* silent */});
-      }
-    }, 20_000);
-
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiGenerating]);
 
   const toggleMilestone = (id: string) => setExpandedMilestones((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleTask = (id: string) => setExpandedTasks((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -784,8 +822,66 @@ export default function PlanDetailPage() {
     "I confirm the project timeline fits within the SOW dates.",
     "I confirm the required skills and seniority levels match the project needs.",
   ];
-  const [checkedItems, setCheckedItems] = React.useState<Set<number>>(new Set());
   const toggleCheck = (i: number) => setCheckedItems((p) => { const n = new Set(p); n.has(i) ? n.delete(i) : n.add(i); return n; });
+
+  const allChecked = checkedItems.size === checklistItems.length;
+
+  const handleConfirmPlan = async () => {
+    if (!allChecked || confirmLoading) return;
+    setConfirmLoading(true);
+    try {
+      const updatedBy = session?.user?.email ?? session?.user?.id ?? "";
+
+      // Fetch checklist items and mark all as checked before confirming
+      const checklistRes = await decompositionApi.getReviewChecklist(planId);
+      console.log("[ConfirmPlan] getReviewChecklist raw response:", JSON.stringify(checklistRes, null, 2));
+
+      // Unwrap: handles { data: [...] }, { data: { items: [...] } }, { items: [...] }, or direct array
+      const outer = checklistRes as unknown as Record<string, unknown>;
+      const inner = (outer.data ?? outer) as unknown;
+      const rawItems: Record<string, unknown>[] = Array.isArray(inner)
+        ? inner
+        : Array.isArray((inner as Record<string, unknown>)?.items)
+          ? (inner as Record<string, unknown>).items as Record<string, unknown>[]
+          : Array.isArray((inner as Record<string, unknown>)?.checklist)
+            ? (inner as Record<string, unknown>).checklist as Record<string, unknown>[]
+            : [];
+
+      console.log("[ConfirmPlan] checklist items to patch:", rawItems.length, rawItems.map((i) => i.item_id ?? i.id));
+
+      for (const item of rawItems) {
+        const itemId = String(item.item_id ?? item.id ?? "");
+        if (!itemId) continue;
+        await decompositionApi.updateReviewChecklist(planId, {
+          item_id: itemId,
+          is_checked: true,
+          updated_by: updatedBy,
+        });
+      }
+
+      await decompositionApi.confirmPlan(planId, { confirmed_by: updatedBy });
+      setIsConfirmed(true);
+      toast.success("Plan Confirmed", "The decomposition plan has been confirmed successfully.");
+    } catch (err) {
+      toast.error("Confirmation Failed", err instanceof Error ? err.message : "An error occurred.");
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
+  const handlePromoteToPortfolio = async () => {
+    if (promoteLoading || !plan.sowId) return;
+    setPromoteLoading(true);
+    try {
+      await sowApi.promoteToPortfolio(plan.sowId);
+      setIsPromoted(true);
+      toast.success("Added to Portfolio", "The project has been added to your portfolio successfully.");
+    } catch (err) {
+      toast.error("Failed to Add", err instanceof Error ? err.message : "An error occurred.");
+    } finally {
+      setPromoteLoading(false);
+    }
+  };
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="show">
@@ -841,6 +937,77 @@ export default function PlanDetailPage() {
           </div>
         </div>
       </motion.div>
+
+      {/* ═══ CONFIRMATION BANNER ═══ */}
+      <AnimatePresence>
+        {isConfirmed && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 380, damping: 28 }}
+            className="relative flex items-center gap-4 px-5 py-4 mb-6 rounded-2xl border border-forest-200 bg-forest-50 overflow-hidden"
+          >
+            {/* Animated shimmer */}
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-forest-100/60 to-transparent"
+              initial={{ x: "-100%" }}
+              animate={{ x: "100%" }}
+              transition={{ duration: 1.2, ease: "easeInOut", delay: 0.2 }}
+            />
+
+            {/* Icon with pulse ring */}
+            <div className="relative shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-forest-500 flex items-center justify-center">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 18, delay: 0.1 }}
+                >
+                  <CheckCircle2 className="w-4.5 h-4.5 text-white" />
+                </motion.div>
+              </div>
+              <motion.div
+                className="absolute inset-0 rounded-xl border-2 border-forest-400"
+                initial={{ opacity: 0.8, scale: 1 }}
+                animate={{ opacity: 0, scale: 1.6 }}
+                transition={{ duration: 1, ease: "easeOut", delay: 0.15 }}
+              />
+            </div>
+
+            <div className="flex-1 min-w-0 relative">
+              <motion.p
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.15 }}
+                className="text-[13px] font-semibold text-forest-800"
+              >
+                Plan Confirmed
+              </motion.p>
+              <motion.p
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.25 }}
+                className="text-[11px] text-forest-600 mt-0.5"
+              >
+                Contributor matching is now running.
+              </motion.p>
+            </div>
+
+            {/* Animated dots */}
+            <div className="flex items-center gap-1 shrink-0 relative">
+              {[0, 1, 2].map((i) => (
+                <motion.span
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full bg-forest-400"
+                  animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.2, 0.8] }}
+                  transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2, ease: "easeInOut" }}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ═══ KPI ROW ═══ */}
       <motion.div variants={fadeUp} className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
@@ -984,8 +1151,10 @@ export default function PlanDetailPage() {
 
                   return (
                     <div key={milestone.id} className="card-parchment overflow-hidden">
-                      <button onClick={() => toggleMilestone(milestone.id)}
-                        className="w-full flex items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-black/[0.02]">
+                      <div
+                        className="w-full flex items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-black/[0.02] cursor-pointer"
+                        onClick={() => toggleMilestone(milestone.id)}
+                      >
                         <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
                           milestone.itemStatus === "accepted" ? "bg-gradient-to-br from-forest-400 to-forest-600" : "bg-gradient-to-br from-brown-300 to-brown-500"
                         )}>
@@ -1011,7 +1180,7 @@ export default function PlanDetailPage() {
                           <span className="text-[10px] font-mono text-gray-500 w-7 text-right">{msPct}%</span>
                           {isOpen ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
                         </div>
-                      </button>
+                      </div>
 
                       {isOpen && (
                         <div>
@@ -1025,7 +1194,7 @@ export default function PlanDetailPage() {
                               <div key={task.id}>
                                 <div className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-black/[0.02] cursor-pointer"
                                   style={{ borderTop: "1px solid var(--border-hair)" }}
-                                  onClick={() => hasSubtasks && toggleTask(task.id)}>
+                                  onClick={() => toggleTask(task.id)}>
                                   <span className={cn("w-2.5 h-2.5 rounded-full shrink-0 ml-5", ts.dotColor)} />
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
@@ -1051,19 +1220,105 @@ export default function PlanDetailPage() {
                                     </div>
                                     <span className="text-[10px] font-mono text-gray-500 w-7 text-right">{task.aiConfidence}%</span>
                                   </div>
-                                  {hasSubtasks && (isTaskOpen ? <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />)}
+                                  {isTaskOpen ? <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />}
                                 </div>
 
-                                {isTaskOpen && hasSubtasks && (
-                                  <div className="ml-14 mr-5 mb-3 mt-1 pl-4" style={{ borderLeft: "2px solid var(--border-hair)" }}>
-                                    {task.subtasks.map((st) => (
-                                      <div key={st.id} className="flex items-center gap-2.5 py-1.5">
-                                        {st.itemStatus === "accepted" ? <CheckCircle2 className="w-3 h-3 text-forest-500 shrink-0" /> : <Circle className="w-3 h-3 text-gray-300 shrink-0" />}
-                                        <span className="text-[11px] text-gray-600 flex-1 truncate">{st.title}</span>
-                                        <span className="text-[9px] font-mono text-gray-400">{st.estimatedHours}h</span>
+                                {isTaskOpen && (
+                                  <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    transition={{ duration: 0.2, ease: "easeInOut" }}
+                                    className="overflow-hidden"
+                                    style={{ borderTop: "1px solid var(--border-hair)" }}
+                                  >
+                                    <div className="ml-[52px] mr-5 my-4 space-y-4">
+
+                                      {/* Description */}
+                                      {task.description && (
+                                        <p className="text-[12.5px] text-gray-500 leading-relaxed pl-3" style={{ borderLeft: "2px solid #e5e7eb" }}>
+                                          {task.description}
+                                        </p>
+                                      )}
+
+                                      {/* Acceptance Criteria */}
+                                      {task.acceptanceCriteria.length > 0 && (
+                                        <div>
+                                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Acceptance Criteria</p>
+                                          <ul className="space-y-1.5">
+                                            {task.acceptanceCriteria.map((criterion, ci) => (
+                                              <li key={ci} className="flex items-start gap-2.5">
+                                                <span className="shrink-0 mt-[5px] w-1.5 h-1.5 rounded-full bg-teal-400" />
+                                                <span className="text-[12px] text-gray-600 leading-relaxed">{criterion}</span>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+
+                                      {/* Meta chips row */}
+                                      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1" style={{ borderTop: "1px solid var(--border-hair)" }}>
+                                        {/* Skills */}
+                                        {task.skillsRequired.length > 0 && (
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="text-[10px] text-gray-400 shrink-0">Skills</span>
+                                            <div className="flex flex-wrap gap-1">
+                                              {task.skillsRequired.map(s => (
+                                                <span key={s.name} className="text-[10px] font-medium text-teal-700 bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-full">{s.name}</span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                        {/* Separator */}
+                                        {task.skillsRequired.length > 0 && <span className="w-px h-3 bg-gray-200" />}
+                                        {/* Experience Level */}
+                                        {!!(task as unknown as Record<string, unknown>).seniority && (
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="text-[10px] text-gray-400">Experience Level</span>
+                                            <span className="text-[11px] font-semibold text-gray-700">{(task as unknown as Record<string, unknown>).seniority as string}</span>
+                                          </div>
+                                        )}
+                                        {/* Separator */}
+                                        {!!(task as unknown as Record<string, unknown>).startDate && <span className="w-px h-3 bg-gray-200" />}
+                                        {/* Timeline */}
+                                        {!!(task as unknown as Record<string, unknown>).startDate && (
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="text-[10px] text-gray-400">Start Date</span>
+                                            <span className="text-[11px] font-semibold text-gray-700">{formatDate((task as unknown as Record<string, unknown>).startDate as string)}</span>
+                                            <span className="text-gray-300 text-[10px]">→</span>
+                                            <span className="text-[10px] text-gray-400">End Date</span>
+                                            <span className="text-[11px] font-semibold text-gray-700">{(task as unknown as Record<string, unknown>).endDate ? formatDate((task as unknown as Record<string, unknown>).endDate as string) : "—"}</span>
+                                          </div>
+                                        )}
+                                        {/* Critical */}
+                                        {!!(task as unknown as Record<string, unknown>).critical && (
+                                          <>
+                                            <span className="w-px h-3 bg-gray-200" />
+                                            <Badge variant="danger" dot>Critical</Badge>
+                                          </>
+                                        )}
                                       </div>
-                                    ))}
-                                  </div>
+
+                                      {/* Subtasks */}
+                                      {task.subtasks.length > 0 && (
+                                        <div style={{ borderTop: "1px solid var(--border-hair)" }} className="pt-3">
+                                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Subtasks</p>
+                                          <div className="space-y-1">
+                                            {task.subtasks.map((st) => (
+                                              <div key={st.id} className="flex items-center gap-2 py-1">
+                                                {st.itemStatus === "accepted"
+                                                  ? <CheckCircle2 className="w-3 h-3 text-forest-500 shrink-0" />
+                                                  : <Circle className="w-3 h-3 text-gray-300 shrink-0" />}
+                                                <span className="text-[11.5px] text-gray-600 flex-1 truncate">{st.title}</span>
+                                                <span className="text-[9.5px] font-mono text-gray-400 shrink-0">{st.estimatedHours}h</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                    </div>
+                                  </motion.div>
                                 )}
                               </div>
                             );
@@ -1135,19 +1390,90 @@ export default function PlanDetailPage() {
               <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--border-soft)" }}>
                 <span className="text-sm font-semibold text-gray-800">Review Checklist</span>
               </div>
-              <div className="py-3 px-5 space-y-4">
-                {checklistItems.map((item, i) => (
-                  <div key={i} className="flex items-start gap-3 cursor-pointer" onClick={() => toggleCheck(i)}>
-                    <div className={cn(
-                      "w-4 h-4 rounded shrink-0 mt-0.5 border-2 flex items-center justify-center transition-all",
-                      checkedItems.has(i) ? "bg-teal-500 border-teal-500" : "border-gray-300 bg-white"
-                    )}>
-                      {checkedItems.has(i) && <CheckCircle2 className="w-3 h-3 text-white" />}
-                    </div>
-                    <span className={cn("text-[12px] leading-relaxed", checkedItems.has(i) ? "line-through text-gray-400" : "text-gray-600")}>{item}</span>
+              {isConfirmed ? (
+                <div className="py-6 px-5 flex flex-col items-center gap-3 text-center">
+                  <div className="w-12 h-12 rounded-full bg-forest-50 border border-forest-200 flex items-center justify-center">
+                    <CheckCircle2 className="w-6 h-6 text-forest-500" />
                   </div>
-                ))}
-              </div>
+                  <p className="text-[13px] font-semibold text-forest-700">Plan Confirmed</p>
+                  <p className="text-[11px] text-gray-400">Contributor matching is now running.</p>
+                  {isPromoted ? (
+                    <div className="w-full flex items-center justify-center gap-2 text-[12px] font-semibold py-2.5 rounded-xl text-white bg-gradient-to-r from-brown-400 to-brown-600 mt-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Added to Portfolio
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handlePromoteToPortfolio}
+                      disabled={promoteLoading}
+                      className={cn(
+                        "w-full flex items-center justify-center gap-2 text-[12px] font-semibold py-2.5 rounded-xl transition-all mt-1",
+                        !promoteLoading
+                          ? "text-white bg-gradient-to-r from-brown-400 to-brown-600 hover:from-brown-500 hover:to-brown-700 shadow-sm"
+                          : "text-gray-400 bg-gray-100 cursor-not-allowed"
+                      )}
+                    >
+                      {promoteLoading ? (
+                        <>
+                          <motion.span
+                            className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent"
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                          />
+                          Adding…
+                        </>
+                      ) : (
+                        <>
+                          <TrendingUp className="w-3.5 h-3.5" />
+                          Add to Portfolio
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="py-3 px-5 space-y-4">
+                  {checklistItems.map((item, i) => (
+                    <div key={i} className="flex items-start gap-3 cursor-pointer" onClick={() => toggleCheck(i)}>
+                      <div className={cn(
+                        "w-4 h-4 rounded shrink-0 mt-0.5 border-2 flex items-center justify-center transition-all",
+                        checkedItems.has(i) ? "bg-teal-500 border-teal-500" : "border-gray-300 bg-white"
+                      )}>
+                        {checkedItems.has(i) && <CheckCircle2 className="w-3 h-3 text-white" />}
+                      </div>
+                      <span className={cn("text-[12px] leading-relaxed", checkedItems.has(i) ? "line-through text-gray-400" : "text-gray-600")}>{item}</span>
+                    </div>
+                  ))}
+                  <div className="pt-1">
+                    <button
+                      onClick={handleConfirmPlan}
+                      disabled={!allChecked || confirmLoading}
+                      className={cn(
+                        "w-full flex items-center justify-center gap-2 text-[12px] font-semibold py-2.5 rounded-xl transition-all",
+                        allChecked && !confirmLoading
+                          ? "text-white bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 shadow-sm"
+                          : "text-gray-400 bg-gray-100 cursor-not-allowed"
+                      )}
+                    >
+                      {confirmLoading ? (
+                        <>
+                          <motion.span
+                            className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent"
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                          />
+                          Confirming…
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Confirm Plan
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Plan Summary */}

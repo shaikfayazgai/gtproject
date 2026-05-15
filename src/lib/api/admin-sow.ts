@@ -20,8 +20,8 @@ export interface AdminSowListItem {
   [key: string]: unknown;
 }
 
-export interface AdminSowListResponse extends BaseResponse {
-  data?: AdminSowListItem[] | { [key: string]: unknown };
+export interface AdminSowListResponse extends Omit<BaseResponse, "data"> {
+  data?: AdminSowListItem[] | { [key: string]: unknown } | null;
 }
 
 // ── Token cache ───────────────────────────────────────────────────────────

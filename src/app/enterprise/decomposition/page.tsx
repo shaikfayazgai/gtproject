@@ -15,6 +15,7 @@ import { stagger, fadeUp, scaleIn } from "@/lib/utils/motion-variants";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue, Skeleton } from "@/components/ui";
 import type { DecompositionPlan, PlanStatus } from "@/types/enterprise";
 import { useKickoff, useWithdraw } from "@/lib/hooks/use-decomposition";
+import { decompositionApi } from "@/lib/api/decomposition";
 import { ApiError } from "@/lib/api/client";
 import { useQuery } from "@tanstack/react-query";
 import { listEnterpriseDecompositionPlans } from "@/lib/api/decomposition-plans";
@@ -45,6 +46,8 @@ const statusMap: Record<PlanStatus, { variant: string; label: string }> = {
   approved: { variant: "forest", label: "Plan Confirmed" },
   in_progress: { variant: "beige", label: "Plan Locked" },
   completed: { variant: "brown", label: "Completed" },
+  ai_review_in_progress: { variant: "teal", label: "AI Review In Progress" },
+  plan_review_required: { variant: "gold", label: "Plan Review Required" },
 };
 
 function formatCost(n: number) { return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 0 }).format(n); }
@@ -67,7 +70,7 @@ function PrimaryActionButton({ plan, onClick, onKickoff, onWithdraw }: { plan: D
     return (
       <button onClick={onClick}
         className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-bold text-white bg-gold-500 hover:bg-gold-600 transition-all shadow-sm">
-        Review Plan
+        View Plan
       </button>
     );
   }
@@ -166,10 +169,7 @@ type SortDir = "asc" | "desc";
 
 const columns = [
   { field: "title" as SortField, label: "Project Name", align: "left" },
-  
   { field: "updated" as SortField, label: "SOW Reference", align: "left" },
-  { field: "confidence" as SortField, label: "Milestones", align: "center" },
-  { field: "tasks" as SortField, label: "Tasks", align: "center" },
   { field: "cost" as SortField, label: "Action", align: "center" },
 ];
 
@@ -229,12 +229,17 @@ export default function DecompositionPlansPage() {
       }
     }
 
-    if (!rawArr || rawArr.length === 0) return [];
+    if (!rawArr || rawArr.length === 0) {
+      console.log("[DecompositionPlans] rawArr empty. Full response:", JSON.stringify(resp, null, 2));
+      return [];
+    }
+
+    console.log("[DecompositionPlans] raw plan fields (first):", JSON.stringify(rawArr[0], null, 2));
 
     return rawArr.map((p) => ({
-      id: (p._id ?? p.id ?? p.plan_id ?? "") as string,
-      sowId: (p.sow_id ?? p.sowId ?? p.sow_reference ?? "") as string,
-      title: (p.title ?? p.project_name ?? "Untitled Plan") as string,
+      id: (p.plan_id ?? p.id ?? p._id ?? "") as string,
+      sowId: (p.sow_reference ?? p.sow_id ?? p.sowId ?? p.wizard_id ?? "") as string,
+      title: String(p.title ?? p.project_name ?? "Untitled Plan").replace(/^statement of work for\s*/i, "").trim(),
       status: normalizeStatus((p.status ?? "draft") as string),
       createdAt: (p.created_at ?? p.createdAt ?? new Date().toISOString()) as string,
       updatedAt: (p.updated_at ?? p.updatedAt ?? new Date().toISOString()) as string,
@@ -243,6 +248,7 @@ export default function DecompositionPlansPage() {
       totalMilestones: Number(p.total_milestones ?? p.totalMilestones ?? p.milestone_count ?? 0),
       estimatedHours: Number(p.estimated_hours ?? p.estimatedHours ?? 0),
       estimatedCost: Number(p.estimated_cost ?? p.estimatedCost ?? 0),
+      maximumBudget: Number(p.maximum_budget ?? p.maximumBudget ?? p.max_budget ?? 0),
       complexity: (p.complexity ?? "medium") as DecompositionPlan["complexity"],
       version: Number(p.version ?? p.plan_version ?? p.sow_version ?? 1),
       teamId: (p.team_id ?? p.teamId) as string | undefined,
@@ -257,6 +263,13 @@ export default function DecompositionPlansPage() {
   const handleKickoff = (plan: DecompositionPlan) => {
     kickoffMutation.mutate({ plan_id: plan.id });
     setPaymentPlan(plan);
+  };
+
+  const handleViewPlan = (plan: DecompositionPlan) => {
+    decompositionApi.getPlan(plan.id).catch(() => {}).finally(() => {
+      const suffix = justPaidIds.has(plan.id) ? "?ai=generating" : "";
+      router.push(`/enterprise/decomposition/${plan.id}${suffix}`);
+    });
   };
 
   const handlePaymentSuccess = (paidPlanId: string) => {
@@ -352,21 +365,19 @@ export default function DecompositionPlansPage() {
             <Skeleton className="h-9 w-36 rounded-lg" />
           </div>
           {/* Table header */}
-          <div className="grid grid-cols-5 gap-4 px-6 py-3" style={{ borderBottom: "1px solid var(--border-soft)" }}>
-            {["w-28", "w-24", "w-16", "w-12", "w-16"].map((w, i) => (
+          <div className="grid grid-cols-3 gap-4 px-6 py-3" style={{ borderBottom: "1px solid var(--border-soft)" }}>
+            {["w-28", "w-24", "w-16"].map((w, i) => (
               <Skeleton key={i} className={`h-2.5 ${w}`} />
             ))}
           </div>
           {/* Table rows */}
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="grid grid-cols-5 gap-4 px-6 py-5 items-center" style={{ borderBottom: "1px solid var(--border-hair)" }}>
+            <div key={i} className="grid grid-cols-3 gap-4 px-6 py-5 items-center" style={{ borderBottom: "1px solid var(--border-hair)" }}>
               <div className="space-y-1.5">
                 <Skeleton className="h-3.5 w-full" />
                 <Skeleton className="h-2.5 w-2/3" />
               </div>
               <Skeleton className="h-3 w-24" />
-              <Skeleton className="h-3 w-8" />
-              <Skeleton className="h-3 w-8" />
               <Skeleton className="h-9 w-24 rounded-lg" />
             </div>
           ))}
@@ -383,7 +394,7 @@ export default function DecompositionPlansPage() {
     {paymentPlan && (
       <MilestonePaymentModal
         title={paymentPlan.title}
-        budget={paymentPlan.estimatedCost}
+        budget={paymentPlan.maximumBudget || paymentPlan.estimatedCost || 1200000}
         pendingId="m1"
         entityId={paymentPlan.id}
         onSuccess={() => handlePaymentSuccess(paymentPlan!.id)}
@@ -523,7 +534,7 @@ export default function DecompositionPlansPage() {
 
                     {/* Project Name */}
                     <td style={{ padding: "13px 16px" }}>
-                      <div className="text-[13px] font-medium text-gray-800 truncate max-w-[280px]">{plan.title}</div>
+                      <div className="text-[13px] font-medium text-gray-800">{plan.title}</div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] text-gray-400">{sowVersion}</span>
                       </div>
@@ -533,22 +544,17 @@ export default function DecompositionPlansPage() {
 
                     {/* SOW Reference */}
                     <td style={{ padding: "13px 16px" }}>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-[12px] text-gray-700">{sowRef}</span>
-                        <Link href={`/enterprise/sow/${plan.sowId}`} onClick={(e) => e.stopPropagation()}>
-                          <ExternalLink className="w-3 h-3 text-gray-400 hover:text-brown-500 transition-colors" />
+                      {plan.sowId ? (
+                        <Link
+                          href={`/enterprise/sow/${plan.sowId}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="font-mono text-[12px] text-brown-500 hover:text-brown-700 hover:underline transition-colors"
+                        >
+                          {plan.sowId}
                         </Link>
-                      </div>
-                    </td>
-
-                    {/* Milestones */}
-                    <td style={{ padding: "13px 16px", textAlign: "center" }}>
-                      <span className="text-[12px] font-medium text-gray-700">{plan.totalMilestones}</span>
-                    </td>
-
-                    {/* Tasks */}
-                    <td style={{ padding: "13px 16px", textAlign: "center" }}>
-                      <span className="text-[12px] font-medium text-gray-700">{plan.totalTasks}</span>
+                      ) : (
+                        <span className="text-[12px] text-gray-400">—</span>
+                      )}
                     </td>
 
                     {/* Primary Action */}
@@ -557,8 +563,7 @@ export default function DecompositionPlansPage() {
                         plan={plan}
                         onClick={(e) => {
                           e.stopPropagation();
-                          const suffix = justPaidIds.has(plan.id) ? "?ai=generating" : "";
-                          router.push(`/enterprise/decomposition/${plan.id}${suffix}`);
+                          handleViewPlan(plan);
                         }}
                         onKickoff={() => handleKickoff(plan)}
                         onWithdraw={(id) => withdrawMutation.mutate(id)}

@@ -66,8 +66,49 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // First try user's own Glimmora token from the JWT, then fall back to service token
-  let token = jwt.glimmoraAccessToken as string | undefined;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const { path, method, payload, enterprise } = body as {
+    path?: string;
+    method?: string;
+    payload?: unknown;
+    enterprise?: boolean;
+  };
+
+  if (!path || typeof path !== "string" || !path.startsWith("/api/v1/")) {
+    return NextResponse.json({ error: "Invalid path" }, { status: 400 });
+  }
+
+  // Token acquisition order:
+  // 1. User's own glimmoraAccessToken from JWT (best — scoped to their tenant)
+  // 2. Enterprise service account (for enterprise/admin users, or when enterprise=true)
+  // 3. Contributor service account (last resort)
+  let token: string | undefined = jwt.glimmoraAccessToken as string | undefined;
+
+  const jwtRole = jwt.role as string | undefined;
+  const needsEnterpriseToken =
+    !token &&
+    (enterprise || jwtRole === "enterprise" || jwtRole === "admin" || jwtRole === "super_admin");
+
+  if (!token) {
+    try {
+      const origin = req.nextUrl.origin;
+      const cookie = req.headers.get("cookie") ?? "";
+      const role = needsEnterpriseToken ? "enterprise" : "";
+      const tokenRes = await fetch(
+        `${origin}/api/sow/token${role ? `?role=${role}` : ""}`,
+        { headers: cookie ? { cookie } : {} },
+      );
+      const tokenJson = await tokenRes.json().catch(() => ({}));
+      token = tokenJson?.token as string | undefined;
+    } catch { /* fall through */ }
+  }
+
   if (!token) {
     token = (await getGlimmoraToken()) ?? undefined;
   }
@@ -80,23 +121,39 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { path, method, payload } = await req.json();
+    const backendFetch = (t: string) =>
+      fetch(`${GLIMMORA_API}${path}`, {
+        method: method || "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${t}`,
+        },
+        ...(payload ? { body: JSON.stringify(payload) } : {}),
+      });
 
-    if (!path || typeof path !== "string" || !path.startsWith("/api/v1/")) {
-      return NextResponse.json({ error: "Invalid path" }, { status: 400 });
+    let res = await backendFetch(token);
+
+    // On 401: bust cached token, re-acquire with the same scope, retry once
+    if (res.status === 401) {
+      cachedToken = null;
+      try {
+        const origin = req.nextUrl.origin;
+        const cookie = req.headers.get("cookie") ?? "";
+        const role = needsEnterpriseToken ? "enterprise" : "";
+        const refreshRes = await fetch(
+          `${origin}/api/sow/token${role ? `?role=${role}&force_refresh=1` : "?force_refresh=1"}`,
+          { headers: cookie ? { cookie } : {} },
+        );
+        const refreshJson = await refreshRes.json().catch(() => ({}));
+        const refreshedToken = refreshJson?.token as string | undefined;
+        if (refreshedToken) {
+          token = refreshedToken;
+          res = await backendFetch(refreshedToken);
+        }
+      } catch { /* ignore — fall through to return the 401 */ }
     }
 
-    const res = await fetch(`${GLIMMORA_API}${path}`, {
-      method: method || "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      ...(payload ? { body: JSON.stringify(payload) } : {}),
-    });
-
     const data = await res.json().catch(() => ({}));
-
     return NextResponse.json(data, { status: res.status });
   } catch (err) {
     return NextResponse.json(

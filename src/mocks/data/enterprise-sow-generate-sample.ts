@@ -183,7 +183,7 @@ export const sampleSOWFormData = {
      ═══════════════════════════════════════════ */
   startDate: "2026-05-01",
   endDate: "2026-12-15",
-  phasingStrategy: "phased_modules",
+  phasingStrategy: "milestone_only",
   milestones: [
     "Project Kickoff & Discovery Complete — May 15, 2026",
     "Design System & Wireframes Approved — June 15, 2026",

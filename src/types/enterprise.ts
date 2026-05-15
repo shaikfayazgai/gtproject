@@ -7,7 +7,7 @@ export type SowStatus = "draft" | "parsing" | "review" | "approval" | "approved"
 export type SowIntakeMode = "ai_generated" | "manual_upload";
 export type DataSensitivity = "public" | "internal" | "confidential" | "restricted";
 export type ConfidentialityLevel = "public" | "internal" | "confidential" | "restricted";
-export type PlanStatus = "draft" | "pending_review" | "revision_in_progress" | "approved" | "in_progress" | "completed";
+export type PlanStatus = "draft" | "pending_review" | "revision_in_progress" | "approved" | "in_progress" | "completed" | "ai_review_in_progress" | "plan_review_required";
 export type DependencyType = "blocks" | "related";
 export type SkillSource = "ai" | "manual";
 export type DecompositionItemStatus = "proposed" | "accepted" | "modified" | "deleted";
@@ -178,6 +178,7 @@ export interface DecompositionPlan {
   totalMilestones: number;
   estimatedHours: number;
   estimatedCost: number;
+  maximumBudget: number;
   complexity: "low" | "medium" | "high" | "critical";
   version: number;
   teamId?: string;

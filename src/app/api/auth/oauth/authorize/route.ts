@@ -4,20 +4,30 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/auth/oauth/authorize?provider=google|microsoft&redirectAfter=...&role=...
+ * GET /api/auth/oauth/authorize?provider=google|microsoft&redirectAfter=...&role=...&intent=login|register
  *
- * Server-side redirect to the Glimmora OAuth authorize endpoint.
- * Builds the authorize URL using the server-only GLIMMORA_API_URL env var,
- * encodes redirectAfter + role into the state param, then 302-redirects.
+ * Server-side redirect to the Glimmora OAuth authorize endpoint. Encodes
+ * redirectAfter + role + callbackUrl + intent into the state param, then
+ * 302-redirects.
  *
- * Used by the login and register pages (client-side) to avoid needing
- * NEXT_PUBLIC_GLIMMORA_API_URL.
+ * `intent` is forwarded to the backend so it can:
+ *   - intent=login + user does not exist  → return OAUTH_NO_ACCOUNT
+ *   - intent=login + user exists          → SKIP role-conflict check (the
+ *                                            login page's `role` is just a UI
+ *                                            hint; trust the existing user)
+ *   - intent=register + user exists       → return OAUTH_ALREADY_REGISTERED
+ *
+ * Without intent, the backend falls back to legacy strict-role behaviour and
+ * raises EMAIL_ROLE_CONFLICT for cross-role logins. That's the bug this fixes.
  */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const provider = searchParams.get("provider");
-  const redirectAfter = searchParams.get("redirectAfter") ?? "/enterprise/dashboard";
-  const role = searchParams.get("role") ?? "enterprise";
+  const redirectAfter = searchParams.get("redirectAfter") ?? "/auth/redirect";
+  const role = searchParams.get("role") ?? "";
+  const rawIntent = (searchParams.get("intent") ?? "").toLowerCase();
+  const intent: "login" | "register" | undefined =
+    rawIntent === "login" || rawIntent === "register" ? rawIntent : undefined;
 
   if (provider !== "google" && provider !== "microsoft") {
     return NextResponse.json({ error: "Invalid provider" }, { status: 400 });
@@ -40,11 +50,16 @@ export async function GET(req: NextRequest) {
     : `${requestUrl.protocol}//${requestUrl.host}`;
   const appCallbackUrl = `${appOrigin}/auth/oauth/callback`;
 
-  // Encode callbackUrl inside state so Google passes it back to the FastAPI
-  // callback unchanged — the FastAPI then reads it to know where to redirect.
-  const state = Buffer.from(
-    JSON.stringify({ redirectAfter, role, callbackUrl: appCallbackUrl }),
-  ).toString("base64");
+  // Encode callbackUrl + intent inside state so Google passes it back to the
+  // FastAPI callback unchanged — the FastAPI then reads it to know where to
+  // redirect, and which intent rule to apply.
+  const envelope: Record<string, string> = {
+    redirectAfter,
+    role,
+    callbackUrl: appCallbackUrl,
+  };
+  if (intent) envelope.intent = intent;
+  const state = Buffer.from(JSON.stringify(envelope)).toString("base64");
   const authorizeUrl = `${baseUrl}/api/v1/auth/oauth/${provider}/authorize?state=${encodeURIComponent(state)}`;
 
   return NextResponse.redirect(authorizeUrl);

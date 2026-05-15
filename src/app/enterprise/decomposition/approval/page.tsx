@@ -31,6 +31,8 @@ const statusBadge: Record<
   approved: { variant: "forest", label: "Plan Confirmed" },
   in_progress: { variant: "beige", label: "Plan Locked" },
   completed: { variant: "brown", label: "Completed" },
+  ai_review_in_progress: { variant: "teal", label: "AI Review In Progress" },
+  plan_review_required: { variant: "gold", label: "Plan Review Required" },
 };
 
 /* ── Complexity badge config ── */
@@ -247,6 +249,7 @@ export default function PlanApprovalPage() {
       totalMilestones: Number(p.total_milestones ?? p.totalMilestones ?? p.milestone_count ?? 0),
       estimatedHours: Number(p.estimated_hours ?? p.estimatedHours ?? 0),
       estimatedCost: Number(p.estimated_cost ?? p.estimatedCost ?? 0),
+      maximumBudget: Number(p.maximum_budget ?? p.maximumBudget ?? p.max_budget ?? 0),
       complexity: (p.complexity ?? "medium") as DecompositionPlan["complexity"],
       version: Number(p.version ?? p.plan_version ?? p.sow_version ?? 1),
       teamId: (p.team_id ?? p.teamId) as string | undefined,

@@ -13,6 +13,10 @@ export interface CreatePlanPayload {
   enterprise_id: string;
   sow_reference: string;
   project_name: string;
+  minimum_budget?: number;
+  maximum_budget?: number;
+  start_date?: string;
+  end_date?: string;
 }
 
 export interface CreatePlanResponse {
@@ -37,6 +41,147 @@ export interface ListPlansResponse {
   success: boolean;
   message: string | null;
   data: unknown;
+}
+
+export async function getEnterpriseDecompositionPlan(planId: string): Promise<ListPlansResponse> {
+  const token = await getEnterpriseToken();
+
+  const res = await fetch(`${BASE_URL}/api/v1/enterprise/decomposition/plans/${planId}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const detail = (data as { detail?: unknown })?.detail;
+    const message = (data as { message?: unknown })?.message;
+    const msg =
+      typeof detail === "string"
+        ? detail
+        : typeof message === "string"
+        ? message
+        : `Request failed (${res.status})`;
+    throw new Error(msg);
+  }
+
+  return data as ListPlansResponse;
+}
+
+export async function getEnterpriseDecompositionPlanTasks(planId: string): Promise<ListPlansResponse> {
+  const token = await getEnterpriseToken();
+
+  const res = await fetch(`${BASE_URL}/api/v1/enterprise/decomposition/plans/${planId}/tasks`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const detail = (data as { detail?: unknown })?.detail;
+    const message = (data as { message?: unknown })?.message;
+    const msg =
+      typeof detail === "string"
+        ? detail
+        : typeof message === "string"
+        ? message
+        : `Request failed (${res.status})`;
+    throw new Error(msg);
+  }
+
+  return data as ListPlansResponse;
+}
+
+export async function getEnterpriseDecompositionPlanMilestones(planId: string): Promise<ListPlansResponse> {
+  const token = await getEnterpriseToken();
+
+  const res = await fetch(`${BASE_URL}/api/v1/enterprise/decomposition/plans/${planId}/milestones`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const detail = (data as { detail?: unknown })?.detail;
+    const message = (data as { message?: unknown })?.message;
+    const msg =
+      typeof detail === "string"
+        ? detail
+        : typeof message === "string"
+        ? message
+        : `Request failed (${res.status})`;
+    throw new Error(msg);
+  }
+
+  return data as ListPlansResponse;
+}
+
+export async function postEnterpriseRequestRevision(planId: string, payload?: unknown): Promise<ListPlansResponse> {
+  const token = await getEnterpriseToken();
+
+  const res = await fetch(`${BASE_URL}/api/v1/enterprise/decomposition/plans/${planId}/request-revision`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    ...(payload ? { body: JSON.stringify(payload) } : {}),
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const detail = (data as { detail?: unknown })?.detail;
+    const message = (data as { message?: unknown })?.message;
+    const msg =
+      typeof detail === "string"
+        ? detail
+        : typeof message === "string"
+        ? message
+        : `Request failed (${res.status})`;
+    throw new Error(msg);
+  }
+
+  return data as ListPlansResponse;
+}
+
+export async function getEnterpriseDecompositionPlanRevision(planId: string): Promise<ListPlansResponse> {
+  const token = await getEnterpriseToken();
+
+  const res = await fetch(`${BASE_URL}/api/v1/enterprise/decomposition/plans/${planId}/revision`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const detail = (data as { detail?: unknown })?.detail;
+    const message = (data as { message?: unknown })?.message;
+    const msg =
+      typeof detail === "string"
+        ? detail
+        : typeof message === "string"
+        ? message
+        : `Request failed (${res.status})`;
+    throw new Error(msg);
+  }
+
+  return data as ListPlansResponse;
 }
 
 export async function listEnterpriseDecompositionPlans(): Promise<ListPlansResponse> {
@@ -65,6 +210,147 @@ export async function listEnterpriseDecompositionPlans(): Promise<ListPlansRespo
   }
 
   return data as ListPlansResponse;
+}
+
+export async function postEnterpriseSubmitForReview(planId: string): Promise<ListPlansResponse> {
+  const token = await getEnterpriseToken();
+
+  const res = await fetch(`${BASE_URL}/api/v1/enterprise/decomposition/plans/${planId}/submit-for-review`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  return handleResponse(res);
+}
+
+export async function confirmEnterpriseDecompositionPlan(planId: string, confirmedBy: string): Promise<ListPlansResponse> {
+  const token = await getEnterpriseToken();
+
+  const res = await fetch(`${BASE_URL}/api/v1/enterprise/decomposition/plans/${planId}/confirm`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      checklist: { item1: true, item2: true, item3: true },
+      confirmed_by: confirmedBy,
+    }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const detail = (data as { detail?: unknown })?.detail;
+    const message = (data as { message?: unknown })?.message;
+    const msg =
+      typeof detail === "string"
+        ? detail
+        : typeof message === "string"
+        ? message
+        : `Request failed (${res.status})`;
+    throw new Error(msg);
+  }
+
+  return data as ListPlansResponse;
+}
+
+/* ── Helper ─────────────────────────────────────────────────────────── */
+
+async function handleResponse(res: Response): Promise<ListPlansResponse> {
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = (data as { detail?: unknown })?.detail;
+    const message = (data as { message?: unknown })?.message;
+    const msg =
+      typeof detail === "string"
+        ? detail
+        : typeof message === "string"
+        ? message
+        : `Request failed (${res.status})`;
+    throw new Error(msg);
+  }
+  return data as ListPlansResponse;
+}
+
+/* ── Task CRUD ──────────────────────────────────────────────────────── */
+
+export interface TaskPayload {
+  title?: string;
+  task_name?: string;
+  priority?: string;
+  effort?: number;
+  estimated_hours?: number;
+  skills?: string[];
+  description?: string;
+  acceptance_criteria?: string[];
+  milestone_id?: string;
+}
+
+export interface SubtaskPayload {
+  title?: string;
+  estimated_hours?: number;
+}
+
+export async function patchEnterpriseTask(planId: string, taskId: string, payload: TaskPayload): Promise<ListPlansResponse> {
+  const token = await getEnterpriseToken();
+  const res = await fetch(`${BASE_URL}/api/v1/enterprise/decomposition/plans/${planId}/tasks/${taskId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
+export async function postEnterpriseTask(planId: string, payload: TaskPayload): Promise<ListPlansResponse> {
+  const token = await getEnterpriseToken();
+  const res = await fetch(`${BASE_URL}/api/v1/enterprise/decomposition/plans/${planId}/tasks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
+export async function deleteEnterpriseTask(planId: string, taskId: string): Promise<ListPlansResponse> {
+  const token = await getEnterpriseToken();
+  const res = await fetch(`${BASE_URL}/api/v1/enterprise/decomposition/plans/${planId}/tasks/${taskId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+  });
+  return handleResponse(res);
+}
+
+export async function postEnterpriseSubtask(planId: string, taskId: string, payload: SubtaskPayload): Promise<ListPlansResponse> {
+  const token = await getEnterpriseToken();
+  const res = await fetch(`${BASE_URL}/api/v1/enterprise/decomposition/plans/${planId}/tasks/${taskId}/subtasks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
+export async function patchEnterpriseSubtask(planId: string, taskId: string, subtaskId: string, payload: SubtaskPayload): Promise<ListPlansResponse> {
+  const token = await getEnterpriseToken();
+  const res = await fetch(`${BASE_URL}/api/v1/enterprise/decomposition/plans/${planId}/tasks/${taskId}/subtasks/${subtaskId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
+export async function deleteEnterpriseSubtask(planId: string, taskId: string, subtaskId: string): Promise<ListPlansResponse> {
+  const token = await getEnterpriseToken();
+  const res = await fetch(`${BASE_URL}/api/v1/enterprise/decomposition/plans/${planId}/tasks/${taskId}/subtasks/${subtaskId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+  });
+  return handleResponse(res);
 }
 
 export async function createEnterpriseDecompositionPlan(

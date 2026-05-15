@@ -312,8 +312,8 @@ export default function SOWDetailPage() {
   const pipelineSows = useSOWPipelineStore((s) => s.sows);
   const { data: apiSowData, isLoading: apiSowLoading, flow: apiFlow } = useSOWDetail(sowId);
 
-  // Direct query for the header — handles both { success, data: {...} } and flat shapes
-  const manualSowQuery = useManualSOW(sowId);
+  // Direct query for the header — only for manual SOWs; AI SOWs use apiSowData from useSOWDetail
+  const manualSowQuery = useManualSOW(sowId, apiFlow === "manual");
   const headerData = React.useMemo(() => {
     const raw = manualSowQuery.data as Record<string, unknown> | null | undefined;
     if (!raw) return null;
@@ -333,11 +333,11 @@ export default function SOWDetailPage() {
     const riskScore = Number(genRisk.risk_score ?? topRisk.risk_score ?? topRisk.riskScore ?? 0);
     const riskLevel = String(genRisk.risk_level ?? topRisk.risk_level ?? topRisk.riskLevel ?? "");
 
-    // budget: prefer commercial_details.budgetRisk (manual SOW embed), then flat fields
+    // budget: prefer commercial_details.budgetRisk (manual SOW embed), then AI SOW flat fields
     const cd = (typeof d.commercial_details === "object" && d.commercial_details !== null ? d.commercial_details : {}) as Record<string, unknown>;
     const br = (typeof cd.budgetRisk === "object" && cd.budgetRisk !== null ? cd.budgetRisk : {}) as Record<string, unknown>;
-    const budgetMin = Number(br.budgetMinimum ?? br.budget_minimum ?? d.budgetMinimum ?? d.budget_minimum ?? 0);
-    const budgetMax = Number(br.budgetMaximum ?? br.budget_maximum ?? d.budgetMaximum ?? d.budget_maximum ?? 0);
+    const budgetMin = Number(br.budgetMinimum ?? br.budget_minimum ?? d.budgetMinimum ?? d.budget_minimum ?? d.minimum_budget ?? 0);
+    const budgetMax = Number(br.budgetMaximum ?? br.budget_maximum ?? d.budgetMaximum ?? d.budget_maximum ?? d.maximum_budget ?? 0);
 
     // duration: prefer timelineTeam section, then flat fields
     const tt = (typeof cd.timelineTeam === "object" && cd.timelineTeam !== null ? cd.timelineTeam : {}) as Record<string, unknown>;
@@ -401,7 +401,7 @@ export default function SOWDetailPage() {
         ? ((raw.generated_content ?? {}) as Record<string, unknown>)
         : ({} as Record<string, unknown>);
       const updatedAt = String(raw.updated_at ?? raw.updatedAt ?? raw.created_at ?? raw.createdAt ?? new Date().toISOString());
-      const title = String(gc.document_title ?? raw.title ?? raw.project_title ?? raw.projectTitle ?? "Untitled SOW");
+      const title = String(gc.document_title ?? raw.title ?? raw.project_title ?? raw.projectTitle ?? "Untitled SOW").replace(/^statement of work for\s*/i, "").trim();
       let client = String(raw.client ?? raw.client_organisation ?? raw.clientOrganisation ?? gc.client_name ?? gc.client ?? "");
       if (!client) {
         const bizOwner = String(raw.business_owner_approver_id ?? "");
@@ -461,14 +461,14 @@ export default function SOWDetailPage() {
           patternMatch: Number((riskRaw as Record<string, unknown>)?.pattern_match ?? (riskRaw as Record<string, unknown>)?.patternMatch ?? 0),
         },
         tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
-        estimatedBudget: Number(raw.estimated_budget ?? raw.estimatedBudget ?? 0),
+        estimatedBudget: Number(raw.estimated_budget ?? raw.estimatedBudget ?? raw.minimum_budget ?? 0),
         estimatedDuration: String(raw.estimated_duration ?? raw.estimatedDuration ?? raw.timeline ?? ""),
         stakeholders: Array.isArray(raw.stakeholders) ? (raw.stakeholders as string[]) : [],
         slaCompliance: raw.sla_compliance ? Number(raw.sla_compliance) : raw.slaCompliance ? Number(raw.slaCompliance) : undefined,
         industry: raw.industry ? String(raw.industry) : undefined,
         gapAnalysisScore: raw.gap_analysis_score ? Number(raw.gap_analysis_score) : raw.gapAnalysisScore ? Number(raw.gapAnalysisScore) : undefined,
         approvalStages,
-        planId: raw.plan_id ? String(raw.plan_id) : raw.planId ? String(raw.planId) : undefined,
+        planId: raw.plan_id ? String(raw.plan_id) : raw.planId ? String(raw.planId) : allSows.find((s) => s.id === sowId)?.planId ?? undefined,
         templateId: raw.template_id ? String(raw.template_id) : raw.templateId ? String(raw.templateId) : undefined,
       } satisfies import("@/types/enterprise").SOW;
     }
@@ -506,11 +506,22 @@ export default function SOWDetailPage() {
     setIsDecomposing(true);
     try {
       const raw = apiSowData as Record<string, unknown> | null;
+      const cd = (typeof raw?.commercial_details === "object" && raw?.commercial_details !== null ? raw.commercial_details : {}) as Record<string, unknown>;
+      const br = (typeof cd.budgetRisk === "object" && cd.budgetRisk !== null ? cd.budgetRisk : {}) as Record<string, unknown>;
+      const tt = (typeof cd.timelineTeam === "object" && cd.timelineTeam !== null ? cd.timelineTeam : {}) as Record<string, unknown>;
+      const minBudget = Number(br.budgetMinimum ?? br.budget_minimum ?? raw?.budgetMinimum ?? raw?.budget_minimum ?? raw?.minimum_budget ?? 0);
+      const maxBudget = Number(br.budgetMaximum ?? br.budget_maximum ?? raw?.budgetMaximum ?? raw?.budget_maximum ?? raw?.maximum_budget ?? 0);
+      const startDate = String(tt.startDate ?? raw?.start_date ?? "");
+      const endDate = String(tt.targetEndDate ?? raw?.end_date ?? "");
       const payload = {
-        wizard_id:     String(raw?.wizard_id ?? raw?.id ?? sowId),
-        enterprise_id: String(raw?.enterprise_id ?? (session?.user as { id?: string })?.id ?? ""),
-        sow_reference: sow.id,
-        project_name:  sow.title,
+        wizard_id:      String(raw?.wizard_id ?? raw?.id ?? sowId),
+        enterprise_id:  String(raw?.enterprise_id ?? (session?.user as { id?: string })?.id ?? ""),
+        sow_reference:  String(raw?._id ?? raw?.id ?? raw?.sow_id ?? sowId),
+        project_name:   sow.title,
+        minimum_budget: minBudget > 0 ? minBudget : 850000.0,
+        maximum_budget: maxBudget > 0 ? maxBudget : 1200000.0,
+        ...(startDate ? { start_date: startDate } : {}),
+        ...(endDate ? { end_date: endDate } : {}),
       };
       const res = await createEnterpriseDecompositionPlan(payload);
       const planId = String(
@@ -518,20 +529,19 @@ export default function SOWDetailPage() {
         (res.data as Record<string, unknown> | null)?.plan_id ?? ""
       );
       await queryClient.invalidateQueries({ queryKey: ["enterprise", "decomposition", "plans"] });
-      if (planId) updateSow(sowId, { planId });
+      addSow({ ...sow, planId: planId || sowId });
       setDecompositionStarted(true);
-      router.push("/enterprise/decomposition");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to start decomposition";
       toast.error("Decomposition failed", msg);
     } finally {
       setIsDecomposing(false);
     }
-  }, [isDecomposing, apiSowData, sowId, session, sow, router, queryClient, updateSow]);
+  }, [isDecomposing, apiSowData, sowId, session, sow, router, queryClient, addSow]);
 
   const linkedProject = sow ? mockProjects.find((p) => p.sowId === sow.id) : undefined;
 
-  const { data: sectionsApiData, isLoading: sectionsLoading } = useSOWSections(sowId);
+  const { data: sectionsApiData, isLoading: sectionsLoading } = useSOWSections(sowId, apiFlow === "manual");
 
   const sections = React.useMemo(() => {
     type SectionItem = { section_id: string; title: string; confidence: number; content: string };
@@ -1092,8 +1102,13 @@ export default function SOWDetailPage() {
             const createdBy = sow.createdBy;
             const isAI      = intake === "ai_generated";
 
-            const budgetText = (h?.budgetMin ?? 0) > 0 || (h?.budgetMax ?? 0) > 0
-              ? `$${(h!.budgetMin).toLocaleString()}–$${(h!.budgetMax).toLocaleString()}`
+            const apiRaw = apiSowData as Record<string, unknown> | null | undefined;
+            const apiBudgetMin = Number(apiRaw?.minimum_budget ?? apiRaw?.budget_minimum ?? 0);
+            const apiBudgetMax = Number(apiRaw?.maximum_budget ?? apiRaw?.budget_maximum ?? 0);
+            const resolvedBudgetMin = (h?.budgetMin ?? 0) > 0 ? h!.budgetMin : apiBudgetMin;
+            const resolvedBudgetMax = (h?.budgetMax ?? 0) > 0 ? h!.budgetMax : apiBudgetMax;
+            const budgetText = resolvedBudgetMin > 0 || resolvedBudgetMax > 0
+              ? `$${resolvedBudgetMin.toLocaleString()}–$${resolvedBudgetMax.toLocaleString()}`
               : (h?.estimatedBudget ?? sow.estimatedBudget) > 0
               ? `$${(h?.estimatedBudget ?? sow.estimatedBudget).toLocaleString()}`
               : "TBD";
@@ -1266,7 +1281,7 @@ export default function SOWDetailPage() {
                       { label: "Last Updated", value: formatDateTime(sow.updatedAt) },
                       { label: "File Size", value: sow.fileSize },
                       { label: "Pages", value: `${sow.pages} pages` },
-                      { label: "Estimated Budget", value: sow.estimatedBudget > 0 ? `$${sow.estimatedBudget.toLocaleString()}` : "TBD" },
+                      { label: "Estimated Budget", value: (() => { const ar = apiSowData as Record<string, unknown> | null | undefined; const mn = (headerData?.budgetMin ?? 0) > 0 ? headerData!.budgetMin : Number(ar?.minimum_budget ?? ar?.budget_minimum ?? 0); const mx = (headerData?.budgetMax ?? 0) > 0 ? headerData!.budgetMax : Number(ar?.maximum_budget ?? ar?.budget_maximum ?? 0); return mn > 0 || mx > 0 ? `$${mn.toLocaleString()}–$${mx.toLocaleString()}` : sow.estimatedBudget > 0 ? `$${sow.estimatedBudget.toLocaleString()}` : "TBD"; })() },
                       { label: "Estimated Duration", value: sow.estimatedDuration },
                       { label: "Version", value: `v${sow.version}` },
                       { label: "Approved By", value: sow.approvedBy || "--" },

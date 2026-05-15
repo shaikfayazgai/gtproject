@@ -64,11 +64,33 @@ export function useAdminManualSOWList(params?: {
 
 // ── Single SOW ────────────────────────────────────────────────────────────
 
-export function useManualSOW(sowId: string | null) {
+export function useManualSOW(sowId: string | null, enabled = true) {
   return useQuery({
     queryKey: manualSowKeys.sow(sowId ?? ""),
     queryFn: () => sowApi.getManualSOW(sowId!),
-    enabled: !!sowId,
+    enabled: !!sowId && enabled,
+  });
+}
+
+const MANUAL_TERMINAL_STATUSES = new Set([
+  "review", "uploaded", "created", "complete",
+  "approval", "approved", "rejected", "changes_requested",
+]);
+
+/** Polls GET /api/v1/sow/{sowId} every 3 s until a terminal status is reached. */
+export function useManualSowStatusPolling(sowId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: [...manualSowKeys.sow(sowId ?? ""), "status-poll"] as const,
+    queryFn: () => sowApi.getManualSOW(sowId!),
+    enabled: !!sowId && enabled,
+    retry: false,
+    refetchInterval: (query) => {
+      if (query.state.error) return false;
+      const raw = query.state.data as { data?: Record<string, unknown> } | undefined;
+      const status = String(raw?.data?.status ?? "");
+      if (status && MANUAL_TERMINAL_STATUSES.has(status)) return false;
+      return 3000;
+    },
   });
 }
 
@@ -142,13 +164,8 @@ export function useSOWDetail(sowId: string | null): {
   flow: "manual" | "ai";
   refetch: () => void;
 } {
-  const manualQuery = useQuery({
-    queryKey: manualSowKeys.sow(sowId ?? ""),
-    queryFn: () => sowApi.getManualSOW(sowId!),
-    enabled: !!sowId,
-    retry: 1,
-  });
-
+  // Try AI endpoint first; only fall back to manual if AI returns no data.
+  // This prevents manual-SOW 404s from firing for AI-generated SOWs.
   const aiQuery = useQuery({
     queryKey: aiSowKeys.sow(sowId ?? ""),
     queryFn: () => sowApi.getSow(sowId!),
@@ -156,22 +173,32 @@ export function useSOWDetail(sowId: string | null): {
     retry: 1,
   });
 
-  const manualRaw  = (manualQuery.data ?? null) as unknown as Record<string, unknown> | null;
-  const aiRaw      = (aiQuery.data ?? null) as unknown as Record<string, unknown> | null;
-  const manualData = ((manualRaw?.data as Record<string, unknown> | null) ?? manualRaw) as Record<string, unknown> | null;
-  const aiData     = ((aiRaw?.data as Record<string, unknown> | null) ?? aiRaw) as Record<string, unknown> | null;
+  const aiRaw  = (aiQuery.data ?? null) as unknown as Record<string, unknown> | null;
+  const aiData = ((aiRaw?.data as Record<string, unknown> | null) ?? aiRaw) as Record<string, unknown> | null;
 
-  // Manual takes priority; fall back to AI
-  const data = manualData ?? aiData;
-  const flow: "manual" | "ai" = manualData ? "manual" : "ai";
+  // Manual query fires only after AI completes with no data (manual SOW path)
+  const manualEnabled = !!sowId && !aiQuery.isLoading && !aiData;
+
+  const manualQuery = useQuery({
+    queryKey: manualSowKeys.sow(sowId ?? ""),
+    queryFn: () => sowApi.getManualSOW(sowId!),
+    enabled: manualEnabled,
+    retry: 1,
+  });
+
+  const manualRaw  = (manualQuery.data ?? null) as unknown as Record<string, unknown> | null;
+  const manualData = ((manualRaw?.data as Record<string, unknown> | null) ?? manualRaw) as Record<string, unknown> | null;
+
+  const data = aiData ?? manualData;
+  const flow: "manual" | "ai" = !aiData && !!manualData ? "manual" : "ai";
 
   return {
     data,
-    isLoading: manualQuery.isLoading && aiQuery.isLoading,
+    isLoading: aiQuery.isLoading || (manualEnabled && manualQuery.isLoading),
     flow,
     refetch: () => {
-      manualQuery.refetch();
       aiQuery.refetch();
+      manualQuery.refetch();
     },
   };
 }
@@ -434,10 +461,15 @@ export function useGenerationStatus(sowId: string | null, enabled = true) {
     queryKey: manualSowKeys.generationStatus(sowId ?? ""),
     queryFn: () => sowApi.getGenerationStatus(sowId!),
     enabled: !!sowId && enabled,
+    retry: false,
     refetchInterval: (query) => {
-      const status = (query.state.data as { data?: { status?: string } } | undefined)?.data?.status;
-      if (status === "completed" || status === "complete" || status === "failed" || status === "error") return false;
-      return 4000;
+      if (query.state.error) return false;
+      const raw = query.state.data as { data?: { status?: string } } | undefined;
+      const status = raw?.data?.status;
+      // Keep polling only while the API explicitly signals in-progress
+      const inProgress = status === "pending" || status === "processing" || status === "in_progress";
+      if (raw && !inProgress) return false;
+      return 3000;
     },
   });
 }
@@ -717,11 +749,11 @@ export function useSOWClauses(sowId: string | null) {
   });
 }
 
-export function useSOWSections(sowId: string | null) {
+export function useSOWSections(sowId: string | null, enabled = true) {
   return useQuery({
     queryKey: manualSowKeys.sections(sowId ?? ""),
     queryFn: () => sowApi.getSOWSections(sowId!),
-    enabled: !!sowId,
+    enabled: !!sowId && enabled,
   });
 }
 

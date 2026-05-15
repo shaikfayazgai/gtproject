@@ -315,7 +315,7 @@ const sow009Data: SOWWizardStepData = {
   /* §4 – Timeline, Team & Testing */
   startDate: "2026-05-01",
   endDate: "2026-10-31",
-  phasingStrategy: "phased_modules",
+  phasingStrategy: "sequential",
   milestones: [
     "Kickoff & Discovery Complete — May 14, 2026",
     "Architecture Decision Record (ADR) approved — May 28, 2026",
@@ -631,7 +631,7 @@ const sow002Data: SOWWizardStepData = {
   /* Step 4 – Timeline, Team & Testing */
   startDate: "2026-05-15",
   endDate: "2026-09-30",
-  phasingStrategy: "phased_release",
+  phasingStrategy: "sprint_based",
   milestones: [
     "UX Research & Information Architecture complete — June 15, 2026",
     "Design System v1 approved — June 30, 2026",

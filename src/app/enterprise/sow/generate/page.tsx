@@ -10,10 +10,11 @@ import {
   ArrowLeft, ArrowRight, Sparkles, CheckCircle2, FileText, Target, Code2,
   Calendar, DollarSign, Users, ShieldCheck, Lock, AlertTriangle,
   ClipboardCheck, Plus, X, Zap, Check, Loader2, SkipForward, Circle, Lightbulb, Info,
-  Link2, Scale, Gavel, Upload, Eye, Pencil,
+  Link2, Scale, Gavel, Upload, Eye, Pencil, Trash2, ChevronDown,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils/cn";
+import { isValidLanguageName, canonicalLanguageName, suggestLanguages } from "@/lib/utils/language-validation";
 
 const SOWAIDraftReviewPage = dynamic(() => import("../upload/generate/page"), { ssr: false });
 import { stagger, fadeUp } from "@/lib/utils/motion-variants";
@@ -23,6 +24,7 @@ import {
   SelectItem, SelectValue,
 } from "@/components/ui";
 import { useCreateWizard, useSaveStep, useSkipStep, useGenerateSOW, useReviewSummary, useWizard } from "@/lib/hooks/use-sow-wizard";
+import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
 
 /* ══════════════════════════════════════════ Steps ══════════════════════════════════════════ */
 
@@ -245,6 +247,7 @@ interface FormData {
   projectMethodology: string;
   dataRetentionPolicy: string;
   complianceStandards: string[];
+  customComplianceStandards: string[];
   auditFrequency: string;
   securityAuditFrequency: string;
   dataPrivacyOfficer: string;
@@ -413,6 +416,7 @@ const initialFormData: FormData = {
   projectMethodology: "",
   dataRetentionPolicy: "",
   complianceStandards: [],
+  customComplianceStandards: [],
   auditFrequency: "",
   securityAuditFrequency: "",
   dataPrivacyOfficer: "",
@@ -651,6 +655,7 @@ const DUMMY_FORM_DATA: FormData = {
   projectMethodology: "agile_scrum",
   dataRetentionPolicy: "7_years",
   complianceStandards: ["gdpr", "soc2", "iso_27001"],
+  customComplianceStandards: [],
   auditFrequency: "quarterly",
   securityAuditFrequency: "bi_annually",
   dataPrivacyOfficer: "Priya Rao — privacy@northwindglobal.example",
@@ -944,20 +949,39 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
 
 function OtherLanguageTagInput({ languages, onChange }: { languages: string[]; onChange: (v: string[]) => void }) {
   const [inputValue, setInputValue] = React.useState("");
+  const [error, setError] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const addLanguage = () => {
     const trimmed = inputValue.trim();
-    if (trimmed && !languages.includes(trimmed)) {
-      onChange([...languages, trimmed]);
-      setInputValue("");
+    if (!trimmed) { setError(null); return; }
+
+    if (!isValidLanguageName(trimmed)) {
+      const suggestions = suggestLanguages(trimmed);
+      setError(
+        suggestions.length > 0
+          ? `"${trimmed}" is not a recognised language. Did you mean ${suggestions.join(", ")}?`
+          : `"${trimmed}" is not a recognised language. Try English, Spanish, Mandarin, etc.`,
+      );
+      return;
     }
+
+    const canonical = canonicalLanguageName(trimmed);
+    if (languages.some((l) => l.toLowerCase() === canonical.toLowerCase())) {
+      setError(`${canonical} is already added.`);
+      return;
+    }
+
+    onChange([...languages, canonical]);
+    setInputValue("");
+    setError(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") { e.preventDefault(); addLanguage(); }
     if (e.key === "Backspace" && !inputValue && languages.length > 0) {
       onChange(languages.slice(0, -1));
+      setError(null);
     }
   };
 
@@ -966,7 +990,12 @@ function OtherLanguageTagInput({ languages, onChange }: { languages: string[]; o
       <label className="text-[12px] font-semibold text-gray-600 mb-1.5 block">Custom Languages</label>
       <div
         onClick={() => inputRef.current?.focus()}
-        className="flex flex-wrap items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 cursor-text transition-all duration-200 focus-within:border-brown-300 focus-within:ring-2 focus-within:ring-brown-100"
+        className={cn(
+          "flex flex-wrap items-center gap-1.5 rounded-xl border bg-white px-3 py-2 cursor-text transition-all duration-200",
+          error
+            ? "border-red-300 focus-within:border-red-400 focus-within:ring-2 focus-within:ring-red-100"
+            : "border-gray-200 focus-within:border-brown-300 focus-within:ring-2 focus-within:ring-brown-100",
+        )}
         style={{ minHeight: 40 }}
       >
         {languages.filter(l => l.trim()).map((lang, idx) => (
@@ -978,7 +1007,72 @@ function OtherLanguageTagInput({ languages, onChange }: { languages: string[]; o
             {lang}
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onChange(languages.filter((_, i) => i !== idx)); }}
+              onClick={(e) => { e.stopPropagation(); onChange(languages.filter((_, i) => i !== idx)); setError(null); }}
+              className="hover:text-red-500 transition-colors"
+              style={{ lineHeight: 0 }}
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+        <input
+          ref={inputRef}
+          value={inputValue}
+          onChange={(e) => { setInputValue(e.target.value); if (error) setError(null); }}
+          onKeyDown={handleKeyDown}
+          onBlur={addLanguage}
+          placeholder={languages.filter(l => l.trim()).length === 0 ? "Type a language and press Enter..." : ""}
+          className="flex-1 min-w-[120px] border-none outline-none bg-transparent text-[13px] text-gray-900 placeholder:text-gray-400"
+          style={{ padding: 0 }}
+        />
+      </div>
+      {error && (
+        <p className="mt-1.5 text-[11px] text-red-600">{error}</p>
+      )}
+    </div>
+  );
+}
+
+function CustomStandardTagInput({ standards, onChange }: { standards: string[]; onChange: (v: string[]) => void }) {
+  const [inputValue, setInputValue] = React.useState("");
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const addStandard = () => {
+    const trimmed = inputValue.trim();
+    if (!trimmed) return;
+    if (standards.some((s) => s.toLowerCase() === trimmed.toLowerCase())) {
+      setInputValue("");
+      return;
+    }
+    onChange([...standards, trimmed]);
+    setInputValue("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") { e.preventDefault(); addStandard(); }
+    if (e.key === "Backspace" && !inputValue && standards.length > 0) {
+      onChange(standards.slice(0, -1));
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <label className="text-[12px] font-semibold text-gray-600 mb-1.5 block">Custom Standards</label>
+      <div
+        onClick={() => inputRef.current?.focus()}
+        className="flex flex-wrap items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 cursor-text transition-all duration-200 focus-within:border-[#A67763] focus-within:ring-2 focus-within:ring-[rgba(166,119,99,0.15)]"
+        style={{ minHeight: 40 }}
+      >
+        {standards.map((s, idx) => (
+          <span
+            key={idx}
+            className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-medium"
+            style={{ background: 'rgba(166,119,99,0.10)', color: '#A67763' }}
+          >
+            {s}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onChange(standards.filter((_, i) => i !== idx)); }}
               className="hover:text-red-500 transition-colors"
               style={{ lineHeight: 0 }}
             >
@@ -991,12 +1085,269 @@ function OtherLanguageTagInput({ languages, onChange }: { languages: string[]; o
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          onBlur={addLanguage}
-          placeholder={languages.filter(l => l.trim()).length === 0 ? "Type a language and press Enter..." : ""}
-          className="flex-1 min-w-[120px] border-none outline-none bg-transparent text-[13px] text-gray-900 placeholder:text-gray-400"
+          onBlur={addStandard}
+          placeholder={standards.length === 0 ? "Type a standard and press Enter..." : ""}
+          className="flex-1 min-w-[160px] border-none outline-none bg-transparent text-[13px] text-gray-900 placeholder:text-gray-400"
           style={{ padding: 0 }}
         />
       </div>
+    </div>
+  );
+}
+
+const EMPTY_INTEGRATION = { name: "", direction: "", protocol: "", authentication: "", dataFormat: "", sandboxCredentials: "", testingResponsibility: "", errorHandlingSLA: "" };
+type IntegrationPoint = typeof EMPTY_INTEGRATION;
+
+function IntegrationForm({ draft, onChange, onSave, onCancel, canSave, isEdit }: {
+  draft: IntegrationPoint;
+  onChange: (v: IntegrationPoint) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  canSave: boolean;
+  isEdit: boolean;
+}) {
+  const set = (key: keyof IntegrationPoint, value: string) => onChange({ ...draft, [key]: value });
+  return (
+    <div className="p-4 space-y-4 border-t border-gray-100">
+      <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: '#A67763' }}>
+        {isEdit ? "Edit Integration" : "New Integration"}
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <FieldLabel required>Integration Name</FieldLabel>
+          <Input placeholder="e.g. Stripe Payment Gateway" value={draft.name} onChange={(e) => set("name", e.target.value.slice(0, 100))} />
+        </div>
+        <div>
+          <FieldLabel required>Direction</FieldLabel>
+          <Select value={draft.direction} onValueChange={(v) => set("direction", v)}>
+            <SelectTrigger><SelectValue placeholder="Select direction" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Inbound">Inbound</SelectItem>
+              <SelectItem value="Outbound">Outbound</SelectItem>
+              <SelectItem value="Bidirectional">Bidirectional</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <FieldLabel required>Protocol</FieldLabel>
+          <Select value={draft.protocol} onValueChange={(v) => set("protocol", v)}>
+            <SelectTrigger><SelectValue placeholder="Select protocol" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="REST">REST</SelectItem>
+              <SelectItem value="GraphQL">GraphQL</SelectItem>
+              <SelectItem value="SOAP">SOAP</SelectItem>
+              <SelectItem value="gRPC">gRPC</SelectItem>
+              <SelectItem value="Webhook">Webhook</SelectItem>
+              <SelectItem value="SFTP">SFTP</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <FieldLabel required>Authentication</FieldLabel>
+          <Select value={draft.authentication} onValueChange={(v) => set("authentication", v)}>
+            <SelectTrigger><SelectValue placeholder="Select authentication" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="OAuth 2.0">OAuth 2.0</SelectItem>
+              <SelectItem value="API Key">API Key</SelectItem>
+              <SelectItem value="Basic Auth">Basic Auth</SelectItem>
+              <SelectItem value="JWT">JWT</SelectItem>
+              <SelectItem value="HMAC">HMAC</SelectItem>
+              <SelectItem value="None">None</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <FieldLabel>Data Format</FieldLabel>
+          <Select value={draft.dataFormat} onValueChange={(v) => set("dataFormat", v)}>
+            <SelectTrigger><SelectValue placeholder="Select format" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="JSON">JSON</SelectItem>
+              <SelectItem value="XML">XML</SelectItem>
+              <SelectItem value="CSV">CSV</SelectItem>
+              <SelectItem value="Binary">Binary</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <FieldLabel>Sandbox Credentials Provided By</FieldLabel>
+          <Select value={draft.sandboxCredentials} onValueChange={(v) => set("sandboxCredentials", v)}>
+            <SelectTrigger><SelectValue placeholder="Select provider" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Client">Client</SelectItem>
+              <SelectItem value="GlimmoraTeam">GlimmoraTeam</SelectItem>
+              <SelectItem value="Not Required">Not Required</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <FieldLabel>Testing Responsibility</FieldLabel>
+          <Select value={draft.testingResponsibility} onValueChange={(v) => set("testingResponsibility", v)}>
+            <SelectTrigger><SelectValue placeholder="Select responsibility" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Client">Client</SelectItem>
+              <SelectItem value="GlimmoraTeam">GlimmoraTeam</SelectItem>
+              <SelectItem value="Both">Both</SelectItem>
+              <SelectItem value="Third-party">Third-party</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <FieldLabel>Error Handling SLA</FieldLabel>
+          <Select value={draft.errorHandlingSLA} onValueChange={(v) => set("errorHandlingSLA", v)}>
+            <SelectTrigger><SelectValue placeholder="Select SLA" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Same-day">Same-day</SelectItem>
+              <SelectItem value="4-hour">4-hour</SelectItem>
+              <SelectItem value="1-hour">1-hour</SelectItem>
+              <SelectItem value="Custom">Custom</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <button type="button" onClick={onCancel}
+          className="px-4 py-2 rounded-lg text-[12px] font-semibold text-gray-600 hover:bg-gray-100 transition-all">
+          Cancel
+        </button>
+        <button type="button" onClick={onSave} disabled={!canSave}
+          className="px-4 py-2 rounded-lg text-[12px] font-semibold text-white transition-all"
+          style={{ background: canSave ? '#A67763' : '#d1d5db', cursor: canSave ? 'pointer' : 'not-allowed' }}>
+          {isEdit ? "Save Changes" : "Add Integration"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function IntegrationTableSection({ integrations, onChange }: {
+  integrations: IntegrationPoint[];
+  onChange: (v: IntegrationPoint[]) => void;
+}) {
+  const [expandedIdx, setExpandedIdx] = React.useState<number | null>(null);
+  const [editingIdx, setEditingIdx] = React.useState<number | null>(null);
+  const [isAdding, setIsAdding] = React.useState(false);
+  const [draft, setDraft] = React.useState<IntegrationPoint>({ ...EMPTY_INTEGRATION });
+
+  const startAdd = () => { setDraft({ ...EMPTY_INTEGRATION }); setIsAdding(true); setEditingIdx(null); setExpandedIdx(null); };
+  const startEdit = (idx: number) => { setDraft({ ...integrations[idx] }); setEditingIdx(idx); setIsAdding(false); setExpandedIdx(null); };
+  const cancelForm = () => { setIsAdding(false); setEditingIdx(null); };
+  const canSave = !!(draft.name.trim() && draft.direction && draft.protocol && draft.authentication);
+
+  const saveForm = () => {
+    if (!canSave) return;
+    if (editingIdx !== null) {
+      onChange(integrations.map((item, i) => i === editingIdx ? draft : item));
+      setEditingIdx(null);
+    } else {
+      onChange([...integrations, draft]);
+      setIsAdding(false);
+    }
+    setDraft({ ...EMPTY_INTEGRATION });
+  };
+
+  const deleteRow = (idx: number) => {
+    onChange(integrations.filter((_, i) => i !== idx));
+    if (expandedIdx === idx) setExpandedIdx(null);
+    if (editingIdx === idx) setEditingIdx(null);
+  };
+
+  const toggleExpand = (idx: number) => { setExpandedIdx(expandedIdx === idx ? null : idx); setEditingIdx(null); };
+
+  const COL = '28px 1fr 100px 90px 120px 96px';
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <FieldLabel>Integration Points</FieldLabel>
+        <button type="button" onClick={startAdd}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
+          style={{ background: 'rgba(166,119,99,0.10)', color: '#A67763', border: '1px solid rgba(166,119,99,0.20)' }}>
+          <Plus className="w-3.5 h-3.5" /> Add Integration
+        </button>
+      </div>
+
+      {integrations.length > 0 && (
+        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-soft)' }}>
+          <div className="grid items-center px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider"
+            style={{ gridTemplateColumns: COL, background: 'rgba(77,87,65,0.06)', color: 'var(--ink-mid)' }}>
+            <span>#</span>
+            <span>Integration Name</span>
+            <span>Direction</span>
+            <span>Protocol</span>
+            <span>Authentication</span>
+            <span className="text-center">Actions</span>
+          </div>
+
+          {integrations.map((intg, idx) => (
+            <React.Fragment key={idx}>
+              <div className={cn("grid items-center px-4 py-3 text-[13px] border-t transition-colors", expandedIdx === idx || editingIdx === idx ? "bg-gray-50" : "hover:bg-gray-50/60")}
+                style={{ gridTemplateColumns: COL, borderColor: 'var(--border-soft)' }}>
+                <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #A67763, #886151)' }}>{idx + 1}</span>
+                <span className="font-medium text-gray-800 truncate pr-2">
+                  {intg.name || <span className="text-gray-400 italic text-[12px]">Unnamed</span>}
+                </span>
+                <span className="text-gray-600 text-[12px]">{intg.direction || '—'}</span>
+                <span className="text-gray-600 text-[12px]">{intg.protocol || '—'}</span>
+                <span className="text-gray-600 text-[12px]">{intg.authentication || '—'}</span>
+                <div className="flex items-center justify-center gap-1">
+                  <button type="button" onClick={() => toggleExpand(idx)} title="View details"
+                    className="w-7 h-7 rounded-md flex items-center justify-center transition-all hover:bg-gray-100"
+                    style={{ color: expandedIdx === idx ? '#4D5741' : '#9CA3AF' }}>
+                    <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", expandedIdx === idx ? "rotate-180" : "")} />
+                  </button>
+                  <button type="button" onClick={() => startEdit(idx)} title="Edit"
+                    className="w-7 h-7 rounded-md flex items-center justify-center transition-all hover:bg-blue-50"
+                    style={{ color: editingIdx === idx ? '#3B82F6' : '#9CA3AF' }}>
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button type="button" onClick={() => deleteRow(idx)} title="Delete"
+                    className="w-7 h-7 rounded-md flex items-center justify-center transition-all hover:bg-red-50 hover:text-red-500"
+                    style={{ color: '#9CA3AF' }}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {expandedIdx === idx && editingIdx !== idx && (
+                <div className="px-6 py-4 border-t grid grid-cols-2 md:grid-cols-4 gap-4"
+                  style={{ borderColor: 'var(--border-soft)', background: 'rgba(77,87,65,0.03)' }}>
+                  {([
+                    { label: "Data Format", value: intg.dataFormat },
+                    { label: "Sandbox Credentials", value: intg.sandboxCredentials },
+                    { label: "Testing Responsibility", value: intg.testingResponsibility },
+                    { label: "Error Handling SLA", value: intg.errorHandlingSLA },
+                  ] as { label: string; value: string }[]).map(({ label, value }) => (
+                    <div key={label}>
+                      <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--ink-mid)' }}>{label}</p>
+                      <p className="text-[13px] text-gray-700">{value || '—'}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {editingIdx === idx && (
+                <IntegrationForm draft={draft} onChange={setDraft} onSave={saveForm} onCancel={cancelForm} canSave={canSave} isEdit />
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      )}
+
+      {integrations.length === 0 && !isAdding && (
+        <div className="rounded-xl border-2 border-dashed border-gray-200 py-10 text-center">
+          <p className="text-[13px] text-gray-400">No integrations added yet.</p>
+          <button type="button" onClick={startAdd} className="mt-2 text-[12px] font-semibold" style={{ color: '#A67763' }}>
+            + Add your first integration
+          </button>
+        </div>
+      )}
+
+      {isAdding && (
+        <div className="mt-3 rounded-xl" style={{ border: '1px solid var(--border-soft)', background: 'rgba(166,119,99,0.03)' }}>
+          <IntegrationForm draft={draft} onChange={setDraft} onSave={saveForm} onCancel={cancelForm} canSave={canSave} isEdit={false} />
+        </div>
+      )}
     </div>
   );
 }
@@ -1177,7 +1528,7 @@ function SOWGenerateWizardPageInner() {
     // Merge initialFormData as base to ensure all fields exist (handles HMR + draft migration)
     const merged = { ...initialFormData, ...draft.current?.formData };
     // Keep milestone rows fixed to the required three defaults.
-    const milestones = Array.isArray((merged as Partial<FormData>).milestones) ? (merged as Partial<FormData>).milestones : [];
+    const milestones = Array.isArray((merged as Partial<FormData>).milestones) ? ((merged as Partial<FormData>).milestones ?? []) : [];
     const requiredMilestones = initialFormData.milestones;
     const hasExactRequiredMilestones =
       milestones.length === 3
@@ -1203,6 +1554,8 @@ function SOWGenerateWizardPageInner() {
   const [cameFromReview, setCameFromReview] = React.useState(false);
   const [generationComplete, setGenerationComplete] = React.useState(false);
   const [generatedSowId, setGeneratedSowId] = React.useState<string | null>(null);
+  const [showGenerateConfirm, setShowGenerateConfirm] = React.useState(false);
+  const uploadStore = useSOWUploadStore();
   // ── API integration (wizard session + step mutations) ──
   const [wizardId, setWizardId] = React.useState<string | null>(() => {
     if (typeof window === "undefined") return null;
@@ -1323,6 +1676,27 @@ function SOWGenerateWizardPageInner() {
   React.useEffect(() => {
     saveDraft(formData, currentStep, skippedSteps);
   }, [formData, currentStep, skippedSteps]);
+
+  // Clear custom compliance tags when "custom" checkbox is unchecked
+  React.useEffect(() => {
+    if (!(formData.complianceStandards ?? []).includes("custom")) {
+      if ((formData.customComplianceStandards ?? []).length > 0) {
+        setFormData((prev) => ({ ...prev, customComplianceStandards: [] }));
+      }
+    }
+  }, [formData.complianceStandards]);
+
+  // Business rule: Deployment = Not in Scope → auto-reset and hide Go-Live / Hypercare
+  React.useEffect(() => {
+    if (formData.deploymentScope === "not_in_scope") {
+      setFormData((prev) => ({
+        ...prev,
+        goLiveScope: "not_in_scope",
+        hypercareDuration: "",
+        hypercareSupport: "",
+      }));
+    }
+  }, [formData.deploymentScope]);
 
   const updateField = <K extends keyof FormData>(key: K, value: FormData[K]) => {
     // Compute next state outside the setter so we can also update errors
@@ -1571,9 +1945,7 @@ function SOWGenerateWizardPageInner() {
     }
   };
 
-  /* ── Generate handler with validation + API ──
-     Hands off to SOWAIDraftReviewPage, which shows the shared manual-sow
-     "GENERATING MODAL" on mount while the API call completes in the background. */
+  /* ── Generate handler — validates then shows confirmation modal ── */
   const handleGenerate = () => {
     if (
       formData.dataMigrationScope === "in_scope" &&
@@ -1605,7 +1977,14 @@ function SOWGenerateWizardPageInner() {
       return;
     }
 
+    setShowGenerateConfirm(true);
+  };
+
+  /* ── Confirm handler — called when user clicks Continue in the modal ── */
+  const confirmGenerate = () => {
+    setShowGenerateConfirm(false);
     setApiError("");
+    uploadStore.setGenerationState("idle");
 
     if (wizardId) {
       generateMutation.mutate(
@@ -1733,6 +2112,64 @@ function SOWGenerateWizardPageInner() {
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="show">
+
+      {/* ═══ GENERATE CONFIRMATION MODAL ═══ */}
+      <AnimatePresence>
+        {showGenerateConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center px-4"
+            style={{ background: "rgba(15,10,6,0.65)", backdropFilter: "blur(10px)" }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 12 }}
+              transition={{ type: "spring", stiffness: 300, damping: 28 }}
+              className="relative w-full max-w-md overflow-hidden rounded-2xl"
+              style={{
+                background: "linear-gradient(160deg, #FFFFFF 0%, #FAF7F4 100%)",
+                boxShadow: "0 32px 64px -16px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.12), 0 0 0 1px rgba(229,221,212,0.9)",
+              }}
+            >
+              <div className="absolute top-0 left-0 right-0 h-[3px]"
+                style={{ background: "linear-gradient(90deg, transparent 0%, #A67763 25%, #2A6068 50%, #A67763 75%, transparent 100%)" }} />
+              <div style={{ padding: "28px 28px 24px" }}>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex items-center justify-center rounded-xl"
+                    style={{ width: 40, height: 40, background: "linear-gradient(135deg, rgba(166,119,99,0.12), rgba(166,119,99,0.06))", border: "1px solid rgba(166,119,99,0.2)" }}>
+                    <Sparkles style={{ width: 18, height: 18, color: "#A67763" }} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--ink-rich)", margin: 0 }}>Generate SOW with AI</h3>
+                    <p style={{ fontSize: 12, color: "var(--ink-muted)", margin: 0, marginTop: 2 }}>Review your inputs before proceeding</p>
+                  </div>
+                </div>
+                <p style={{ fontSize: 13, color: "var(--ink-base)", lineHeight: 1.6, marginBottom: 20 }}>
+                  Your form data will be sent to the AI to generate a fully structured Statement of Work. This may take a few moments.
+                </p>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => setShowGenerateConfirm(false)}
+                    style={{ padding: "8px 16px", fontSize: 12, fontWeight: 500, borderRadius: 8, border: "1px solid var(--border-soft)", background: "transparent", color: "var(--ink-muted)", cursor: "pointer" }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmGenerate}
+                    className="flex items-center gap-1.5"
+                    style={{ padding: "8px 20px", fontSize: 12, fontWeight: 600, borderRadius: 8, background: "linear-gradient(135deg, #A67763, #886151)", color: "#FFFFFF", border: "1px solid rgba(166,119,99,0.30)", boxShadow: "0 2px 10px rgba(166,119,99,0.25)", cursor: "pointer" }}
+                  >
+                    <Sparkles style={{ width: 13, height: 13 }} /> Continue
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ═══════════════════════════════════
           BACK LINK
@@ -2016,22 +2453,25 @@ function SOWGenerateWizardPageInner() {
                         ) : (
                           <button
                             onClick={handleGenerate}
-                            disabled={!canGenerate()}
+                            disabled={!canGenerate() || generateMutation.isPending}
                             className="flex items-center gap-1.5 rounded-lg transition-all duration-200"
                             style={{
                               padding: '8px 20px',
-                              background: canGenerate() ? 'linear-gradient(135deg, #A67763, #886151)' : 'rgba(166,119,99,0.15)',
-                              color: canGenerate() ? '#FFFFFF' : 'var(--ink-faint)',
+                              background: canGenerate() && !generateMutation.isPending ? 'linear-gradient(135deg, #A67763, #886151)' : 'rgba(166,119,99,0.15)',
+                              color: canGenerate() && !generateMutation.isPending ? '#FFFFFF' : 'var(--ink-faint)',
                               fontSize: 12, fontWeight: 600,
-                              border: `1px solid ${canGenerate() ? 'rgba(166,119,99,0.30)' : 'var(--border-soft)'}`,
-                              boxShadow: canGenerate() ? '0 2px 10px rgba(166,119,99,0.25), inset 0 1px 0 rgba(255,255,255,0.15)' : 'none',
-                              cursor: canGenerate() ? 'pointer' : 'not-allowed',
-                              opacity: canGenerate() ? 1 : 0.6,
+                              border: `1px solid ${canGenerate() && !generateMutation.isPending ? 'rgba(166,119,99,0.30)' : 'var(--border-soft)'}`,
+                              boxShadow: canGenerate() && !generateMutation.isPending ? '0 2px 10px rgba(166,119,99,0.25), inset 0 1px 0 rgba(255,255,255,0.15)' : 'none',
+                              cursor: canGenerate() && !generateMutation.isPending ? 'pointer' : 'not-allowed',
+                              opacity: canGenerate() && !generateMutation.isPending ? 1 : 0.6,
                             }}
-                            onMouseEnter={(e) => { if (canGenerate()) { e.currentTarget.style.boxShadow = '0 4px 16px rgba(166,119,99,0.35), inset 0 1px 0 rgba(255,255,255,0.2)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
-                            onMouseLeave={(e) => { if (canGenerate()) { e.currentTarget.style.boxShadow = '0 2px 10px rgba(166,119,99,0.25), inset 0 1px 0 rgba(255,255,255,0.15)'; e.currentTarget.style.transform = ''; } }}
+                            onMouseEnter={(e) => { if (canGenerate() && !generateMutation.isPending) { e.currentTarget.style.boxShadow = '0 4px 16px rgba(166,119,99,0.35), inset 0 1px 0 rgba(255,255,255,0.2)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+                            onMouseLeave={(e) => { if (canGenerate() && !generateMutation.isPending) { e.currentTarget.style.boxShadow = '0 2px 10px rgba(166,119,99,0.25), inset 0 1px 0 rgba(255,255,255,0.15)'; e.currentTarget.style.transform = ''; } }}
                           >
-                            <Sparkles style={{ width: 13, height: 13 }} /> Generate SOW with AI
+                            {generateMutation.isPending
+                              ? <><Loader2 style={{ width: 13, height: 13 }} className="animate-spin" /> Generating...</>
+                              : <><Sparkles style={{ width: 13, height: 13 }} /> Generate SOW with AI</>
+                            }
                           </button>
                         )}
                       </div>
@@ -2620,8 +3060,6 @@ function Step1ProjectScope({ formData, updateField, addListItem, removeListItem,
               { value: "mobile_hybrid", label: "Mobile Hybrid" },
               { value: "desktop", label: "Desktop" },
               { value: "api_backend", label: "API / Backend" },
-              { value: "data_platform", label: "Data Platform" },
-              { value: "full_stack", label: "Full-Stack" },
               { value: "other", label: "Other" },
             ].map(({ value, label }) => {
               const selected = (formData.platformType as string[]).includes(value);
@@ -2933,7 +3371,7 @@ function Step2DeliveryTechnical({ formData, updateField, errors = {}, blurField 
           onChange={(v) => updateField("uiuxDesignScope", v)}
           options={[
             { value: "not_in_scope", label: "Not in Scope" },
-            { value: "in_scope", label: "In Scope" },
+            // { value: "in_scope", label: "In Scope" }, // TODO: PM to define workflow before re-enabling
             { value: "client_provides", label: "Client Provides" },
           ]}
         />
@@ -3178,7 +3616,8 @@ function Step2DeliveryTechnical({ formData, updateField, errors = {}, blurField 
             On-Premise Deployment Details
           </label>
           <div className="space-y-3">
-            {["Server installation", "SSL certificates", "Monitoring & alerting", "Backup configuration"].map((svc) => {
+            {/* Previous options: ["Server installation", "SSL certificates", "Monitoring & alerting", "Backup configuration"] */}
+            {["SSL certificates"].map((svc) => {
               const checked = (formData.onPremiseServices ?? []).includes(svc);
               return (
                 <label key={svc} className="flex items-center gap-3 cursor-pointer">
@@ -3199,7 +3638,8 @@ function Step2DeliveryTechnical({ formData, updateField, errors = {}, blurField 
         </div>
       )}
 
-      {/* Go-Live Scope */}
+      {/* Go-Live Scope — hidden when Deployment = Not in Scope (auto-set to not_in_scope) */}
+      {formData.deploymentScope !== "not_in_scope" && (
       <div data-field="goLiveScope">
         <FieldLabel required>Go-Live Scope</FieldLabel>
         <RadioGroup
@@ -3213,7 +3653,8 @@ function Step2DeliveryTechnical({ formData, updateField, errors = {}, blurField 
         />
         <FieldError error={errors.goLiveScope} field="goLiveScope" />
       </div>
-      {formData.goLiveScope === "go_live_hypercare" && (
+      )}
+      {formData.deploymentScope !== "not_in_scope" && formData.goLiveScope === "go_live_hypercare" && (
         <div className="rounded-xl p-5 space-y-5" style={{ background: "rgba(166,119,99,0.04)", border: "1px solid rgba(166,119,99,0.12)" }}>
           <label className="block" style={{ fontSize: 11, fontWeight: 700, color: '#A67763', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
             Hypercare Details
@@ -3391,119 +3832,10 @@ function Step3IntegrationsUserMgmt({ formData, updateField, errors = {}, blurFie
       <SectionHeading>Section A — External Integrations</SectionHeading>
 
       <div data-field="integrationPoints">
-        <FieldLabel>Integration Points*</FieldLabel>
-        <div className="space-y-4">
-          {formData.integrationPoints.map((intg, idx) => (
-            <div key={idx} className="relative p-4 rounded-lg border border-gray-100 bg-gray-50/50">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-white" style={{ background: 'linear-gradient(135deg, #A67763, #886151)' }}>{idx + 1}</span>
-                <span className="text-[13px] font-semibold text-gray-800">INTEGRATION #{idx + 1}</span>
-              </div>
-              {formData.integrationPoints.length > 1 && (
-                <button onClick={() => removeIntegration(idx)}
-                  className="absolute top-3 right-3 w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <FieldLabel>Integration Name (Max 100 Chars)*</FieldLabel>
-                  <Input placeholder="e.g. Stripe Payment Gateway" value={intg.name} onChange={(e) => updateIntegration(idx, "name", e.target.value.slice(0, 100))} />
-                </div>
-                <div>
-                  <FieldLabel>Direction*</FieldLabel>
-                  <Select value={intg.direction} onValueChange={(v) => updateIntegration(idx, "direction", v)}>
-                    <SelectTrigger><SelectValue placeholder="Select direction" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Inbound">Inbound</SelectItem>
-                      <SelectItem value="Outbound">Outbound</SelectItem>
-                      <SelectItem value="Bidirectional">Bidirectional</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <FieldLabel>Protocol*</FieldLabel>
-                  <Select value={intg.protocol} onValueChange={(v) => updateIntegration(idx, "protocol", v)}>
-                    <SelectTrigger><SelectValue placeholder="Select protocol" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="REST">REST</SelectItem>
-                      <SelectItem value="GraphQL">GraphQL</SelectItem>
-                      <SelectItem value="SOAP">SOAP</SelectItem>
-                      <SelectItem value="gRPC">gRPC</SelectItem>
-                      <SelectItem value="Webhook">Webhook</SelectItem>
-                      <SelectItem value="SFTP">SFTP</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <FieldLabel>Authentication*</FieldLabel>
-                  <Select value={intg.authentication} onValueChange={(v) => updateIntegration(idx, "authentication", v)}>
-                    <SelectTrigger><SelectValue placeholder="Select authentication" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="OAuth 2.0">OAuth 2.0</SelectItem>
-                      <SelectItem value="API Key">API Key</SelectItem>
-                      <SelectItem value="Basic Auth">Basic Auth</SelectItem>
-                      <SelectItem value="JWT">JWT</SelectItem>
-                      <SelectItem value="HMAC">HMAC</SelectItem>
-                      <SelectItem value="None">None</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <FieldLabel>Data Format*</FieldLabel>
-                  <Select value={intg.dataFormat} onValueChange={(v) => updateIntegration(idx, "dataFormat", v)}>
-                    <SelectTrigger><SelectValue placeholder="Select format" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="JSON">JSON</SelectItem>
-                      <SelectItem value="XML">XML</SelectItem>
-                      <SelectItem value="CSV">CSV</SelectItem>
-                      <SelectItem value="Binary">Binary</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <FieldLabel>Sandbox Credentials Provided By*</FieldLabel>
-                  <Select value={intg.sandboxCredentials} onValueChange={(v) => updateIntegration(idx, "sandboxCredentials", v)}>
-                    <SelectTrigger><SelectValue placeholder="Select provider" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Client">Client</SelectItem>
-                      <SelectItem value="Vendor">Vendor</SelectItem>
-                      <SelectItem value="Not Required">Not Required</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <FieldLabel>Testing Responsibility*</FieldLabel>
-                  <Select value={intg.testingResponsibility} onValueChange={(v) => updateIntegration(idx, "testingResponsibility", v)}>
-                    <SelectTrigger><SelectValue placeholder="Select responsibility" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Client">Client</SelectItem>
-                      <SelectItem value="GlimmoraTeam">GlimmoraTeam</SelectItem>
-                      <SelectItem value="Both">Both</SelectItem>
-                      <SelectItem value="Third-party">Third-party</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <FieldLabel>Error Handling SLA*</FieldLabel>
-                  <Select value={intg.errorHandlingSLA} onValueChange={(v) => updateIntegration(idx, "errorHandlingSLA", v)}>
-                    <SelectTrigger><SelectValue placeholder="Select SLA" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Same-day">Same-day</SelectItem>
-                      <SelectItem value="4-hour">4-hour</SelectItem>
-                      <SelectItem value="1-hour">1-hour</SelectItem>
-                      <SelectItem value="Custom">Custom</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-        <button onClick={addIntegration}
-          className="mt-3 w-full py-2.5 rounded-lg border-2 border-dashed border-gray-200 text-[12px] font-semibold text-gray-500 hover:border-gray-300 hover:text-gray-600 transition-all flex items-center justify-center gap-1.5">
-          <Plus className="w-3.5 h-3.5" /> ADD INTEGRATION
-        </button>
+        <IntegrationTableSection
+          integrations={formData.integrationPoints}
+          onChange={(v) => updateField("integrationPoints", v)}
+        />
       </div>
 
       {/* ── SECTION B — User Management Scope ── */}
@@ -4042,8 +4374,8 @@ function Step4TimelineTeamTesting({ formData, updateField, addListItem, removeLi
             <div className="space-y-2 mt-2">
               {[
                 { value: "unit_testing", label: "Unit Testing" },
-                { value: "integration_testing", label: "Integration Testing" },
-                { value: "uat_testing", label: "Uat Testing" },
+                { value: "integration_testing", label: "System Integration Testing (SIT)" },
+                { value: "uat_testing", label: "User Acceptance Testing (UAT)" },
                 { value: "security_testing", label: "Security Testing" },
                 { value: "performance_testing", label: "Performance Testing" },
               ].map((opt) => (
@@ -4158,15 +4490,11 @@ function Step4TimelineTeamTesting({ formData, updateField, addListItem, removeLi
         </div>
         <div>
           <FieldLabel>Onboarding Process</FieldLabel>
-          <Select value={formData.onboardingProcess} onValueChange={(v) => updateField("onboardingProcess", v)}>
-            <SelectTrigger><SelectValue placeholder="Select onboarding process" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="standard_access">Standard (Access to Jira, Slack, Repo)</SelectItem>
-              <SelectItem value="extended">Extended (Includes training sessions)</SelectItem>
-              <SelectItem value="minimal">Minimal</SelectItem>
-              <SelectItem value="custom">Custom</SelectItem>
-            </SelectContent>
-          </Select>
+          <Input
+            placeholder="Describe the onboarding process..."
+            value={formData.onboardingProcess}
+            onChange={(e) => updateField("onboardingProcess", e.target.value)}
+          />
         </div>
       </div>
 
@@ -4387,80 +4715,8 @@ function Step6QualityStandards({ formData, updateField, errors = {}, blurField }
         Define coding standards, quality gates, and support expectations. These become enforceable checkpoints in the generated SOW.
       </p>
 
-      {/* ── SECTION A — Quality Assurance Standards ── */}
-      <SectionHeading>Section A — Quality Assurance Standards</SectionHeading>
-
-      {/* Coding Standards & Documentation Level */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <FieldLabel required>Coding Standards</FieldLabel>
-          <Select value={formData.codingStandards} onValueChange={(v) => updateField("codingStandards", v)}>
-            <SelectTrigger><SelectValue placeholder="Select coding standards" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="clean_code_solid">Clean Code / SOLID</SelectItem>
-              <SelectItem value="google_style">Google Style Guide</SelectItem>
-              <SelectItem value="airbnb_style">Airbnb Style Guide</SelectItem>
-              <SelectItem value="custom">Custom</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <FieldLabel required>Documentation Level</FieldLabel>
-          <Select value={formData.documentationLevel} onValueChange={(v) => updateField("documentationLevel", v)}>
-            <SelectTrigger><SelectValue placeholder="Select documentation level" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="high_technical_user">High (Technical + User)</SelectItem>
-              <SelectItem value="medium_technical">Medium (Technical Only)</SelectItem>
-              <SelectItem value="low_inline">Low (Inline Comments Only)</SelectItem>
-              <SelectItem value="minimal">Minimal</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Test Coverage & Security Testing */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <FieldLabel>Test Coverage Target (%)</FieldLabel>
-          <Select value={formData.testCoverageTarget} onValueChange={(v) => updateField("testCoverageTarget", v)}>
-            <SelectTrigger><SelectValue placeholder="Select coverage target" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="80">80%</SelectItem>
-              <SelectItem value="85">85%</SelectItem>
-              <SelectItem value="90">90%</SelectItem>
-              <SelectItem value="95">95%</SelectItem>
-              <SelectItem value="custom">Custom</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <FieldLabel>Security Testing Requirements</FieldLabel>
-          <Select value={formData.securityTestingRequirements} onValueChange={(v) => updateField("securityTestingRequirements", v)}>
-            <SelectTrigger><SelectValue placeholder="Select security testing" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="owasp_top10">OWASP Top 10 Compliance</SelectItem>
-              <SelectItem value="penetration_testing">Penetration Testing</SelectItem>
-              <SelectItem value="sast_dast">SAST + DAST</SelectItem>
-              <SelectItem value="basic">Basic Security Review</SelectItem>
-              <SelectItem value="none">None</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Code Review Process */}
-      <div>
-        <FieldLabel>Code Review Process</FieldLabel>
-        <Textarea
-          placeholder="Describe the peer review process, required approvals, etc..."
-          value={formData.codeReviewProcess}
-          onChange={(e) => updateField("codeReviewProcess", e.target.value)}
-          className="min-h-[100px]"
-        />
-      </div>
-
       {/* ── SECTION B — Performance & Accessibility ── */}
-      <SectionHeading>Section B — Performance &amp; Accessibility</SectionHeading>
+      <SectionHeading>Section A — Performance &amp; Accessibility</SectionHeading>
 
       {/* Performance KPIs */}
       <div>
@@ -4503,21 +4759,6 @@ function Step6QualityStandards({ formData, updateField, errors = {}, blurField }
             </label>
           ))}
         </div>
-      </div>
-
-      {/* Accessibility Standard */}
-      <div>
-        <FieldLabel>Accessibility Standard</FieldLabel>
-        <Select value={formData.accessibilityStandard} onValueChange={(v) => updateField("accessibilityStandard", v)}>
-          <SelectTrigger><SelectValue placeholder="Select accessibility standard" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="wcag_21_aa">WCAG 2.1 AA</SelectItem>
-            <SelectItem value="wcag_21_aaa">WCAG 2.1 AAA</SelectItem>
-            <SelectItem value="wcag_22_aa">WCAG 2.2 AA</SelectItem>
-            <SelectItem value="section_508">Section 508</SelectItem>
-            <SelectItem value="none">None</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {/* QA Responsibility & Defect Management Tool */}
@@ -4617,11 +4858,8 @@ function Step7GovernanceCompliance({ formData, updateField, errors = {}, blurFie
           <Select value={formData.communicationChannels} onValueChange={(v) => updateField("communicationChannels", v)}>
             <SelectTrigger><SelectValue placeholder="Select channels" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="slack_email">Slack/Email</SelectItem>
-              <SelectItem value="teams">Microsoft Teams</SelectItem>
-              <SelectItem value="slack">Slack Only</SelectItem>
-              <SelectItem value="email">Email Only</SelectItem>
-              <SelectItem value="custom">Custom</SelectItem>
+              <SelectItem value="email">Email</SelectItem>
+              <SelectItem value="glimmora_platform">GlimmoraTeam Platform</SelectItem>
             </SelectContent>
           </Select>
           <FieldError error={errors.communicationChannels} field="communicationChannels" />
@@ -4654,37 +4892,6 @@ function Step7GovernanceCompliance({ formData, updateField, errors = {}, blurFie
         </div>
       </div>
 
-      {/* Project Methodology & Data Retention */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <FieldLabel>Project Methodology</FieldLabel>
-          <Select value={formData.projectMethodology} onValueChange={(v) => updateField("projectMethodology", v)}>
-            <SelectTrigger><SelectValue placeholder="Select methodology" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="agile_scrum">Agile / Scrum</SelectItem>
-              <SelectItem value="agile_kanban">Agile / Kanban</SelectItem>
-              <SelectItem value="waterfall">Waterfall</SelectItem>
-              <SelectItem value="hybrid">Hybrid</SelectItem>
-              <SelectItem value="safe">SAFe</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <FieldLabel>Data Retention Policy</FieldLabel>
-          <Select value={formData.dataRetentionPolicy} onValueChange={(v) => updateField("dataRetentionPolicy", v)}>
-            <SelectTrigger><SelectValue placeholder="Select retention policy" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1_year">1 Year</SelectItem>
-              <SelectItem value="3_years">3 Years</SelectItem>
-              <SelectItem value="5_years">5 Years</SelectItem>
-              <SelectItem value="7_years">7 Years</SelectItem>
-              <SelectItem value="10_years">10 Years</SelectItem>
-              <SelectItem value="indefinite">Indefinite</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
       {/* ── SECTION B — Compliance & Audits ── */}
       <SectionHeading>Section B — Compliance &amp; Audits</SectionHeading>
 
@@ -4699,6 +4906,7 @@ function Step7GovernanceCompliance({ formData, updateField, errors = {}, blurFie
             { value: "soc2", label: "SOC2" },
             { value: "iso_27001", label: "ISO 27001" },
             { value: "local_data_laws", label: "Local Data Laws" },
+            { value: "custom", label: "Custom" },
           ].map((opt) => (
             <label key={opt.value} className="flex items-center gap-2.5 p-2.5 rounded-lg border border-gray-100 bg-white cursor-pointer hover:border-gray-200 transition-all">
               <input
@@ -4715,62 +4923,15 @@ function Step7GovernanceCompliance({ formData, updateField, errors = {}, blurFie
             </label>
           ))}
         </div>
+        {(formData.complianceStandards ?? []).includes("custom") && (
+          <CustomStandardTagInput
+            standards={formData.customComplianceStandards ?? []}
+            onChange={(v) => updateField("customComplianceStandards", v)}
+          />
+        )}
         <FieldError error={errors.complianceStandards} field="complianceStandards" />
       </div>
 
-      {/* Audit Frequency & Security Audit Frequency */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <FieldLabel>Audit Frequency</FieldLabel>
-          <Select value={formData.auditFrequency} onValueChange={(v) => updateField("auditFrequency", v)}>
-            <SelectTrigger><SelectValue placeholder="Select audit frequency" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="quarterly">Quarterly</SelectItem>
-              <SelectItem value="bi_annually">Bi-Annually</SelectItem>
-              <SelectItem value="annually">Annually</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <FieldLabel>Security Audit Frequency</FieldLabel>
-          <Select value={formData.securityAuditFrequency} onValueChange={(v) => updateField("securityAuditFrequency", v)}>
-            <SelectTrigger><SelectValue placeholder="Select security audit frequency" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="quarterly">Quarterly</SelectItem>
-              <SelectItem value="bi_annually">Bi-Annually</SelectItem>
-              <SelectItem value="annually">Annually</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Data Privacy Officer & DPA Required */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <FieldLabel>Data Privacy Officer (DPO)</FieldLabel>
-          <Input placeholder="Contact name or email" value={formData.dataPrivacyOfficer} onChange={(e) => updateField("dataPrivacyOfficer", e.target.value)} />
-        </div>
-        <div className="flex items-end">
-          <div className="flex items-center gap-3 p-2.5 rounded-lg border border-gray-100 bg-gray-50/50 w-full">
-            <span className="text-[12px] font-semibold text-gray-600 uppercase tracking-wider">DPA Required?</span>
-            <button
-              type="button"
-              onClick={() => updateField("dpaRequired", !formData.dpaRequired)}
-              className="relative ml-auto w-11 h-6 rounded-full transition-all duration-200"
-              style={{
-                background: formData.dpaRequired ? '#4D5741' : '#d1d5db',
-              }}
-            >
-              <span
-                className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200"
-                style={{ transform: formData.dpaRequired ? 'translateX(20px)' : 'translateX(0)' }}
-              />
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* SLA Uptime Commitment */}
       <div>
@@ -4845,8 +5006,7 @@ function Step8CommercialLegal({ formData, updateField, errors = {}, blurField }:
             <SelectTrigger><SelectValue placeholder="Select IP ownership" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="client">Client</SelectItem>
-              <SelectItem value="vendor">Vendor</SelectItem>
-              <SelectItem value="shared">Shared / Licensed</SelectItem>
+              <SelectItem value="glimmora_team">GlimmoraTeam</SelectItem>
             </SelectContent>
           </Select>
           <FieldError error={errors.ipOwnership} field="ipOwnership" />
@@ -4868,18 +5028,6 @@ function Step8CommercialLegal({ formData, updateField, errors = {}, blurField }:
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <FieldLabel>Liability Cap</FieldLabel>
-          <Select value={formData.liabilityCap} onValueChange={(v) => updateField("liabilityCap", v)}>
-            <SelectTrigger><SelectValue placeholder="Select liability cap" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="100_percent_fees">100% of Fees</SelectItem>
-              <SelectItem value="200_percent_fees">200% of Fees</SelectItem>
-              <SelectItem value="fixed_amount">Fixed Amount</SelectItem>
-              <SelectItem value="unlimited">Unlimited</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
           <FieldLabel>Governing Law</FieldLabel>
           <Select value={formData.governingLaw} onValueChange={(v) => updateField("governingLaw", v)}>
             <SelectTrigger><SelectValue placeholder="Select governing law" /></SelectTrigger>
@@ -4896,58 +5044,11 @@ function Step8CommercialLegal({ formData, updateField, errors = {}, blurField }:
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <FieldLabel>Dispute Resolution</FieldLabel>
-          <Select value={formData.disputeResolution} onValueChange={(v) => updateField("disputeResolution", v)}>
-            <SelectTrigger><SelectValue placeholder="Select dispute resolution" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="arbitration">Arbitration</SelectItem>
-              <SelectItem value="mediation">Mediation</SelectItem>
-              <SelectItem value="litigation">Litigation</SelectItem>
-              <SelectItem value="mediation_then_arbitration">Mediation then Arbitration</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <FieldLabel>Non-Solicitation Period</FieldLabel>
-          <Select value={formData.nonSolicitationPeriod} onValueChange={(v) => updateField("nonSolicitationPeriod", v)}>
-            <SelectTrigger><SelectValue placeholder="Select period" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="6_months">6 Months</SelectItem>
-              <SelectItem value="12_months">12 Months</SelectItem>
-              <SelectItem value="18_months">18 Months</SelectItem>
-              <SelectItem value="24_months">24 Months</SelectItem>
-              <SelectItem value="none">None</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <FieldLabel>Insurance Requirements</FieldLabel>
-          <Select value={formData.insuranceRequirements} onValueChange={(v) => updateField("insuranceRequirements", v)}>
-            <SelectTrigger><SelectValue placeholder="Select insurance" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="standard_pi">Standard Professional Indemnity</SelectItem>
-              <SelectItem value="enhanced_pi">Enhanced Professional Indemnity</SelectItem>
-              <SelectItem value="cyber_liability">Cyber Liability</SelectItem>
-              <SelectItem value="none">None Required</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <FieldLabel>Confidentiality Terms</FieldLabel>
-          <Select value={formData.confidentialityTerms} onValueChange={(v) => updateField("confidentialityTerms", v)}>
-            <SelectTrigger><SelectValue placeholder="Select confidentiality" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="standard_nda">Standard NDA applies</SelectItem>
-              <SelectItem value="mutual_nda">Mutual NDA</SelectItem>
-              <SelectItem value="custom_nda">Custom NDA</SelectItem>
-              <SelectItem value="none">None</SelectItem>
-            </SelectContent>
-          </Select>
+      <div>
+        <FieldLabel>Confidentiality / NDA</FieldLabel>
+        <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-[13px] text-gray-700">
+          <ShieldCheck className="w-4 h-4 shrink-0" style={{ color: '#4D5741' }} />
+          GlimmoraTeam Standard NDA
         </div>
       </div>
 

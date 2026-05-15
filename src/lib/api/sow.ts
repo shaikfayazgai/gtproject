@@ -59,7 +59,6 @@ export interface ApprovalDecision {
 // ── Token cache ───────────────────────────────────────────────────────────
 
 let _cachedToken: string | null = null;
-let _cachedEnterpriseToken: string | null = null;
 
 async function getToken(): Promise<string> {
   if (_cachedToken) return _cachedToken;
@@ -77,30 +76,15 @@ async function getToken(): Promise<string> {
   return data.token;
 }
 
-/**
- * Fetch a Glimmora API token scoped to the enterprise service account.
- * Used by admin pages so the backend returns enterprise-visible SOWs even when
- * the logged-in Claude admin has no personal glimmora access token.
- */
-async function getEnterpriseToken(): Promise<string> {
-  if (_cachedEnterpriseToken) return _cachedEnterpriseToken;
-
-  const res = await fetch("/api/sow/token?role=enterprise");
-  if (!res.ok) {
-    throw new ApiError(res.status, "Failed to acquire enterprise API token");
-  }
-  const data = await res.json();
-  _cachedEnterpriseToken = data.token;
-
-  setTimeout(() => { _cachedEnterpriseToken = null; }, 50 * 60 * 1000);
-
-  return data.token;
-}
 
 // ── Direct API call helper ────────────────────────────────────────────────
 
+// Used only by file upload / blob methods that can't go through the JSON proxy.
 const BASE_URL = process.env.NEXT_PUBLIC_GLIMMORA_API_URL || "";
 
+// Route all JSON API calls through the Next.js proxy (/api/sow/proxy) so
+// requests go server-side → Render, avoiding browser CORS restrictions and
+// cold-start timeouts on the Render free tier.
 async function sowCall<T>(
   path: string,
   method: string = "GET",
@@ -108,27 +92,15 @@ async function sowCall<T>(
   _retry = false,
   asEnterprise = false,
 ): Promise<T> {
-  const token = asEnterprise ? await getEnterpriseToken() : await getToken();
-
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    ...(payload ? { body: JSON.stringify(payload) } : {}),
+  const res = await fetch("/api/sow/proxy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, method, payload, enterprise: asEnterprise }),
   });
 
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    // If 401 and haven't retried yet, get a fresh token and retry once
-    if (res.status === 401 && !_retry) {
-      if (asEnterprise) _cachedEnterpriseToken = null;
-      else _cachedToken = null;
-      return sowCall<T>(path, method, payload, true, asEnterprise);
-    }
-
     // Format field-level validation errors nicely
     if (data?.errors && Array.isArray(data.errors)) {
       const fieldErrors = data.errors
@@ -356,7 +328,7 @@ export const sowApi = {
   },
 
   deleteSOW(sowId: string): Promise<BaseResponse> {
-    return sowCall<BaseResponse>(`/api/v1/sow/${sowId}`, "DELETE");
+    return sowCall<BaseResponse>(`/api/v1/sow/${sowId}`, "DELETE", undefined, false, true);
   },
 
   getUploadStatus(sowId: string): Promise<BaseResponse> {
@@ -486,6 +458,10 @@ export const sowApi = {
 
   getHallucinationLayers(sowId: string): Promise<BaseResponse> {
     return sowCall<BaseResponse>(`/api/v1/sow/${sowId}/hallucination-layers`);
+  },
+
+  promoteToPortfolio(sowId: string): Promise<BaseResponse> {
+    return sowCall<BaseResponse>(`/api/v1/sow/${sowId}/promote-to-portfolio`, "POST");
   },
 
   exportSOW(sowId: string, format: "pdf" | "docx" | "json"): Promise<Blob> {
