@@ -8,6 +8,7 @@ import { stagger, fadeUp } from "@/lib/utils/motion-variants";
 import { FlowStepProgress } from "@/components/enterprise/sow/FlowStepProgress";
 import { SectionNavigator } from "@/components/enterprise/sow/SectionNavigator";
 import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
+import { SOWUploadGuard } from "@/components/enterprise/sow/SOWUploadGuard";
 import type { CommercialSectionKey } from "@/types/enterprise";
 import { validateSection as validateSectionData } from "@/lib/validations/sow-upload-details";
 import {
@@ -241,6 +242,7 @@ export default function CommercialDetailsPage() {
   const ActiveSectionComponent = SECTION_COMPONENTS[activeSection];
 
   return (
+    <>
     <motion.div variants={stagger} initial="hidden" animate="show">
       {/* Flow step progress */}
       <motion.div variants={fadeUp} className="mb-6">
@@ -303,5 +305,7 @@ export default function CommercialDetailsPage() {
       </motion.div>
 
     </motion.div>
+    <SOWUploadGuard />
+    </>
   );
 }

@@ -26,27 +26,35 @@ export function useNavigationGuard({
   const [showModal, setShowModal] = React.useState(false);
   const [pendingUrl, setPendingUrl] = React.useState<string | null>(null);
 
-  // Keep a ref so the event listener always sees the latest value without re-registering
+  // Keep refs so event listeners always see the latest values without re-registering
   const isActiveRef = React.useRef(isActive);
   React.useEffect(() => { isActiveRef.current = isActive; }, [isActive]);
 
+  const allowedRef = React.useRef(allowedPathPrefixes);
+  React.useEffect(() => { allowedRef.current = allowedPathPrefixes; }, [allowedPathPrefixes]);
+
+  // Check whether a given href should be blocked
+  const shouldBlock = (href: string): boolean => {
+    if (!isActiveRef.current || !href || href === "#") return false;
+    const path = href.split("?")[0].split("#")[0];
+    return !allowedRef.current.some(
+      (prefix) => path.startsWith(prefix) || href.startsWith(prefix),
+    );
+  };
+
   // ── Click interceptor (capture phase) ──────────────────────────────────────
-  // Runs BEFORE Next.js <Link>'s bubble-phase handler, so e.stopPropagation()
+  // Fires BEFORE Next.js <Link>'s bubble-phase handler so stopPropagation()
   // prevents the Link from calling router.push() at all.
   React.useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (!isActiveRef.current) return;
-
-      // Walk up to find the nearest anchor
       const anchor = (e.target as Element).closest("a");
       if (!anchor) return;
 
       const href = anchor.getAttribute("href");
       if (!href) return;
 
-      // Ignore: hash links, mailto, tel, javascript, and external URLs
+      // Skip external, mailto, tel, javascript links
       if (
-        href === "#" ||
         href.startsWith("mailto:") ||
         href.startsWith("tel:") ||
         href.startsWith("javascript:") ||
@@ -54,27 +62,47 @@ export function useNavigationGuard({
         href.startsWith("//")
       ) return;
 
-      // Derive the path portion for prefix matching
-      const targetPath = href.split("?")[0].split("#")[0];
+      if (!shouldBlock(href)) return;
 
-      // Allow navigation that stays within the allowed prefixes
-      const isAllowed = allowedPathPrefixes.some(
-        (prefix) => targetPath.startsWith(prefix) || href.startsWith(prefix)
-      );
-      if (isAllowed) return;
-
-      // Block this navigation and show the guard modal
       e.preventDefault();
       e.stopPropagation();
       setPendingUrl(href);
       setShowModal(true);
     };
 
-    // Capture phase — fires before any React event handler
     document.addEventListener("click", handleClick, true);
     return () => document.removeEventListener("click", handleClick, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── router.push() interceptor ──────────────────────────────────────────────
+  // Handles programmatic navigation (e.g. sidebar buttons that call router.push
+  // directly instead of rendering an <a> tag).
+  React.useEffect(() => {
+    const originalPush = router.push.bind(router);
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (router as any).push = (href: string, options?: unknown) => {
+        if (shouldBlock(href)) {
+          setPendingUrl(href);
+          setShowModal(true);
+          return;
+        }
+        return originalPush(href, options as Parameters<typeof originalPush>[1]);
+      };
+    } catch {
+      // Silently skip if the property is not writable (safe fallback)
+    }
+
+    return () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (router as any).push = originalPush;
+      } catch { /* ignore */ }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
 
   // ── Browser close / refresh ────────────────────────────────────────────────
   React.useEffect(() => {

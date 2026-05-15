@@ -16,6 +16,7 @@ import { StatusBanner } from "@/components/enterprise/sow/StatusBanner";
 import { SowBadge } from "@/components/enterprise/sow/SowBadge";
 import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
 import { useExtractionReport, useUploadStatus } from "@/lib/hooks/use-manual-sow";
+import { SOWUploadGuard } from "@/components/enterprise/sow/SOWUploadGuard";
 
 /* ── helpers ── */
 
@@ -105,6 +106,7 @@ export default function ExtractionReportPage() {
   // ── Processing / loading skeleton ──
   if (isProcessing || reportLoading) {
     return (
+      <>
       <div>
         <div className="mb-6"><FlowStepProgress currentStep={2} /></div>
         {/* Header */}
@@ -156,12 +158,15 @@ export default function ExtractionReportPage() {
           </div>
         </div>
       </div>
+      <SOWUploadGuard />
+      </>
     );
   }
 
   // ── No data state ──
   if (!raw) {
     return (
+      <>
       <motion.div variants={stagger} initial="hidden" animate="show">
         <motion.div variants={fadeUp} className="mb-6">
           <FlowStepProgress currentStep={2} />
@@ -178,6 +183,8 @@ export default function ExtractionReportPage() {
           </button>
         </motion.div>
       </motion.div>
+      <SOWUploadGuard />
+      </>
     );
   }
 
@@ -191,6 +198,7 @@ export default function ExtractionReportPage() {
   const rawCtx         = (pick<Raw | null>(raw, "contextDetection", "context_detection", null) ?? {}) as Raw;
 
   return (
+    <>
     <motion.div variants={stagger} initial="hidden" animate="show">
       {/* Flow step progress */}
       <motion.div variants={fadeUp} className="mb-6">
@@ -305,5 +313,7 @@ export default function ExtractionReportPage() {
         </div>
       </motion.div>
     </motion.div>
+    <SOWUploadGuard />
+    </>
   );
 }

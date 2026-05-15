@@ -36,8 +36,8 @@ const UPLOAD_STEP_LABELS: Record<number, string> = {
 
 const UPLOAD_STEP_URLS: Record<number, string> = {
   1: "/enterprise/sow/upload",
-  2: "/enterprise/sow/upload/extraction-report",
-  3: "/enterprise/sow/upload/parsed-review",
+  2: "/enterprise/sow/upload/report",
+  3: "/enterprise/sow/upload/review",
   4: "/enterprise/sow/upload/gaps",
   5: "/enterprise/sow/upload/details",
   6: "/enterprise/sow/upload/generate",

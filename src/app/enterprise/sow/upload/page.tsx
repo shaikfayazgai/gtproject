@@ -15,6 +15,7 @@ import { WhatHappensNext } from "./components/WhatHappensNext";
 import { RecentUploads } from "./components/RecentUploads";
 import { aiPoweredFeatures } from "@/mocks/data/sow-upload-flow";
 import { useSOWUploadStore, setFileObjectUrl } from "@/lib/stores/sow-upload-store";
+import { SOWUploadGuard } from "@/components/enterprise/sow/SOWUploadGuard";
 import { useManualSOWList, useManualSowStatusPolling } from "@/lib/hooks/use-manual-sow";
 import { validateSOWUploadFields, validateSOWField, type SOWUploadFieldErrors } from "@/lib/validations/sow-upload";
 import { sowApi } from "@/lib/api/sow";
@@ -136,6 +137,32 @@ export default function SOWUploadPage() {
     }
   }, [isComplete]);
 
+  /* Resume in-progress session: if the user previously uploaded a file or
+     advanced past step 1, returning to this entry page (e.g. after
+     "Continue my progress") sends them back to wherever they left off.
+     For step 1 with an uploaded file (parse-in-progress when they left),
+     resume at step 2 — the report page will poll the API for status. */
+  React.useEffect(() => {
+    const s = useSOWUploadStore.getState();
+    const stepUrls: Record<number, string> = {
+      2: "/enterprise/sow/upload/report",
+      3: "/enterprise/sow/upload/review",
+      4: "/enterprise/sow/upload/gaps",
+      5: "/enterprise/sow/upload/details",
+      6: "/enterprise/sow/upload/generate",
+      7: "/enterprise/sow/upload/preview-confirm",
+    };
+    let target: string | null = null;
+    if (s.currentFlowStep > 1 && stepUrls[s.currentFlowStep]) {
+      target = stepUrls[s.currentFlowStep];
+    } else if (s.uploadedFile !== null && s.uploadedSowId) {
+      // Step 1 with a file already uploaded to the API — jump to the report
+      target = stepUrls[2];
+    }
+    if (target) router.replace(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const { data: sowListRes } = useManualSOWList();
   const existingSows = React.useMemo(() => {
     const res = sowListRes as unknown as { data?: unknown } | null;
@@ -224,6 +251,7 @@ export default function SOWUploadPage() {
   };
 
   return (
+    <>
     <motion.div variants={stagger} initial="hidden" animate="show">
       <input ref={fileInputRef} type="file" accept={ACCEPTED_EXTENSIONS} onChange={handleInputChange} className="hidden" aria-hidden="true" />
 
@@ -596,5 +624,7 @@ export default function SOWUploadPage() {
         </div>
       </div>
     </motion.div>
+    <SOWUploadGuard />
+    </>
   );
 }

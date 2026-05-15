@@ -16,6 +16,7 @@ import { FlowStepProgress, type FlowStep } from "@/components/enterprise/sow/Flo
 import { StatusBanner } from "@/components/enterprise/sow/StatusBanner";
 import { SowReviewPanel } from "@/components/enterprise/sow/SowReviewPanel";
 import { useSOWUploadStore } from "@/lib/stores/sow-upload-store";
+import { SOWUploadGuard } from "@/components/enterprise/sow/SOWUploadGuard";
 import { useManualSowReview } from "@/lib/hooks/use-manual-sow-review";
 import { useAiSowReview }    from "@/lib/hooks/use-ai-sow-review";
 import { useSubmitSOW, useApprovalStages, useManualSowStatusPolling } from "@/lib/hooks/use-manual-sow";
@@ -341,6 +342,7 @@ export default function GeneratePreviewPage({
   );
 
   return (
+    <>
     <motion.div variants={stagger} initial="hidden" animate="show">
 
       {/* Step progress */}
@@ -803,5 +805,7 @@ export default function GeneratePreviewPage({
       </AnimatePresence>
 
     </motion.div>
+    {flow === "manual" && <SOWUploadGuard />}
+    </>
   );
 }
