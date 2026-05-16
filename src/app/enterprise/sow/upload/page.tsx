@@ -16,7 +16,7 @@ import { RecentUploads } from "./components/RecentUploads";
 import { aiPoweredFeatures } from "@/mocks/data/sow-upload-flow";
 import { useSOWUploadStore, setFileObjectUrl } from "@/lib/stores/sow-upload-store";
 import { SOWUploadGuard } from "@/components/enterprise/sow/SOWUploadGuard";
-import { useManualSOWList, useManualSowStatusPolling } from "@/lib/hooks/use-manual-sow";
+import { useManualSOWList, useUploadStatus } from "@/lib/hooks/use-manual-sow";
 import { validateSOWUploadFields, validateSOWField, type SOWUploadFieldErrors } from "@/lib/validations/sow-upload";
 import { sowApi } from "@/lib/api/sow";
 
@@ -111,16 +111,16 @@ export default function SOWUploadPage() {
   const isParsing = parsingStage !== null && parsingStage !== "complete";
   const isComplete = parsingStage === "complete";
 
-  /* Poll GET /api/v1/sow/{sowId} while parsing — drive stage from real status */
+  /* Poll GET /api/v1/sow/{sowId}/upload-status while parsing — drive stage from real status */
   const uploadedSowId = store.uploadedSowId ?? null;
-  const { data: statusData } = useManualSowStatusPolling(
+  const { data: statusData } = useUploadStatus(
     isParsing ? uploadedSowId : null,
   );
 
   React.useEffect(() => {
     if (!statusData) return;
-    const raw = statusData as { data?: Record<string, unknown> };
-    const status = String(raw?.data?.status ?? "");
+    const raw = statusData as { processing_state?: string; data?: Record<string, unknown> };
+    const status = String(raw?.processing_state ?? raw?.data?.status ?? "");
     if (!status) return;
     const mapped = STATUS_TO_PARSING_STAGE[status];
     if (mapped) {

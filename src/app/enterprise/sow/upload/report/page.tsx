@@ -65,7 +65,7 @@ export default function ExtractionReportPage() {
   // Poll upload-status until processing is done
   const { data: statusRes, isLoading: statusLoading } = useUploadStatus(sowId);
   const statusData  = (statusRes?.data ?? statusRes) as Raw | null;
-  const uploadStatus = statusData?.status as string | undefined;
+  const uploadStatus = (statusData?.processing_state ?? statusData?.status) as string | undefined;
   const isProcessing =
     statusLoading ||
     (!!sowId && !!uploadStatus && uploadStatus !== "completed" && uploadStatus !== "complete" && uploadStatus !== "failed" && uploadStatus !== "error");

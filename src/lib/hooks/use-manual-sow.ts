@@ -278,9 +278,9 @@ export function useUploadStatus(sowId: string | null, enabled = true) {
     queryFn: () => sowApi.getUploadStatus(sowId!),
     enabled: !!sowId && enabled,
     refetchInterval: (query) => {
-      const status = (query.state.data as { data?: { status?: string } } | undefined)?.data?.status;
-      // Stop polling once processing is complete or failed
-      if (status === "completed" || status === "complete" || status === "failed" || status === "error") return false;
+      const raw = query.state.data as { processing_state?: string; data?: { status?: string } } | undefined;
+      const state = raw?.processing_state ?? raw?.data?.status;
+      if (state === "completed" || state === "complete" || state === "failed" || state === "error") return false;
       return 3000;
     },
   });
