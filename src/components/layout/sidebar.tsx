@@ -118,27 +118,17 @@ React.useEffect(() => {
   const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Brand */}
-      <div
+      <div   
         className={cn(
           "flex items-center justify-between shrink-0",
-          isCollapsed ? "px-3" : "px-4"
+          isCollapsed ? "pl-0 pr-3" : "px-4"
         )}
-        style={{ height: 72 }}
+        style={{ height: 116 }}
       >
         <Link href="/" className="flex-1 min-w-0 flex items-center">
-          {isCollapsed ? (
-            <div className="relative w-10 h-10 shrink-0 overflow-hidden mx-auto">
-              <Image
-                src="/logo.png"
-                alt="Glimmora Team"
-                fill
-                className="object-contain object-left"
-                priority
-              />
-            </div>
-          ) : (
+          {!isCollapsed && (
             <div className="flex flex-col min-w-0 w-full">
-              <div className="relative w-full overflow-hidden" style={{ height: 52 }}>
+              <div className="relative w-full overflow-hidden" style={{ height: 150, marginLeft: "-16px", width: "calc(100% + 16px)" }}>
                 <Image
                   src="/logo.png"
                   alt="Glimmora Team"
