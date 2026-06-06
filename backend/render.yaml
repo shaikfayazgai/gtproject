@@ -1,127 +1,42 @@
-# Render Blueprint — deploys the whole GTPROJECT backend in one click.
+# Render Blueprint — single all-in-one backend Web Service.
 #
-# 9 FastAPI microservices as PRIVATE services (internal-only, cheaper) + 1 public
-# gateway Web Service. DB stays on Neon (set DATABASE_URL in the dashboard/group).
+# Runs all 9 FastAPI microservices + the gateway in ONE container
+# (Dockerfile.allinone -> run_all_in_one.py). Cheapest option: works on Render's
+# Free instance. The gateway binds Render's $PORT; services run on loopback.
+# DB stays on Neon (set DATABASE_URL below in the dashboard).
 #
-# Usage:
-#   1. Render Dashboard -> New -> Blueprint -> pick this repo.
-#   2. Render reads this file and proposes all 10 services. Approve.
-#   3. Fill the env-var values it prompts for (sync:false ones below).
-#
-# Private services are reachable from the gateway at  http://<name>:<port>
-# (Render private network uses the service NAME as the hostname).
-# Their internal port = the PORT Render assigns; we pin PORT=8000 so the
-# gateway's SERVICE_URL_* values are stable.
+# Deploy:
+#   Render -> New -> Blueprint -> pick this repo -> Apply -> fill the secrets.
 
 services:
-  # ---- gateway (public) -------------------------------------------------
   - type: web
-    name: gateway
+    name: gtproject-backend
     runtime: docker
+    plan: free
+    region: singapore
     rootDir: backend
-    dockerfilePath: ./Dockerfile.gateway
+    dockerfilePath: ./Dockerfile.allinone
     healthCheckPath: /healthz
     envVars:
-      - key: SERVICE_URL_AUTH
-        value: http://auth:8000
-      - key: SERVICE_URL_CONTRIBUTOR
-        value: http://contributor:8000
-      - key: SERVICE_URL_ENTERPRISE
-        value: http://enterprise:8000
-      - key: SERVICE_URL_SUPERADMIN
-        value: http://superadmin:8000
-      - key: SERVICE_URL_MENTOR
-        value: http://mentor:8000
-      - key: SERVICE_URL_UNIVERSITIES
-        value: http://universities:8000
-      - key: SERVICE_URL_WOMEN
-        value: http://women:8000
-      - key: SERVICE_URL_EMAIL
-        value: http://email:8000
-      - key: SERVICE_URL_FILE
-        value: http://file:8000
-
-  # ---- 9 microservices (private) ---------------------------------------
-  - type: pserv
-    name: auth
-    runtime: docker
-    rootDir: backend
-    dockerfilePath: ./services/auth-service/Dockerfile
-    envVars: [{ key: PORT, value: "8000" }, { fromGroup: gt-backend-shared }]
-
-  - type: pserv
-    name: contributor
-    runtime: docker
-    rootDir: backend
-    dockerfilePath: ./services/contributor-service/Dockerfile
-    envVars: [{ key: PORT, value: "8000" }, { fromGroup: gt-backend-shared }]
-
-  - type: pserv
-    name: enterprise
-    runtime: docker
-    rootDir: backend
-    dockerfilePath: ./services/enterprise-service/Dockerfile
-    envVars: [{ key: PORT, value: "8000" }, { fromGroup: gt-backend-shared }]
-
-  - type: pserv
-    name: superadmin
-    runtime: docker
-    rootDir: backend
-    dockerfilePath: ./services/superadmin-service/Dockerfile
-    envVars: [{ key: PORT, value: "8000" }, { fromGroup: gt-backend-shared }]
-
-  - type: pserv
-    name: mentor
-    runtime: docker
-    rootDir: backend
-    dockerfilePath: ./services/mentor-service/Dockerfile
-    envVars: [{ key: PORT, value: "8000" }, { fromGroup: gt-backend-shared }]
-
-  - type: pserv
-    name: universities
-    runtime: docker
-    rootDir: backend
-    dockerfilePath: ./services/universities-service/Dockerfile
-    envVars: [{ key: PORT, value: "8000" }, { fromGroup: gt-backend-shared }]
-
-  - type: pserv
-    name: women
-    runtime: docker
-    rootDir: backend
-    dockerfilePath: ./services/women-service/Dockerfile
-    envVars: [{ key: PORT, value: "8000" }, { fromGroup: gt-backend-shared }]
-
-  - type: pserv
-    name: email
-    runtime: docker
-    rootDir: backend
-    dockerfilePath: ./services/email-service/Dockerfile
-    envVars: [{ key: PORT, value: "8000" }, { fromGroup: gt-backend-shared }]
-
-  - type: pserv
-    name: file
-    runtime: docker
-    rootDir: backend
-    dockerfilePath: ./services/file-service/Dockerfile
-    envVars: [{ key: PORT, value: "8000" }, { fromGroup: gt-backend-shared }]
-
-# ---- shared env vars for all 9 services (fill values in the dashboard) ----
-envVarGroups:
-  - name: gt-backend-shared
-    envVars:
-      - key: DATABASE_URL        # Neon glimmora connection string
+      # Secrets — Render will prompt for these (sync:false).
+      - key: DATABASE_URL
         sync: false
-      - key: JWT_SECRET
+      - key: API_SECRET_KEY
         sync: false
       - key: SUPER_ADMIN_EMAIL
         sync: false
       - key: SUPER_ADMIN_PASSWORD
         sync: false
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_APP_PASSWORD
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      # Non-secret defaults.
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT
         value: "587"
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASSWORD
-        sync: false
+      - key: SERVICE_START_STAGGER
+        value: "3"
