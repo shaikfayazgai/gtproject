@@ -311,6 +311,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             role?: string;
             requiresPasswordChange?: boolean;
             isFirstLogin?: boolean;
+            approvalStatus?: string;
           };
           if (!accessToken || !user.id) return null;
 
@@ -333,6 +334,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             glimmoraExpiresAt: Math.floor(Date.now() / 1000) + expiresIn,
             requiresPasswordChange: !!user.requiresPasswordChange,
             isFirstLogin: !!user.isFirstLogin,
+            // Women/approval-gated accounts: carry the backend approval_status
+            // so the contributor portal can hard-block pending/rejected users.
+            approvalStatus: user.approvalStatus ?? "approved",
           };
         } catch (err) {
           // ApiError covers 4xx from the backend (wrong creds, account disabled, etc.) —
@@ -389,6 +393,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           isFirstLogin?: boolean;
           isNewSsoUser?: boolean;
           provider?: string;
+          approvalStatus?: string;
         };
         token.id = u.id;
         // Ensure standard JWT `sub` so getToken / route guards recognize the session after partial sign-in (e.g. MFA setup).
@@ -411,6 +416,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
         if (typeof u.isNewSsoUser === "boolean") token.isNewSsoUser = u.isNewSsoUser;
         if (u.provider) token.provider = u.provider;
+        if (u.approvalStatus) {
+          (token as { approvalStatus?: string }).approvalStatus = u.approvalStatus;
+        }
         // Store email and name from OAuth provider
         if (u.email) token.email = u.email;
         if (u.name) token.name = u.name;
@@ -518,6 +526,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const t = token as typeof token & {
           requiresPasswordChange?: boolean;
           isFirstLogin?: boolean;
+          approvalStatus?: string;
         };
         session.user.id           = token.id as string;
         session.user.role         = token.role as UserRole;
@@ -528,6 +537,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as { requiresPasswordChange?: boolean }).requiresPasswordChange =
           t.requiresPasswordChange;
         (session.user as { isFirstLogin?: boolean }).isFirstLogin = t.isFirstLogin;
+        (session.user as { approvalStatus?: string }).approvalStatus =
+          t.approvalStatus ?? "approved";
       }
       return session;
     },

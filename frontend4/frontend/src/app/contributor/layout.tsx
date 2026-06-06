@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, Suspense } from "react";
 import { EnterpriseShell } from "@/components/meridian";
+import { ApprovalStatusScreen } from "@/components/auth/approval-status-screen";
 import { contributorNav } from "@/lib/config/navigation";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useRoleGuard } from "@/lib/hooks/use-role-guard";
@@ -43,16 +44,26 @@ export default function ContributorLayout({
     setOnboardingComplete(trackQuery.data.onboardingComplete);
   }, [trackReady, trackQuery.data, setOnboardingComplete]);
 
+  // Approval gate (women / approval-required tracks). When the backend marks
+  // the account pending/rejected we hard-block the WHOLE portal with a status
+  // wall — and we must NOT run any onboarding redirect for these users.
+  const approvalStatus =
+    (session?.user as { approvalStatus?: string } | undefined)?.approvalStatus ?? "approved";
+  const notApproved =
+    status === "authenticated" && !CONTRIBUTOR_DEMO_BYPASS && approvalStatus !== "approved";
+
   const needsOnboarding =
-    trackReady && trackQuery.data && !trackQuery.data.onboardingComplete;
+    !notApproved && trackReady && trackQuery.data && !trackQuery.data.onboardingComplete;
 
   const needsKycReview =
+    !notApproved &&
     trackReady &&
     trackQuery.data?.onboardingComplete &&
     !trackQuery.data.portalReady;
 
   // Legacy SSO route → unified Meridian onboarding (page children were hidden here).
   useEffect(() => {
+    if (notApproved) return; // approval wall takes precedence
     if (!trackReady || pathname !== "/contributor/onboarding") return;
     const user = session?.user as
       | { provider?: string; isNewSsoUser?: boolean }
@@ -117,6 +128,13 @@ export default function ContributorLayout({
   // sidebar/topbar, no role guard that would bounce unauthenticated users).
   if (pathname.endsWith("/login")) {
     return <>{children}</>;
+  }
+
+  // Approval gate (women / approval-required tracks): if the backend marked the
+  // account pending/rejected, hard-block the whole portal with a status wall —
+  // covers EVERY /contributor/* route, before any onboarding redirect.
+  if (notApproved) {
+    return <ApprovalStatusScreen status={approvalStatus} />;
   }
 
   return (
