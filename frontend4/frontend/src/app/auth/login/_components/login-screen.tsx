@@ -39,6 +39,30 @@ function safeReturnTo(raw: string | null): string | null {
   return raw;
 }
 
+/**
+ * Probe the backend gateway's public health endpoint. Used after a failed
+ * sign-in to tell apart "wrong credentials" from "backend asleep / unreachable"
+ * (Render free instances cold-start, and the auth call times out before they
+ * wake). Returns true if the gateway answered, false on timeout / network error.
+ */
+async function isBackendReachable(): Promise<boolean> {
+  const base = process.env.NEXT_PUBLIC_GLIMMORA_API_URL;
+  if (!base) return true; // can't probe → assume reachable, keep old behaviour
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 4000);
+    const res = await fetch(`${base.replace(/\/$/, "")}/healthz`, {
+      method: "GET",
+      cache: "no-store",
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export function LoginScreen({
   portalLabel,
   showOauth = false,
@@ -94,7 +118,16 @@ export function LoginScreen({
     }
 
     if (!res || res.error) {
-      setError("That email and password don't match. Try again.");
+      // A failed sign-in can mean (a) genuinely wrong credentials, or (b) the
+      // backend was unreachable / cold-starting and the auth call timed out —
+      // both surface identically here. Probe backend health so we don't tell a
+      // user their password is wrong when the service was merely asleep.
+      const backendAwake = await isBackendReachable();
+      setError(
+        backendAwake
+          ? "That email and password don't match. Try again."
+          : "We couldn't reach the server (it may be waking up). Please wait a few seconds and try again.",
+      );
       setSubmitting(false);
       return;
     }

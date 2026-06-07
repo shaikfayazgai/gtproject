@@ -14,6 +14,7 @@ import {
 } from "@/app/mentor/settings/_components/settings-subpage-shell";
 import { StatusChip } from "@/components/meridian";
 import { patchMentorNotificationPrefs } from "@/lib/api/mentor";
+import { useMentorSettingsStore } from "@/lib/stores/mentor-settings-store";
 
 type Channel = "inApp" | "email" | "sms";
 interface Row { key: string; label: string; locked?: boolean; prefs: Record<Channel, boolean>; }
@@ -33,24 +34,40 @@ const CHANNELS: { key: Channel; label: string }[] = [
 ];
 
 export default function MentorNotificationsSettingsPage() {
+  const savedPrefs = useMentorSettingsStore((s) => s.notifications);
+  const setSavedPrefs = useMentorSettingsStore((s) => s.setNotifications);
   const [rows, setRows] = React.useState<Row[]>(INITIAL);
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
+
+  // Hydrate from the persisted store on mount so saved prefs survive reloads
+  // (Zustand persist reads localStorage after mount → apply once available).
+  React.useEffect(() => {
+    if (!savedPrefs || Object.keys(savedPrefs).length === 0) return;
+    setRows((prev) =>
+      prev.map((r) =>
+        r.locked || !savedPrefs[r.key] ? r : { ...r, prefs: { ...r.prefs, ...savedPrefs[r.key] } },
+      ),
+    );
+  }, [savedPrefs]);
 
   const toggle = (k: string, ch: Channel) =>
     setRows((prev) => prev.map((r) => r.key === k && !r.locked ? { ...r, prefs: { ...r.prefs, [ch]: !r.prefs[ch] } } : r));
 
   const onSave = async () => {
     setSaving(true);
+    // Persist browser-locally first so the choice survives reload regardless of
+    // backend availability; then best-effort sync to the API.
+    setSavedPrefs(Object.fromEntries(rows.map((r) => [r.key, r.prefs])));
     try {
       await patchMentorNotificationPrefs({
         rows: rows.map((r) => ({ key: r.key, prefs: r.prefs })),
       });
+    } catch {
+      // API unavailable (Phase-1 / no DB) — local persistence already applied.
+    } finally {
       setSaved(true);
       setTimeout(() => setSaved(false), 1800);
-    } catch {
-      setSaved(false);
-    } finally {
       setSaving(false);
     }
   };

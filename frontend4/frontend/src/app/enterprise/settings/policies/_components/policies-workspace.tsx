@@ -18,6 +18,7 @@ import {
   type SlaTemplateMock,
 } from "@/lib/settings/settings-mock";
 import { toast } from "@/lib/stores/toast-store";
+import { useEnterprisePoliciesStore } from "@/lib/stores/enterprise-policies-store";
 import { cn } from "@/lib/utils/cn";
 
 type PolicyView = "all" | "sla" | "escalation" | "governance";
@@ -46,9 +47,17 @@ export function PoliciesWorkspace() {
     [slaTemplates, escalationRules],
   );
 
+  const savedThresholds = useEnterprisePoliciesStore((s) => s.thresholds);
+  const persistThresholds = useEnterprisePoliciesStore((s) => s.setThresholds);
   const [thresholds, setThresholds] = React.useState<GovernanceThresholdMock>(() =>
     getGovernanceThresholdsMock(),
   );
+
+  // Hydrate from the persisted store on mount (Zustand persist reads
+  // localStorage after mount) so a prior "Save thresholds" survives reloads.
+  React.useEffect(() => {
+    if (savedThresholds) setThresholds(savedThresholds as GovernanceThresholdMock);
+  }, [savedThresholds]);
 
   const setView = React.useCallback(
     (next: PolicyView) => {
@@ -69,6 +78,9 @@ export function PoliciesWorkspace() {
   const showGovernance = view === "all" || view === "governance";
 
   const onSaveGovernance = () => {
+    // Persist browser-locally so the values survive reload even without a
+    // backend write (Phase-1 / no DB on the cloud demo).
+    persistThresholds(thresholds);
     toast.success("Governance thresholds saved", "Updated rules apply to new reviews and suggestions.");
   };
 
