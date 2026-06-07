@@ -124,16 +124,21 @@ export function MentorDetailWorkspace() {
   const activeTab = TABS.some((t) => t.key === tab) ? tab : "overview";
 
   const inviteCode = searchParams.get("code");
+  const provisionedTempPassword = searchParams.get("tempPassword");
+  const provisioned = searchParams.get("provisioned") === "1";
 
   const [modal, setModal] = React.useState<ModalKind>(null);
   const [toast, setToast] = React.useState<string | null>(() => {
+    if (provisioned) return "Mentor created — share the temporary password below.";
     if (searchParams.get("invited") === "1") return "Invite sent — mentor is pending first sign-in.";
     if (searchParams.get("competency") === "saved") return "Competency saved.";
     return null;
   });
 
   React.useEffect(() => {
-    if (searchParams.get("invited") === "1") {
+    if (provisioned) {
+      setToast("Mentor created — share the temporary password below.");
+    } else if (searchParams.get("invited") === "1") {
       setToast("Invite sent — mentor is pending first sign-in.");
     } else if (searchParams.get("competency") === "saved") {
       setToast("Competency saved.");
@@ -189,6 +194,27 @@ export function MentorDetailWorkspace() {
     <div className="space-y-5 pb-12 animate-fade-in">
       <MentorToast message={toast} onDismiss={() => setToast(null)} />
 
+      {provisioned && provisionedTempPassword && (
+        <div className="rounded-xl border border-brand-border/40 bg-brand-subtle/15 px-4 py-3 space-y-1.5">
+          <p className="font-body text-[12px] font-semibold text-foreground">
+            Temporary password — share with the mentor
+          </p>
+          <p className="font-body text-[12px] text-text-secondary">
+            The mentor signs in with this once, then sets their own password.
+            {searchParams.get("emailSent") === "1"
+              ? " (Also emailed to them.)"
+              : " (Email delivery is off — copy it manually.)"}
+          </p>
+          <code className="block font-mono text-[13px] font-semibold text-foreground bg-surface border border-stroke rounded-md px-3 py-2 w-fit select-all">
+            {provisionedTempPassword}
+          </code>
+          <p className="font-body text-[11px] text-text-tertiary">
+            Login at <span className="font-mono">/mentor/login</span> · first sign-in forces a password reset.
+          </p>
+        </div>
+      )}
+
+      {/* Legacy invite-link banner (only if an old invite flow was used). */}
       {searchParams.get("invited") === "1" && inviteCode && (
         <div className="rounded-xl border border-brand-border/40 bg-brand-subtle/15 px-4 py-3 space-y-1">
           <p className="font-body text-[12px] font-semibold text-foreground">Self-register link</p>

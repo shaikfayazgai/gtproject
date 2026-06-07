@@ -89,24 +89,28 @@ export function NewMentorWorkspace() {
       setSubmitting(true);
       setError(null);
       try {
-        const res = await fetch("/api/mentors/invites", {
+        // Credential-based provisioning (locked flow — NO invite links):
+        // a random temp password is generated, the account is must-change-
+        // password, and (since email may be unavailable) the temp password is
+        // returned so the admin can hand it over. First sign-in forces a reset.
+        const res = await fetch("/api/superadmin/users", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: name.trim(),
             email: email.trim(),
-            mentorRoles: roleList,
-            poolIds,
-            note: note.trim() || undefined,
+            role: "mentor",
+            sendCredentials: true,
           }),
         });
         const body = (await res.json().catch(() => ({}))) as {
+          error?: string;
           message?: string;
-          code?: string;
-          registerUrl?: string;
+          tempPassword?: string;
+          emailSent?: boolean;
         };
         if (!res.ok) {
-          throw new Error(body.message ?? "Could not send invite.");
+          throw new Error(body.error ?? body.message ?? "Could not create mentor.");
         }
 
         const created = inviteAdminMentor({
@@ -118,11 +122,12 @@ export function NewMentorWorkspace() {
           note: note.trim() || undefined,
         });
 
-        const qs = new URLSearchParams({ invited: "1" });
-        if (body.code) qs.set("code", body.code);
+        const qs = new URLSearchParams({ provisioned: "1" });
+        if (body.tempPassword) qs.set("tempPassword", body.tempPassword);
+        if (body.emailSent) qs.set("emailSent", "1");
         router.push(`/admin/mentors/${created.id}?${qs.toString()}`);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not send invite.");
+        setError(err instanceof Error ? err.message : "Could not create mentor.");
         setSubmitting(false);
       }
     })();
@@ -149,10 +154,11 @@ export function NewMentorWorkspace() {
           Platform · Talent
         </p>
         <h1 className="font-body text-[22px] font-semibold text-foreground tracking-[-0.015em] leading-tight">
-          Invite a new mentor
+          Add a new mentor
         </h1>
         <p className="mt-1.5 font-body text-[12.5px] text-text-tertiary max-w-2xl">
-          Send a platform invite, assign pools, and complete competency setup before first sign-in.
+          Creates the mentor account with a temporary password. They set their own
+          password on first sign-in. Assign pools and competency after creation.
         </p>
       </header>
 
@@ -379,7 +385,7 @@ export function NewMentorWorkspace() {
             )}
           >
             <Mail className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
-            {submitting ? "Sending…" : "Send invite"}
+            {submitting ? "Creating…" : "Create mentor"}
           </button>
         </footer>
       </form>
