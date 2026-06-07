@@ -81,11 +81,11 @@ function statusPillCls(s: SowStatus): string {
 }
 
 function approveStageDescription(stage: SowStage): string {
-  if (stage === "final") {
-    return "Sign off Final and mark the SOW approved.";
-  }
   const next = APPROVAL_STAGE_ORDER[APPROVAL_STAGE_ORDER.indexOf(stage) + 1];
-  return `Advance to ${next ? STAGE_LABEL[next] : "the next stage"}.`;
+  if (!next) {
+    return "Sign off and mark the SOW approved.";
+  }
+  return `Advance to ${STAGE_LABEL[next]}.`;
 }
 
 const STAGE_CHECKLIST: Record<SowStage, string[]> = {

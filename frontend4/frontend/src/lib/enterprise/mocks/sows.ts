@@ -461,19 +461,21 @@ export function approveSowMock(
   );
   const idx = APPROVAL_STAGE_ORDER.indexOf(stage);
   const nextStage: SowStage | null = idx >= 0 && idx + 1 < APPROVAL_STAGE_ORDER.length ? APPROVAL_STAGE_ORDER[idx + 1]! : null;
-  const isFinal = stage === "final";
+  // Terminal = approving the LAST stage in the order (now "commercial"), not a
+  // hardcoded "final". When the last stage is approved the SOW is fully approved.
+  const isTerminal = nextStage === null;
   const merged = transition(id, {
     approvals,
-    stage: isFinal ? "final" : nextStage,
-    status: isFinal ? "approved" : "approval",
-    approvedAt: isFinal ? new Date().toISOString() : current.approvedAt,
+    stage: isTerminal ? stage : nextStage,
+    status: isTerminal ? "approved" : "approval",
+    approvedAt: isTerminal ? new Date().toISOString() : current.approvedAt,
   });
   return {
     sow: merged,
     transition: {
       fromStage: stage,
-      advancedTo: isFinal ? null : nextStage,
-      terminal: isFinal,
+      advancedTo: isTerminal ? null : nextStage,
+      terminal: isTerminal,
     },
   };
 }
