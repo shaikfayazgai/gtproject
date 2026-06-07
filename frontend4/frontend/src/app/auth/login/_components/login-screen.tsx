@@ -40,26 +40,32 @@ function safeReturnTo(raw: string | null): string | null {
 }
 
 /**
- * Probe the backend gateway's public health endpoint. Used after a failed
- * sign-in to tell apart "wrong credentials" from "backend asleep / unreachable"
- * (Render free instances cold-start, and the auth call times out before they
- * wake). Returns true if the gateway answered, false on timeout / network error.
+ * Decide whether a failed sign-in was a real cold-start/outage (vs. just wrong
+ * credentials). We only claim "server unreachable" when we have POSITIVE proof:
+ * the backend health probe throws a network error / times out. If the probe
+ * answers at all (even non-200) — or CORS blocks it but the server is actually
+ * up — we default to the normal "wrong credentials" message, because that's the
+ * common case and wrongly blaming the server confuses users.
+ *
+ * Probe is same-origin (`/api/healthz` style via the gateway) with a short
+ * timeout; any thrown error → treat as a genuine outage.
  */
-async function isBackendReachable(): Promise<boolean> {
+async function isBackendDown(): Promise<boolean> {
   const base = process.env.NEXT_PUBLIC_GLIMMORA_API_URL;
-  if (!base) return true; // can't probe → assume reachable, keep old behaviour
+  if (!base) return false; // can't probe → assume up → show credential error
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 4000);
-    const res = await fetch(`${base.replace(/\/$/, "")}/healthz`, {
+    await fetch(`${base.replace(/\/$/, "")}/healthz`, {
       method: "GET",
       cache: "no-store",
+      mode: "no-cors", // we only care whether the request resolves, not the body
       signal: ctrl.signal,
     });
     clearTimeout(t);
-    return res.ok;
+    return false; // resolved (even opaque) → server is up → credential error
   } catch {
-    return false;
+    return true; // network error / timeout → genuinely unreachable
   }
 }
 
@@ -118,15 +124,14 @@ export function LoginScreen({
     }
 
     if (!res || res.error) {
-      // A failed sign-in can mean (a) genuinely wrong credentials, or (b) the
-      // backend was unreachable / cold-starting and the auth call timed out —
-      // both surface identically here. Probe backend health so we don't tell a
-      // user their password is wrong when the service was merely asleep.
-      const backendAwake = await isBackendReachable();
+      // Default to the credential error (the common case). Only show the
+      // "server waking up" message when a health probe gives positive proof the
+      // backend is genuinely unreachable.
+      const down = await isBackendDown();
       setError(
-        backendAwake
-          ? "That email and password don't match. Try again."
-          : "We couldn't reach the server (it may be waking up). Please wait a few seconds and try again.",
+        down
+          ? "We couldn't reach the server (it may be waking up). Please wait a few seconds and try again."
+          : "That email and password don't match. Try again.",
       );
       setSubmitting(false);
       return;
