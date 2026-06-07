@@ -22,6 +22,7 @@ import {
   XCircle,
   AlertTriangle,
   FileText,
+  ExternalLink,
   Workflow,
 } from "lucide-react";
 import { useSow } from "@/lib/hooks/use-sow-v2";
@@ -146,6 +147,11 @@ function SowDetailView({ sow }: { sow: SowDetail }) {
   const risk = (intake.riskBreakdown ?? null) as RiskBreakdown | null;
   const extraction = intake.extraction;
   const sourceFile = intake.sourceFile;
+  // Vercel Blob URL of the uploaded SOW document (backend-persisted SOWs).
+  const sowFileUrl =
+    (typeof rawPayload.fileUrl === "string" && rawPayload.fileUrl) ||
+    (typeof rawPayload.file_url === "string" && rawPayload.file_url) ||
+    null;
   const initiative = intake.initiative;
   const submission = intake.submission;
 
@@ -326,9 +332,21 @@ function SowDetailView({ sow }: { sow: SowDetail }) {
                   <FileText className="h-4 w-4" strokeWidth={2} aria-hidden />
                 </span>
                 <div className="min-w-0">
-                  <p className="font-body text-[13px] font-semibold text-foreground truncate">
-                    {sourceFile.name}
-                  </p>
+                  {sowFileUrl ? (
+                    <a
+                      href={sowFileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-body text-[13px] font-semibold text-brand hover:underline truncate inline-flex items-center gap-1"
+                    >
+                      {sourceFile.name}
+                      <ExternalLink className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden />
+                    </a>
+                  ) : (
+                    <p className="font-body text-[13px] font-semibold text-foreground truncate">
+                      {sourceFile.name}
+                    </p>
+                  )}
                   <p className="font-mono text-[10.5px] text-text-tertiary tabular-nums mt-0.5">
                     {(sourceFile.sizeBytes / 1024).toFixed(0)} KB
                     {sourceFile.type ? ` · ${sourceFile.type}` : ""}

@@ -20,6 +20,7 @@ import {
   Circle,
   Clock,
   AlertTriangle,
+  ExternalLink,
   RotateCcw,
   Send,
   XCircle,
@@ -178,6 +179,12 @@ export default function SowApprovePage() {
 
   const rawPayload = sow.activeVersionDetail?.payload ?? ({} as Record<string, unknown>);
   const intake = parseIntakePayload(rawPayload);
+  // Uploaded SOW document (Vercel Blob URL) so approvers can open the actual
+  // file before deciding any stage.
+  const sowFileUrl =
+    (typeof rawPayload.fileUrl === "string" && rawPayload.fileUrl) ||
+    (typeof rawPayload.file_url === "string" && rawPayload.file_url) ||
+    null;
   const submission = intake.submission;
 
   const currentStage = sow.stage;
@@ -289,6 +296,18 @@ export default function SowApprovePage() {
           )}
         </div>
       </header>
+
+      {sowFileUrl && (
+        <a
+          href={sowFileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md bg-brand text-on-brand font-body text-[13px] font-semibold hover:bg-brand-hover transition-colors duration-fast w-fit"
+        >
+          <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+          View SOW document
+        </a>
+      )}
 
       {/* Primary workspace — decision or submit first */}
       {isDraft && (

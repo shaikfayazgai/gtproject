@@ -95,6 +95,13 @@ export function CommercialReviewWorkspace() {
   const [decisionAction, setDecisionAction] = React.useState<CommercialDecisionAction | null>(null);
 
   const atCommercial = sow?.status === "approval" && sow.stage === "commercial";
+  // The uploaded SOW document (Vercel Blob URL) lives in the version payload so
+  // approvers can open the actual file before deciding.
+  const sowPayload = (sow?.activeVersionDetail?.payload ?? {}) as Record<string, unknown>;
+  const sowFileUrl =
+    (typeof sowPayload.fileUrl === "string" && sowPayload.fileUrl) ||
+    (typeof sowPayload.file_url === "string" && sowPayload.file_url) ||
+    null;
   const commercialApproval = sow?.approvals.find((a) => a.stage === "commercial");
   const sla = slaRemaining(commercialApproval?.slaDeadline ?? null);
 
@@ -305,19 +312,36 @@ export function CommercialReviewWorkspace() {
         title="Scope"
         description="Active version body submitted for approval"
         actions={
-          <Link
-            href={`/enterprise/sow/${sowId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(
-              "inline-flex items-center gap-1 h-7 px-2.5 rounded-md",
-              "font-body text-[12px] font-medium text-text-secondary",
-              "hover:bg-surface-hover hover:text-foreground transition-colors duration-fast",
+          <div className="flex items-center gap-1.5">
+            {sowFileUrl && (
+              <a
+                href={sowFileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  "inline-flex items-center gap-1 h-7 px-2.5 rounded-md",
+                  "font-body text-[12px] font-semibold text-on-brand bg-brand",
+                  "hover:bg-brand-hover transition-colors duration-fast",
+                )}
+              >
+                View SOW document
+                <ExternalLink className="h-3 w-3" strokeWidth={2} aria-hidden />
+              </a>
             )}
-          >
-            Open record
-            <ExternalLink className="h-3 w-3" strokeWidth={2} aria-hidden />
-          </Link>
+            <Link
+              href={`/enterprise/sow/${sowId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                "inline-flex items-center gap-1 h-7 px-2.5 rounded-md",
+                "font-body text-[12px] font-medium text-text-secondary",
+                "hover:bg-surface-hover hover:text-foreground transition-colors duration-fast",
+              )}
+            >
+              Open record
+              <ExternalLink className="h-3 w-3" strokeWidth={2} aria-hidden />
+            </Link>
+          </div>
         }
       >
         <pre className="whitespace-pre-wrap font-body text-[12.5px] text-text-secondary leading-relaxed rounded-lg border border-stroke-subtle bg-bg-subtle/30 p-4 max-h-[min(52vh,520px)] overflow-auto">
