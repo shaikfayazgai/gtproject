@@ -60,7 +60,11 @@ def list_all_sows_admin(user: Annotated[dict, Depends(get_current_user)]):
 @router.get("/{sow_id}")
 def get_sow(sow_id: str, user: Annotated[dict, Depends(get_current_user)]):
     ensure_demo_data(user)
-    return ok(_load(sow_id, user["id"]))
+    # Platform admins (who sign the Commercial gate) can open ANY SOW by id;
+    # owners are scoped to their own. Without this, a Super Admin opening an
+    # enterprise-owned SOW from the Commercial gate got "SOW not found".
+    owner_scope = None if _is_admin(user) else user["id"]
+    return ok(_load(sow_id, owner_scope))
 
 
 @router.get("/enterprise/{sow_id}")

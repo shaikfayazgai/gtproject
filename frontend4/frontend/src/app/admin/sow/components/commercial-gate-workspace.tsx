@@ -168,7 +168,7 @@ export function CommercialGateWorkspace() {
   const listDescription =
     sorted.length === 0
       ? "No SOWs match"
-      : `${sorted.length} SOW${sorted.length === 1 ? "" : "s"} · stage 2 of 5`;
+      : `${sorted.length} SOW${sorted.length === 1 ? "" : "s"} · stage 5 of 5`;
 
   return (
     <div className="space-y-5 pb-12 animate-fade-in">
@@ -213,7 +213,7 @@ export function CommercialGateWorkspace() {
         </ContextBanner>
       )}
 
-      <DashboardSection title="Queue summary" description="Stage 2 · Glimmora Commercial sign-off">
+      <DashboardSection title="Queue summary" description="Stage 5 · Glimmora Commercial sign-off (final gate)">
         <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-4">
           <SummaryStat label="Awaiting sign-off" value={String(pending.length)} alert={pending.length > 0} />
           <SummaryStat label="SLA at risk" value={String(atRisk.length)} alert={atRisk.length > 0} />
@@ -385,7 +385,7 @@ function QueueRow({ sow }: { sow: SowSummary }) {
           </div>
           <p className="mt-0.5 font-body text-[11.5px] text-text-secondary truncate">{rowMeta(sow)}</p>
           <p className="mt-0.5 font-mono text-[10px] text-text-tertiary tabular-nums truncate">
-            {sow.id} · Finance ✓ · Stage 2/5
+            {sow.id} · Enterprise gates ✓ · Stage 5/5 (Commercial)
           </p>
         </div>
         <ChevronRight
