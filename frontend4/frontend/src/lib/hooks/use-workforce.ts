@@ -44,10 +44,10 @@ export function useAssignTask(taskId: string) {
   return useMutation<
     AssignTaskResult,
     Error,
-    { contributorUserId: string; directAssign?: boolean }
+    { contributorUserId: string; directAssign?: boolean; contributorEmail?: string }
   >({
-    mutationFn: ({ contributorUserId, directAssign }) =>
-      assignTask(taskId, contributorUserId, directAssign),
+    mutationFn: ({ contributorUserId, directAssign, contributorEmail }) =>
+      assignTask(taskId, contributorUserId, directAssign, contributorEmail),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["matching", "candidates", taskId] });
     },

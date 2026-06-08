@@ -382,6 +382,25 @@ async def list_mentors(admin: Annotated[dict, Depends(get_current_admin)]):
     return {"mentors": mentors, "total": len(mentors)}
 
 
+@router.get("/api/superadmin/contributors")
+async def list_contributors(admin: Annotated[dict, Depends(get_current_admin)]):
+    """Contributor accounts available for task assignment (contributor / freelancer
+    / women / student). Used to populate the project task assign drawer with REAL
+    people instead of mock candidates."""
+    conn = get_pg_connection()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            "SELECT id, email, first_name, last_name, role FROM login_accounts "
+            "WHERE (role LIKE 'contributor%' OR role IN ('freelancer','women','student')) "
+            "AND COALESCE(is_active, TRUE) ORDER BY created_at DESC")
+        contributors = [{
+            "id": str(r["id"]), "email": r["email"],
+            "name": (f"{r.get('first_name','') or ''} {r.get('last_name','') or ''}".strip() or r["email"]),
+            "role": r["role"],
+        } for r in cur.fetchall()]
+    return {"contributors": contributors, "total": len(contributors)}
+
+
 @router.get("/api/superadmin/sows/{sow_id}/mentor")
 async def get_sow_mentor(sow_id: str, admin: Annotated[dict, Depends(get_current_admin)]):
     """Currently-assigned mentor for a SOW (if any)."""

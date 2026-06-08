@@ -77,19 +77,36 @@ export async function fetchMatchCandidates(
   return parseJson(res);
 }
 
+/**
+ * Derive the decomposition planId from a DB task id. Backend task ids are shaped
+ * `task-<planId>-<index>` (e.g. task-plan-acme-mq4qsvqi-0 → plan-acme-mq4qsvqi).
+ */
+function planIdFromTaskId(taskId: string): string | null {
+  const m = taskId.match(/^task-(.+)-\d+$/);
+  return m ? m[1] : null;
+}
+
 export async function assignTask(
   taskId: string,
   contributorUserId: string,
   directAssign = false,
+  contributorEmail?: string,
 ): Promise<AssignTaskResult> {
-  const res = await fetchInternal(
-    `/api/enterprise/tasks/${encodeURIComponent(taskId)}/assign`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contributorUserId, directAssign }),
-    },
-  );
+  // Real backend assign lives on the decomposition plan:
+  // POST /api/v1/enterprise/decomposition/plans/{planId}/tasks/{taskId}/assign
+  const planId = planIdFromTaskId(taskId);
+  const url = planId
+    ? `/api/v1/enterprise/decomposition/plans/${encodeURIComponent(planId)}/tasks/${encodeURIComponent(taskId)}/assign`
+    : `/api/enterprise/tasks/${encodeURIComponent(taskId)}/assign`; // legacy fallback
+  const res = await fetchInternal(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contributorId: contributorUserId,
+      contributorEmail,
+      directAssign,
+    }),
+  });
   return parseJson(res);
 }
 

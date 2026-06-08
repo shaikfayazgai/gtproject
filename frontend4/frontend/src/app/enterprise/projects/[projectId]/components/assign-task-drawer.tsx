@@ -116,6 +116,7 @@ export function AssignTaskDrawer({
   const [done, setDone] = React.useState(false);
   const [mockCandidates, setMockCandidates] = React.useState<MatchedCandidate[]>([]);
   const [mockLoading, setMockLoading] = React.useState(false);
+  const [realContributors, setRealContributors] = React.useState<PickCandidate[]>([]);
   const [error, setError] = React.useState<string | null>(null);
 
   const assignMutation = useAssignTask(taskId);
@@ -152,6 +153,29 @@ export function AssignTaskDrawer({
         setMockCandidates(list);
         setMockLoading(false);
       })();
+    } else {
+      // DB task: load REAL contributor accounts as the candidate pool (the
+      // backend has no skill-match endpoint yet, so we list real people).
+      void (async () => {
+        try {
+          const res = await fetch("/api/superadmin/contributors", { cache: "no-store" });
+          if (!res.ok) return;
+          const data = (await res.json()) as {
+            contributors?: Array<{ id: string; name: string; email: string; role: string }>;
+          };
+          setRealContributors(
+            (data.contributors ?? []).map((c) => ({
+              id: c.id,
+              name: c.name,
+              email: c.email,
+              subtitle: c.role,
+              detail: "Available contributor",
+            })),
+          );
+        } catch {
+          // ignore — fall through to match-query candidates
+        }
+      })();
     }
   }, [open, requiredSkills, defaultTab, live]);
 
@@ -168,9 +192,12 @@ export function AssignTaskDrawer({
     if (tab === "organization") {
       const ranked = orgMatchQuery.data?.candidates.map(matchToPick) ?? [];
       if (ranked.length > 0) return ranked;
-      return (orgQuery.data?.items ?? []).map(workforceToPick);
+      const dir = (orgQuery.data?.items ?? []).map(workforceToPick);
+      if (dir.length > 0) return dir;
+      return realContributors; // real contributor accounts as the fallback pool
     }
-    return (netMatchQuery.data?.candidates ?? []).map(matchToPick);
+    const net = (netMatchQuery.data?.candidates ?? []).map(matchToPick);
+    return net.length > 0 ? net : realContributors;
   }, [
     live,
     tab,
@@ -188,6 +215,7 @@ export function AssignTaskDrawer({
         await assignMutation.mutateAsync({
           contributorUserId: picked.id,
           directAssign: tab === "organization",
+          contributorEmail: picked.email,
         });
         setDone(true);
         onAssigned?.();
