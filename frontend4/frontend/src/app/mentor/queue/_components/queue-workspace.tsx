@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import type { MockReview, SlaTier } from "@/mocks/mentor";
 import { fetchMentorReviews, MentorApiError } from "@/lib/api/mentor-mock";
+import { listMentorQueue } from "@/lib/api/mentor";
 import { Skeleton } from "@/components/meridian";
 import { Drawer } from "@/components/meridian/overlays";
 import { mentorPrimaryBtn, mentorSecondaryBtn } from "@/app/mentor/_components/mentor-ui";
@@ -28,6 +29,39 @@ import { cn } from "@/lib/utils/cn";
 
 const ROWS_PER_PAGE = 10;
 const PREVIEW_PER_GROUP = 5;
+
+/** Map a backend /api/mentor/queue row → the MockReview shape the UI renders. */
+function backendRowToReview(r: Record<string, unknown>): MockReview {
+  const str = (k: string, d = "") => (typeof r[k] === "string" ? (r[k] as string) : d);
+  const created = str("createdAt") || str("created_at") || new Date().toISOString();
+  return {
+    id: str("id"),
+    taskId: str("id"),
+    taskTitle: str("title") || "Submission",
+    taskSubtitle: str("brief") || "",
+    contributorId: str("menteeId") || str("mentee_id"),
+    contributorName: str("contributorName") || str("contributor_name") || "Contributor",
+    project: str("project") || str("sowId") || str("sow_id") || "—",
+    tenant: str("tenant") || "—",
+    skills: Array.isArray(r.skills) ? (r.skills as string[]) : [],
+    round: typeof r.round === "number" ? (r.round as number) : 1,
+    totalRounds: 3,
+    stage: str("submissionType") === "two_stage" || str("submission_type") === "two_stage"
+      ? "two_stage"
+      : "single",
+    submittedAt: created,
+    dueAt: str("dueAt") || str("due_at") || created,
+    slaTier: "healthy",
+    flag: null,
+    brief: str("brief") || "",
+    evidence: [],
+    criteria: [],
+    state: "open",
+    aiOverallConfidence: 0,
+    riskFlags: [],
+    references: [],
+  } as MockReview;
+}
 
 type FilterKey = "all" | "sla_risk" | "round_2" | "two_stage";
 type GroupMode = "flat" | "project" | "contributor";
@@ -188,12 +222,34 @@ export function MentorQueueWorkspace() {
   const extraFilters = advancedFilterCount(slaTiers, stages, roundFilter, flagFilters);
 
   const loadQueue = React.useCallback((signal?: AbortSignal) => {
-    fetchMentorReviews(signal)
-      .then((res) => setItems(res.items))
-      .catch((err: unknown) => {
-        if ((err as { name?: string }).name === "AbortError") return;
-        setError(err instanceof MentorApiError ? err.message : "Could not load queue.");
-      });
+    // Prefer the REAL backend queue (reviews routed from contributor submissions
+    // on SOWs assigned to this mentor). Fall back to the mock roster only if the
+    // backend is unavailable, so the demo UI still renders.
+    void (async () => {
+      try {
+        const raw = (await listMentorQueue()) as
+          | { data?: { items?: Record<string, unknown>[] }; items?: Record<string, unknown>[] }
+          | undefined;
+        const rows = raw?.data?.items ?? raw?.items ?? [];
+        if (signal?.aborted) return;
+        if (Array.isArray(rows) && rows.length > 0) {
+          setItems(rows.map(backendRowToReview));
+          setError(null);
+          return;
+        }
+        // Backend reachable but empty → show an empty real queue (not mock).
+        setItems([]);
+        setError(null);
+      } catch {
+        // Backend unavailable → fall back to mock so the page still works.
+        fetchMentorReviews(signal)
+          .then((res) => setItems(res.items))
+          .catch((err: unknown) => {
+            if ((err as { name?: string }).name === "AbortError") return;
+            setError(err instanceof MentorApiError ? err.message : "Could not load queue.");
+          });
+      }
+    })();
   }, []);
 
   React.useEffect(() => {
