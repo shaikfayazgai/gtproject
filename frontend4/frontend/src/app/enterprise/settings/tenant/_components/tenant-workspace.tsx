@@ -156,7 +156,34 @@ export function TenantWorkspace() {
 
   const handleResendInvite = (member: TenantMemberMock) => {
     setMenuMemberId(null);
-    toast.success("Invite resent", `A new invitation email was sent to ${member.email}.`);
+    // Credential resend (no links): re-provision → fresh temp password emailed +
+    // forced reset on first sign-in. Works while the member hasn't onboarded.
+    void (async () => {
+      try {
+        const res = await fetch("/api/superadmin/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: member.email,
+            role: member.roles?.includes("reviewer") ? "reviewer" : "enterprise",
+            sendCredentials: true,
+          }),
+        });
+        const body = (await res.json().catch(() => ({}))) as { emailSent?: boolean; error?: string };
+        if (!res.ok) {
+          toast.error("Resend failed", body.error ?? `Could not resend to ${member.email}.`);
+          return;
+        }
+        toast.success(
+          "Credentials resent",
+          body.emailSent
+            ? `A fresh temporary password was emailed to ${member.email}.`
+            : `Credentials regenerated for ${member.email} (forced reset on first sign-in).`,
+        );
+      } catch {
+        toast.error("Resend failed", `Could not resend to ${member.email}.`);
+      }
+    })();
   };
 
   const handleMemberAction = (action: string, member: TenantMemberMock) => {
