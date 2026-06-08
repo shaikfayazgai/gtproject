@@ -109,7 +109,52 @@ export function TenantWorkspace() {
   React.useEffect(() => setSearchDraft(search), [search]);
 
   const tenant = React.useMemo(() => getTenantInfoMock(), []);
-  const members = React.useMemo(() => getTenantMembersMock(), []);
+
+  // Real provisioned accounts (merged with the seeded demo members, deduped by
+  // email) so reviewers/admins created via Invite actually show up here.
+  const [realMembers, setRealMembers] = React.useState<TenantMemberMock[]>([]);
+  React.useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/superadmin/all-users", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          users?: Array<{ id: string; name: string; email: string; role: string; status: string; lastLoginAt?: string | null; createdAt?: string | null }>;
+        };
+        if (cancelled) return;
+        setRealMembers(
+          (data.users ?? []).map((u) => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            roles: [u.role],
+            status: (u.status === "suspended" ? "suspended" : u.status === "invited" ? "invited" : "active") as TenantMemberMock["status"],
+            invitedAt: u.status === "invited" ? u.createdAt ?? null : null,
+            lastActiveAt: u.lastLoginAt ?? null,
+          })),
+        );
+      } catch {
+        // keep mock-only on failure
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const members = React.useMemo(() => {
+    const seed = getTenantMembersMock();
+    const seedEmails = new Set(seed.map((m) => m.email.toLowerCase()));
+    // Real accounts first (newest provisioned on top), then seed demo members
+    // that aren't duplicated by a real account.
+    const merged = [
+      ...realMembers,
+      ...seed.filter((m) => !realMembers.some((r) => r.email.toLowerCase() === m.email.toLowerCase())),
+    ];
+    void seedEmails;
+    return merged;
+  }, [realMembers]);
   const summary = React.useMemo(() => computeTenantSummary(members), [members]);
 
   const setParam = React.useCallback(

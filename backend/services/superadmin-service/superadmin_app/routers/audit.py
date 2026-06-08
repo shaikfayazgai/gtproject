@@ -401,6 +401,37 @@ async def list_contributors(admin: Annotated[dict, Depends(get_current_admin)]):
     return {"contributors": contributors, "total": len(contributors)}
 
 
+@router.get("/api/superadmin/all-users")
+async def list_all_users(admin: Annotated[dict, Depends(get_current_admin)]):
+    """All provisioned accounts (for the enterprise member registry). status:
+    'invited' = never signed in / must change password; 'active' = has signed in;
+    'suspended' = is_active false."""
+    conn = get_pg_connection()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            "SELECT id, email, first_name, last_name, role, is_active, "
+            "must_change_password, last_login_at, created_at "
+            "FROM login_accounts ORDER BY created_at DESC")
+        users = []
+        for r in cur.fetchall():
+            if r.get("is_active") is False:
+                status = "suspended"
+            elif r.get("last_login_at"):
+                status = "active"
+            elif r.get("must_change_password"):
+                status = "invited"
+            else:
+                status = "active"
+            users.append({
+                "id": str(r["id"]), "email": r["email"],
+                "name": (f"{r.get('first_name','') or ''} {r.get('last_name','') or ''}".strip() or r["email"]),
+                "role": r["role"], "status": status,
+                "lastLoginAt": r["last_login_at"].isoformat() if r.get("last_login_at") else None,
+                "createdAt": r["created_at"].isoformat() if r.get("created_at") else None,
+            })
+    return {"users": users, "total": len(users)}
+
+
 @router.get("/api/superadmin/sows/{sow_id}/mentor")
 async def get_sow_mentor(sow_id: str, admin: Annotated[dict, Depends(get_current_admin)]):
     """Currently-assigned mentor for a SOW (if any)."""
